@@ -1,0 +1,67 @@
+digraph PlayerActorParallel {
+  graph [rankdir=LR, label="Player Actor Parallel State Regions", labelloc=t, fontsize=20];
+  node [shape=box, style="rounded", color="#d49b3a"];
+  edge [color="#9c6b1f"];
+
+  subgraph cluster_mobility {
+    label="Mobility";
+    Perched -> Launching [label="RIDER_LAUNCHED"];
+    Launching -> Cruise [label="AIRBORNE_CONFIRMED"];
+    Cruise -> Climb [label="FLAP_IMPULSE"];
+    Cruise -> Dive [label="DIVE_STARTED"];
+    Cruise -> Stall [label="STALL_STARTED"];
+    Climb -> Cruise [label="FLAP_DECAYED"];
+    Dive -> Cruise [label="DIVE_RELEASED"];
+    Stall -> Cruise [label="SPEED_RECOVERED"];
+    Cruise -> Landing [label="LAND_PRESSED"];
+    Landing -> Perched [label="RIDER_LANDED"];
+  }
+
+  subgraph cluster_lance {
+    label="Lance";
+    LanceIdle -> Bracing [label="BRACE_PRESSED"];
+    Bracing -> ContactCheck [label="JOUST_CONTACT"];
+    ContactCheck -> LanceRecovery [label="outcome resolved"];
+    ContactCheck -> Broken [label="LANCE_BROKEN"];
+    LanceRecovery -> LanceIdle [label="cooldown done"];
+    Broken -> LanceIdle [label="RESUPPLY_COMPLETE"];
+  }
+
+  subgraph cluster_ordnance {
+    label="Ordnance";
+    Ready -> BoltCooldown [label="BOLT_PRESSED + guard can_spawn_ordnance"];
+    Ready -> BombReleased [label="BOMB_PRESSED + guard can_spawn_ordnance"];
+    Ready -> Disabled [label="joust-only event"];
+    BoltCooldown -> Ready [label="cooldown done"];
+    BombReleased -> Ready [label="slot ready"];
+    Disabled -> Ready [label="EVENT_COMPLETED"];
+  }
+
+  subgraph cluster_interaction {
+    label="Interaction";
+    None -> CaptureChannel [label="near outpost"];
+    None -> ResupplyChannel [label="near resupply"];
+    None -> ShrineChannel [label="near shrine"];
+    None -> HostageChannel [label="near hostage"];
+    CaptureChannel -> None [label="complete/interrupted"];
+    ResupplyChannel -> None [label="complete/interrupted"];
+    ShrineChannel -> None [label="complete/interrupted"];
+    HostageChannel -> None [label="complete/interrupted"];
+  }
+
+  subgraph cluster_recovery {
+    label="Recovery";
+    Alive -> Stunned [label="knockback"];
+    Alive -> Unhorsed [label="unhorse"];
+    Alive -> Dead [label="clean kill / mount destroyed"];
+    Stunned -> Alive [label="STUN_DONE"];
+    Unhorsed -> Alive [label="RECOVERY_MOUNT_REACHED"];
+    Unhorsed -> Dead [label="GROUND_IMPACT"];
+    Dead -> Respawning [label="RESPAWN_TIMER_DONE"];
+    Respawning -> Alive [label="PLAYER_RESPAWNED"];
+  }
+
+  Dive -> ContactCheck [style=dashed, label="altitude/speed feed joust score"];
+  Bracing -> ContactCheck [style=dashed, label="brace_quality"];
+  ContactCheck -> Alive [style=dashed, label="emit JOUST_OUTCOME"];
+}

@@ -1,0 +1,20 @@
+[
+  "AssetsLoaded",
+  "StartSkirmish",
+  "StartBattle",
+  "FinishConstructing",
+  "SpawnReady",
+  "CountdownDone",
+  "TriggerTournament",
+  "ArenaReady",
+  "TournamentRegistered",
+  "TournamentRoundWon",
+  "TournamentChampionDeclared",
+  "EventConsequencesRecorded",
+  "EventCooldownDone",
+  "BombKeepBreach",
+  "VictoryCheck",
+  "ExportFinalScore",
+  "TallyRewards",
+  "CommitRewards"
+]

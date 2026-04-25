@@ -1,0 +1,22 @@
+digraph MatchLifecycle {
+  graph [rankdir=LR, label="Match Lifecycle State Graph", labelloc=t, fontsize=20];
+  node [shape=box, style="rounded", color="#d49b3a"];
+  edge [color="#9c6b1f"];
+
+  Inactive -> Constructing [label="MATCH_STARTED / seed RNG, open scoring"];
+  Constructing -> SpawnWarmup [label="MATCH_SETUP_READY"];
+  SpawnWarmup -> Countdown [label="SPAWN_READY"];
+  Countdown -> NormalPlay [label="COUNTDOWN_DONE"];
+  NormalPlay -> EventOverride [label="EVENT_RULES_APPLIED"];
+  EventOverride -> NormalPlay [label="EVENT_COMPLETED / restore baseline"];
+  NormalPlay -> SuddenDeath [label="SUDDEN_DEATH_TRIGGERED"];
+  EventOverride -> SuddenDeath [label="SUDDEN_DEATH_TRIGGERED"];
+  NormalPlay -> Paused [label="PAUSE_REQUESTED"];
+  EventOverride -> Paused [label="PAUSE_REQUESTED"];
+  Paused -> NormalPlay [label="RESUME"];
+  NormalPlay -> RoundOver [label="VICTORY_CONDITION_MET"];
+  EventOverride -> RoundOver [label="VICTORY_CONDITION_MET"];
+  SuddenDeath -> RoundOver [label="VICTORY_CONDITION_MET"];
+  RoundOver -> ResultsExported [label="FINAL_SCORE_SNAPSHOT"];
+  ResultsExported -> Inactive [label="RESET_MATCH_GRAPH"];
+}

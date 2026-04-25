@@ -1,0 +1,34 @@
+digraph SkyjoustOverview {
+  graph [rankdir=LR, label="Project Skyjoust Engine State Graph Overview", labelloc=t, fontsize=20];
+  node [shape=box, style="rounded,filled", fillcolor="#101820", fontcolor="#f6d77a", color="#d49b3a"];
+  edge [color="#d49b3a", fontcolor="#f6d77a"];
+
+  AppRuntime [label="App Runtime\nBoot/Menu/Setup/Results"];
+  Warfront [label="Warfront\nTerritory + Supply + Diplomacy"];
+  Match [label="Match Lifecycle\nBuild/Countdown/Active/RoundOver"];
+  Events [label="Ceremony Events\nTournament/Duel/Wedding/Banquet"];
+  Player [label="Player Actor × N\nFlight/Lance/Ordnance/Interact/Recovery"];
+  Objectives [label="Objectives\nKeeps/Outposts/Shrines/Supply/Hostages"];
+  Scoring [label="Scoring\nScore atoms + morale + victory checks"];
+  Rewards [label="Rewards\nGlory/Coin/Influence/Laurels/Unlocks"];
+  MatchRules [shape=note, label="MatchRules\ncurrent rules + temporary event modifiers"];
+  EventBus [shape=oval, label="Deterministic Event Bus\nimmutable events sorted by tick/entity"];
+
+  AppRuntime -> Warfront [label="START_WARFRONT"];
+  Warfront -> Match [label="START_BATTLE_MATCH"];
+  AppRuntime -> Match [label="START_SKIRMISH / START_VERSUS"];
+  Match -> Player [label="spawn actors"];
+  Match -> Objectives [label="spawn objectives"];
+  Events -> MatchRules [label="EVENT_RULES_APPLIED"];
+  MatchRules -> Player [label="guards: ordnance, duel lock, truce"];
+  MatchRules -> Scoring [label="modifiers"];
+  Player -> EventBus [label="JOUST_OUTCOME, BOMB_DROPPED, CAPTURE_TICK"];
+  Objectives -> EventBus [label="KEEP_BREACHED, OUTPOST_CAPTURED"];
+  EventBus -> Scoring [label="SCORE_EVENT_ACCEPTED"];
+  EventBus -> Events [label="HONOUR_VIOLATION, TRUCE_BROKEN"];
+  Scoring -> Match [label="VICTORY_CONDITION_MET"];
+  Match -> Rewards [label="FINAL_SCORE_SNAPSHOT"];
+  Events -> Rewards [label="event rewards/penalties"];
+  Rewards -> Warfront [label="REWARDS_COMMITTED + region consequences"];
+  Warfront -> Events [label="EVENT_ROLL_REQUESTED / queued edicts"];
+}

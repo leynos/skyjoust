@@ -1,0 +1,44 @@
+digraph EventRewardScoring {
+  graph [rankdir=LR, label="Ceremony + Scoring + Rewards Data/State Flow", labelloc=t, fontsize=20];
+  node [shape=box, style="rounded", color="#d49b3a"];
+  edge [color="#9c6b1f"];
+
+  subgraph cluster_events {
+    label="Ceremony Events";
+    Dormant -> CandidateSelection [label="EVENT_ROLL_REQUESTED"];
+    CandidateSelection -> Queued [label="EVENT_CANDIDATE_SELECTED"];
+    Queued -> Prompt [label="EVENT_TRIGGERED"];
+    Prompt -> Tournament [label="ACCEPT_EVENT(kind=tournament)"];
+    Prompt -> Duel [label="ACCEPT_EVENT(kind=duel)"];
+    Prompt -> Wedding [label="ACCEPT_EVENT(kind=wedding)"];
+    Prompt -> Banquet [label="ACCEPT_EVENT(kind=banquet)"];
+    Tournament -> Consequences [label="ChampionDeclared"];
+    Duel -> Consequences [label="ResolveDuel"];
+    Wedding -> Consequences [label="Expired or Broken"];
+    Banquet -> Consequences [label="TreatySigned or Collapsed"];
+    Consequences -> Cooldown -> Dormant;
+  }
+
+  subgraph cluster_scoring {
+    label="Scoring";
+    Listening -> BatchGameplayEvents [label="SCORE_EVENT_ACCEPTED"];
+    BatchGameplayEvents -> Classify -> ApplyRuleModifiers -> UpdateLedgers -> CheckVictory;
+    CheckVictory -> PublishVictory [label="victory guard true"];
+    PublishVictory -> Listening;
+    CheckVictory -> Listening [label="no victory"];
+    Listening -> FinalSnapshot [label="MATCH_ENDED"];
+  }
+
+  subgraph cluster_rewards {
+    label="Rewards";
+    LedgerOpen -> TallyBase -> ApplyPerformanceRewards -> ApplyEventRewards -> ApplyWarfrontRewards -> ResolvePenalties -> Commit -> ReadyToSpend;
+  }
+
+  Tournament -> ApplyRuleModifiers [style=dashed, label="joust multiplier / laurels"];
+  Duel -> ApplyRuleModifiers [style=dashed, label="duel lock / dishonour"];
+  Wedding -> ApplyRuleModifiers [style=dashed, label="truce + shared objectives"];
+  Banquet -> ApplyRuleModifiers [style=dashed, label="treaty multipliers"];
+  FinalSnapshot -> LedgerOpen [label="REWARD_LEDGER_OPENED"];
+  Consequences -> ApplyEventRewards [style=dashed, label="event_rewards / penalties"];
+  Commit -> Dormant [label="REWARDS_COMMITTED"];
+}

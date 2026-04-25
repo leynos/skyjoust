@@ -1,0 +1,64 @@
+schema: skyjoust.stateright_validator_contract.v1
+version: 0.1.0
+model: SkyjoustInteractionModel
+source_state_graph: ../skyjoust_state_graphs.yaml
+stateright_crate: "0.31"
+boundary:
+  default_max_depth: 24
+  ci_smoke_max_depth: 18
+state_dimensions:
+  app: [Boot, Title, SkirmishSetup, WarfrontSetup, WarfrontRunning, MatchRunning, Results]
+  warfront: [Inactive, GenerateOrLoad, StrategicChoice, BattlePreview, BattleLocked, AwaitingBattleResult, ApplyBattleResult, RewardCommit, BanquetNegotiation, SeasonComplete]
+  match_phase: [Inactive, Constructing, SpawnWarmup, Countdown, NormalPlay, EventOverride, SuddenDeath, RoundOver, ResultsExported]
+  ceremony:
+    dormant: Dormant
+    tournament: [ArenaBuild, Registration, RoundActive, ChampionDeclared]
+    duel: [ChallengeIssued, ArenaLock, DuelActive, ResolveDuel]
+    wedding: [AllianceProposed, TruceActive, JointObjective, Broken, Expired]
+    banquet: [Seating, TermsOpen, TreatySigned, Collapsed]
+    post_event: [ConsequenceResolution, Cooldown]
+  rules:
+    ordnance: [Full, Limited, Disabled]
+    friendly_fire: boolean
+    duel_lock: boolean
+    scoring_frozen: boolean
+    joust_only: boolean
+  ledgers:
+    score: [open, finalized, pending_delta, events_accepted, red_score, blue_score, red_glory, blue_glory, red_morale, blue_morale, victory_pending]
+    rewards: [phase, pending_delta, committed, glory, coin, influence, laurels, penalties, tournament_bonus_granted, duel_bonus_granted]
+actions:
+  runtime: [AssetsLoaded, StartSkirmish, StartWarfront, MapReady, SelectRegion, StartBattle, FinishConstructing, SpawnReady, CountdownDone]
+  ceremonies:
+    tournament: [TriggerTournament, ArenaReady, TournamentRegistered, TournamentRoundWon, TournamentChampionDeclared]
+    duel: [IssueDuel, AcceptDuel, DuelReady, DuelDecisiveJoust, DuelInterference]
+    wedding: [StartWeddingTruce, CompleteJointObjective, BreakTruce, ExpireTruce]
+    banquet: [OpenBanquet, BanquetReady, ProposeTreaty, AcceptTreaty, RejectTreaty]
+    common: [EventConsequencesRecorded, EventCooldownDone]
+  gameplay: [BracePressed, BraceWindowExpired, Joust, CaptureOutpost, ClaimShrine, BlockSupplyRoute, DeliverHostage, BombKeepBreach, TimerExpired, VictoryCheck]
+  scoring_rewards: [ExportFinalScore, TallyRewards, CommitRewards, NextWarfrontTurn, ReturnToTitle]
+always_properties:
+  rewards_commit_requires_final_score: RewardLedger.committed implies ScoreLedger.finalized
+  rewards_open_requires_final_score: RewardLedger.phase in [LedgerOpen, Tallied, Committed, ReadyToSpend] implies ScoreLedger.finalized
+  score_closed_after_final_snapshot: ScoreLedger.finalized implies not ScoreLedger.open
+  no_score_write_after_final_snapshot: post_final_score_write must remain false
+  committed_rewards_leave_active_match: RewardLedger.committed implies MatchPhase not in [NormalPlay, EventOverride, SuddenDeath]
+  duel_lock_only_during_duel: Rules.duel_lock implies active Duel or ConsequenceResolution
+  joust_only_disables_ordnance: Rules.joust_only implies OrdnancePolicy.Disabled and PlayerOrdnance.Disabled
+  truce_disables_friendly_fire: truce_active implies not Rules.friendly_fire
+  truce_break_is_penalized: truce_broken implies infamy > 0 and RewardLedger.penalties > 0
+  laurels_only_after_tournament_completion: laurels or tournament bonus implies tournament_completed
+  duel_reward_only_after_resolved_duel: duel_bonus_granted implies duel_resolved
+  temporary_rules_cleared_after_cooldown: Dormant/Cooldown with no truce implies baseline rules
+  round_over_has_winner: RoundOver/ResultsExported implies Winner != None
+  warfront_not_mutated_during_match: warfront_mutated_during_match must remain false
+sometimes_properties:
+  can_breach_keep_and_commit_rewards: keep_breached and rewards.committed and score.finalized
+  can_complete_tournament_and_get_laurels: tournament_completed and rewards.committed and laurels >= 3
+  can_resolve_duel_and_get_duel_rewards: duel_resolved and rewards.committed and influence >= 25
+  can_break_truce_and_receive_infamy: truce_broken and rewards.committed and infamy > 0 and penalties > 0
+  can_score_nonlethal_objective: outpost_controlled and red_score >= 200 and not keep_breached
+trace_validator:
+  input: JSON array of SkyAction enum values as serialized by serde
+  command: cargo run --bin validate_trace < trace.json
+  failure_exit_code: 2
+  output: TraceValidation JSON containing ok, final_state, and optional failure
