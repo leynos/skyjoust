@@ -9,7 +9,8 @@ RUST_FLAGS ?=
 RUST_FLAGS := -D warnings $(RUST_FLAGS)
 RUSTDOC_FLAGS ?=
 RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
-CARGO_FLAGS ?= --all-targets --all-features
+CARGO_FLAGS ?= --workspace --all-targets --all-features
+DOC_FLAGS ?= --workspace --all-features --no-deps
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
@@ -45,7 +46,7 @@ target/%/$(TARGET): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
 
 lint: ## Run Clippy with warnings denied
-	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
+	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc $(DOC_FLAGS)
 	$(CARGO) clippy $(CLIPPY_FLAGS)
 	@command -v whitaker >/dev/null 2>&1 && \
 		RUSTFLAGS="$(RUST_FLAGS)" whitaker --all -- $(CARGO_FLAGS) || \

@@ -1,11 +1,11 @@
 # Project Skyjoust roadmap
 
-This roadmap translates the product requirements, technical design, state graph
-bundle, Stateright validator contract, and reference design book into an
-outcome-oriented delivery sequence. It does not promise dates. Each phase
-carries one testable idea at the GIST level; the steps underneath answer
-sequencing questions and leave behind usable game functionality instead of
-isolated layers. Task counts are intentionally uneven: a step is split only
+This roadmap translates the Product Requirements Document (PRD), technical
+design, state graph bundle, Stateright validator contract, and reference design
+book into an outcome-oriented delivery sequence. It does not promise dates.
+Each phase carries one testable idea at the GIST level; the steps underneath
+answer sequencing questions and leave behind usable game functionality instead
+of isolated layers. Task counts are intentionally uneven: a step is split only
 where the build work has distinct acceptance surfaces, and thin validation work
 stays attached to the delivery task it proves.
 
@@ -23,8 +23,8 @@ pipeline before feature work broadens, later slices can prove arcade feel and
 Warfront progression without repeatedly rewriting interfaces.
 
 This phase is foundational, but it must still produce a running slice: a
-windowed application with a placeholder HUD, a skirmish lifecycle trace, and a
-validated asset manifest sample.
+windowed application with a placeholder heads-up display (HUD), a skirmish
+lifecycle trace, and a validated asset manifest sample.
 
 ### 1.1. Ratify decisions that would otherwise force rework
 
@@ -76,7 +76,8 @@ from presentation. See `docs/skyjoust-technical-design.md` §§4-5 and
   - Draw placeholder sky, terrain, riders, and debug layers.
   - Success: the application opens, renders a nonblank frame, preserves the
     chosen virtual resolution under resize, and reports input events.
-- [ ] 1.2.2. Add Bevy ECS resources and schedules for fixed simulation ticks.
+- [ ] 1.2.2. Add Bevy entity-component system (ECS) resources and schedules
+  for fixed simulation ticks.
   - Requires 1.2.1 and 1.1.3.
   - Keep presentation systems from writing authoritative simulation resources.
   - See `docs/skyjoust-state-graphs.yaml` `execution_model`.
@@ -138,8 +139,9 @@ review workflow, and future source art generation. See
     location before live generation starts.
 - [ ] 1.4.2. Write the imagegen prompt template set.
   - Requires 1.4.1.
-  - Include style-guide, house, mount, animation, terrain, UI ornament, event
-    panel, Warfront map, chroma-key, and edit-invariant templates.
+  - Include style-guide, house, mount, animation, terrain, user interface (UI)
+    ornament, event panel, Warfront map, chroma-key, and edit-invariant
+    templates.
   - See `docs/development-plan.md` §5.2.
   - Success: templates use the shared schema and state that runtime text owns
     gameplay-critical values.
@@ -157,7 +159,8 @@ review workflow, and future source art generation. See
     real image generation starts.
 - [ ] 1.4.5. Document the built-in imagegen and chroma-key transparency flow.
   - Requires 1.4.2.
-  - Include the rule that CLI fallback requires explicit confirmation.
+  - Include the rule that command-line interface (CLI) fallback requires
+    explicit confirmation.
   - See `docs/development-plan.md` §5.5.
   - Success: a developer can move from prompt to accepted source image to
     derived runtime asset without relying on unstated tool behaviour.
@@ -245,7 +248,7 @@ visual-effects timing. See `docs/skyjoust-product-requirements.md` §8.2 and
 
 This step answers whether the simplest match can start, score, end, export a
 final snapshot, and commit rewards without violating the validator contract. See
-`docs/skyjoust-state-graphs.yaml` `match_lifecycle`, `scoring`, and `rewards`.
+ `docs/skyjoust-state-graphs.yaml` `match_lifecycle`, `scoring`, and `rewards`.
 
 - [ ] 2.3.1. Map joust outcomes into score atoms and morale deltas.
   - Requires 2.2.4 and 1.3.2.
@@ -463,8 +466,8 @@ Idea: if tournament and duel events can alter rules, scoring, rewards, and UI
 without bypassing the state graph, Skyjoust proves that ceremony is a mechanic
 rather than a cutscene.
 
-This slice implements the MVP ceremony layer only. Wedding and banquet states
-stay visible as deferred contracts.
+This slice implements the Minimum Viable Product (MVP) ceremony layer only.
+Wedding and banquet states stay visible as deferred contracts.
 
 ### 5.1. Deliver tournament as a playable ruleset
 

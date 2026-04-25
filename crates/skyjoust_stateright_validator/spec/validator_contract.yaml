@@ -1,7 +1,7 @@
 schema: skyjoust.stateright_validator_contract.v1
 version: 0.1.0
 model: SkyjoustInteractionModel
-source_state_graph: ../skyjoust_state_graphs.yaml
+source_state_graph: ../../../docs/skyjoust-state-graphs.yaml
 stateright_crate: "0.31"
 boundary:
   default_max_depth: 24

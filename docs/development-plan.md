@@ -2,9 +2,10 @@
 
 Status: Living plan
 
-Scope: implement the Project Skyjoust MVP described in the PRD and technical
-design, while keeping the runtime consistent with the state graph bundle,
-Stateright validator, and reference design book images in `ref/`.
+Scope: implement the Project Skyjoust Minimum Viable Product (MVP) described in
+the Product Requirements Document (PRD) and technical design, while keeping the
+runtime consistent with the state graph bundle, Stateright validator, and
+reference design book images in `ref/`.
 
 ## 1. Source-of-truth order
 
@@ -38,7 +39,8 @@ change that resolves the contradiction.
 - Keeps, outposts, shrines, supply routes, and morale.
 - Tournament and duel ceremony events.
 - Warfront currencies: glory, coin, influence, and laurels.
-- Runtime HUD, event banners, menus, and Warfront map interface.
+- Runtime heads-up display (HUD), event banners, menus, and Warfront map
+  interface.
 - Imagegen-based source asset generation with manifests and validation.
 
 ### Out of scope for MVP
@@ -49,7 +51,7 @@ change that resolves the contradiction.
 - Large roster expansion.
 - Console and mobile ports.
 - Full localization.
-- Generated images used directly as gameplay-critical UI.
+- Generated images used directly as gameplay-critical user interface (UI).
 
 Wedding and banquet states remain in the data model and state graph contract so
 the runtime does not need a structural rewrite later.
@@ -184,8 +186,8 @@ Constraints:
 Rules:
 
 - Use built-in `imagegen` by default.
-- Do not use CLI fallback unless explicitly requested or confirmed for true
-  native transparency.
+- Do not use command-line interface (CLI) fallback unless explicitly requested
+  or confirmed for true native transparency.
 - Label every input image by role, for example `style reference`, `layout
   reference`, `subject reference`, or `edit target`.
 - Keep gameplay-critical text out of generated images.
@@ -352,7 +354,8 @@ Tasks:
 - Add runtime dependencies behind explicit feature choices.
 - Implement a `winit` runner.
 - Initialize `pixels` with fixed virtual resolution.
-- Add a Bevy app for ECS world, resources, schedules, and state resources.
+- Add a Bevy app for entity-component system (ECS) world, resources,
+  schedules, and state resources.
 - Add placeholder draw layers for sky, terrain, riders, HUD, and debug overlay.
 - Implement integer scaling and resize handling.
 - Draw a placeholder HUD shaped like the reference page:

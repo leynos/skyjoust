@@ -7,7 +7,7 @@ simulation, and verification harness.
 
 Companion documents:
 
-- [Product requirements](skyjoust-product-requirements.md)
+- [Product Requirements Document (PRD)](skyjoust-product-requirements.md)
 - [Development plan](development-plan.md)
 - [State graph bundle](skyjoust-state-graphs-README.md)
 - [Canonical state graph YAML](skyjoust-state-graphs.yaml)
@@ -24,10 +24,11 @@ terrain damage, and ceremonial rule shifts.
 The reference images in `ref/` establish a stronger visual contract than the
 original prose design. They define a 16-bit arcade presentation with navy and
 brass frames, heraldic houses, metallic title treatment, readable mount
-silhouettes, dense design-book panels, and HUD elements for altitude, brace
-timing, morale, ammo, objectives, and event banners. The runtime must render
-the game as a playable pixel world, not as the design book itself, but the book
-sets the palette, silhouette discipline, icon families, and hierarchy.
+silhouettes, dense design-book panels, and heads-up display (HUD) elements for
+altitude, brace timing, morale, ammo, objectives, and event banners. The
+runtime must render the game as a playable pixel world, not as the design book
+itself, but the book sets the palette, silhouette discipline, icon families,
+and hierarchy.
 
 The state graph bundle defines the authoritative high-level lifecycle. Runtime
 systems may refine combat, terrain, input, and presentation details, but they
@@ -41,8 +42,8 @@ for the implementation.
 
 - Run authoritative simulation on a fixed 120 Hz tick.
 - Render at variable rate through a fixed-resolution pixel framebuffer.
-- Keep simulation, rendering, audio, and user interface mutation boundaries
-  separate.
+- Keep simulation, rendering, audio, and user interface (UI) mutation
+  boundaries separate.
 - Model app runtime, match lifecycle, ceremony events, player actor state,
   objectives, scoring, rewards, and Warfront progression as explicit state
   resources.
@@ -55,13 +56,15 @@ for the implementation.
 
 ### Non-goals
 
-- Do not integrate Bevy's renderer for the initial runtime. Bevy supplies ECS,
-  schedules, and state resources; `pixels` owns presentation.
+- Do not integrate Bevy's renderer for the initial runtime. Bevy supplies
+  entity-component system (ECS) schedules and state resources; `pixels` owns
+  presentation.
 - Do not bake authoritative gameplay values into generated images.
 - Do not treat generated sheets as deterministic sprite atlases until they pass
   slicing, palette, alpha, and manifest checks.
-- Do not implement online multiplayer for the MVP. The simulation remains
-  input-driven and deterministic enough to support later rollback work.
+- Do not implement online multiplayer for the Minimum Viable Product (MVP).
+  The simulation remains input-driven and deterministic enough to support later
+  rollback work.
 - Do not implement full wedding and banquet systems for the MVP. Their state
   graph entries remain design contracts for later phases.
 
@@ -352,9 +355,9 @@ Each generated asset needs a manifest. The manifest should include:
 - reviewer notes,
 - consuming runtime module.
 
-The default generation path is built-in `imagegen`. CLI fallback is allowed
-only when explicitly requested or when true native transparency is confirmed
-after the chroma-key path proves unsuitable.
+The default generation path is built-in `imagegen`. Command-line interface
+(CLI) fallback is allowed only when explicitly requested or when true native
+transparency is confirmed after the chroma-key path proves unsuitable.
 
 ## 12. Audio
 
@@ -431,7 +434,7 @@ Table 4: Current decisions.
 | Decision                                                      | Rationale                                                                                                                                                             |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Use Bevy ECS without Bevy rendering for MVP                   | The state graph and simulation need ECS scheduling. The visual target needs a fixed pixel framebuffer with direct control over scaling and blitting.                  |
-| Use fixed 120 Hz simulation                                   | The PRD requires consistent collision feel and low-latency input. A fixed tick also supports replay and later rollback work.                                          |
+| Use fixed 120 Hz simulation                                   | The Product Requirements Document (PRD) requires consistent collision feel and low-latency input. A fixed tick also supports replay and later rollback work.          |
 | Treat Stateright as the lifecycle contract                    | The validator already proves the high-level scoring, reward, ceremony, and Warfront handoffs. Runtime tests should align with it instead of inventing parallel rules. |
 | Draw gameplay text at runtime                                 | Generated text is not reliable enough for counters, timers, prompts, and state-dependent values. Runtime text keeps UI correct and localizable later.                 |
 | Use imagegen outputs as production sources, not final atlases | Generated sheets need human review, slicing, palette normalization, transparency validation, and manifests before deterministic runtime use.                          |

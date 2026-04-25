@@ -1,0 +1,76 @@
+//! Action and small domain enums used by the Skyjoust validator model.
+
+use serde::{Deserialize, Serialize};
+
+/// Team identifier used for score, morale, and penalty routing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Team {
+    Red,
+    Blue,
+}
+
+/// Joust result categories that can become score atoms.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum JoustOutcome {
+    Knockback,
+    Unhorse,
+    Shatter,
+    CleanKill,
+}
+
+/// High-level actions explored by the Stateright model and trace validator.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SkyAction {
+    AssetsLoaded,
+    StartSkirmish,
+    StartWarfront,
+    MapReady,
+    SelectRegion,
+    StartBattle,
+    FinishConstructing,
+    SpawnReady,
+    CountdownDone,
+
+    TriggerTournament,
+    ArenaReady,
+    TournamentRegistered,
+    TournamentRoundWon,
+    TournamentChampionDeclared,
+
+    IssueDuel,
+    AcceptDuel,
+    DuelReady,
+    DuelDecisiveJoust { winner: Team, outcome: JoustOutcome },
+    DuelInterference { offender: Team },
+
+    StartWeddingTruce,
+    CompleteJointObjective,
+    BreakTruce,
+    ExpireTruce,
+
+    OpenBanquet,
+    BanquetReady,
+    ProposeTreaty,
+    AcceptTreaty,
+    RejectTreaty,
+
+    EventConsequencesRecorded,
+    EventCooldownDone,
+
+    BracePressed,
+    BraceWindowExpired,
+    Joust { winner: Team, outcome: JoustOutcome },
+    CaptureOutpost,
+    ClaimShrine,
+    BlockSupplyRoute,
+    DeliverHostage,
+    BombKeepBreach,
+    TimerExpired,
+    VictoryCheck,
+
+    ExportFinalScore,
+    TallyRewards,
+    CommitRewards,
+    NextWarfrontTurn,
+    ReturnToTitle,
+}

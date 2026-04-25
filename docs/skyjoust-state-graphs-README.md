@@ -5,9 +5,10 @@ game engine flow.
 
 Files:
 
-- `skyjoust_state_graphs.yaml` — canonical readable spec.
-- `skyjoust_state_graphs.json` — JSON equivalent of the same spec.
-- `skyjoust_overview.dot` — Graphviz overview showing parallel graphs and data flow.
+- `skyjoust-state-graphs.yaml` — canonical readable spec.
+- `skyjoust-state-graphs.json` — JSON equivalent of the same spec.
+- `skyjoust_overview.dot` — Graphviz overview showing parallel graphs and data
+  flow.
 - `skyjoust_match_lifecycle.dot` — Graphviz match lifecycle state graph.
 - `skyjoust_event_reward_scoring.dot` — Graphviz ceremony/scoring/reward
   state/data flow.
@@ -16,7 +17,8 @@ Files:
 Suggested engine usage:
 
 1. Treat each statechart as a small resource with its current state path.
-2. Evaluate guards with pure selectors over the Bevy ECS World during fixed ticks.
+2. Evaluate guards with pure selectors over the Bevy entity-component system
+   (ECS) World during fixed ticks.
 3. Buffer transition actions into deterministic command queues.
 4. Emit events into a stable, tick-indexed event bus.
 5. Let Scoring and Rewards consume events after gameplay resolution, not during

@@ -1,7 +1,7 @@
 schema: skyjoust.engine_state_graph.v1
 version: 0.1.0
-description: High-level parallel state graphs for Project Skyjoust. Designed for a Rust + Bevy ECS simulation with a fixed
-  tick, event bus, and explicit query contracts between graphs.
+description: High-level parallel state graphs for Project Skyjoust. Designed for a Rust + Bevy entity-component system
+  (ECS) simulation with a fixed tick, event bus, and explicit query contracts between graphs.
 execution_model:
   fixed_tick_hz: 120
   render_audio_ui: variable-rate presentation pass; never mutates authoritative simulation state
@@ -48,7 +48,7 @@ shared_context:
   resources:
     MatchRules:
     - victory_condition
-    - ordinance_policy
+    - ordnance_policy
     - friendly_fire
     - event_modifiers
     - scoring_multipliers
@@ -216,15 +216,15 @@ selectors:
     expression: match_lifecycle.state in ['Active.NormalPlay','Active.EventOverride','Active.SuddenDeath'] and !ceremony_events.flags.scoring_frozen
   match.can_spawn_ordnance:
     reads:
-    - MatchRules.ordinance_policy
+    - MatchRules.ordnance_policy
     - player_actor.ordnance.state
     - CeremonyState.temporary_rules
-    expression: MatchRules.ordinance_policy in ['full','limited'] and player_actor.ordnance.state == 'Ready'
+    expression: MatchRules.ordnance_policy in ['full','limited'] and player_actor.ordnance.state == 'Ready'
   match.joust_only:
     reads:
-    - MatchRules.ordinance_policy
+    - MatchRules.ordnance_policy
     - CeremonyState.active_event
-    expression: MatchRules.ordinance_policy == 'disabled' or CeremonyState.active_event.kind == 'Tournament'
+    expression: MatchRules.ordnance_policy == 'disabled' or CeremonyState.active_event.kind == 'Tournament'
   event.duel_locked:
     reads:
     - MatchRules.duel_lock

@@ -11,5 +11,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = validate_trace(&model, trace);
 
     println!("{}", serde_json::to_string_pretty(&result)?);
-    if result.ok { Ok(()) } else { std::process::exit(2) }
+    if result.ok {
+        Ok(())
+    } else {
+        std::process::exit(2)
+    }
 }

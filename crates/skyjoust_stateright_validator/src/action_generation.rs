@@ -1,0 +1,220 @@
+//! Action generation for each high-level validator concern.
+
+use crate::{
+    actions::{JoustOutcome, SkyAction, Team},
+    state::{
+        AppState,
+        BanquetState,
+        CeremonyState,
+        DuelState,
+        MatchPhase,
+        OrdnancePolicy,
+        PlayerOrdnance,
+        RewardPhase,
+        SkyState,
+        TournamentState,
+        WarfrontState,
+        WeddingState,
+    },
+};
+
+pub(crate) fn available_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    push_app_actions(state, actions);
+    push_match_actions(state, actions);
+    push_ceremony_continuation_actions(state, actions);
+    push_reward_actions(state, actions);
+}
+
+fn push_app_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    match state.app {
+        AppState::Boot => actions.push(SkyAction::AssetsLoaded),
+        AppState::Title => {
+            actions.push(SkyAction::StartSkirmish);
+            actions.push(SkyAction::StartWarfront);
+        }
+        AppState::SkirmishSetup => actions.push(SkyAction::StartBattle),
+        AppState::WarfrontSetup => actions.push(SkyAction::MapReady),
+        AppState::WarfrontRunning => push_warfront_actions(state, actions),
+        AppState::MatchRunning | AppState::Results => {}
+    }
+}
+
+fn push_warfront_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    match state.warfront {
+        WarfrontState::StrategicChoice => {
+            actions.push(SkyAction::SelectRegion);
+            actions.push(SkyAction::OpenBanquet);
+        }
+        WarfrontState::BattlePreview => actions.push(SkyAction::StartBattle),
+        _ => {}
+    }
+}
+
+fn push_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    match state.match_phase {
+        MatchPhase::Constructing => actions.push(SkyAction::FinishConstructing),
+        MatchPhase::SpawnWarmup => actions.push(SkyAction::SpawnReady),
+        MatchPhase::Countdown => actions.push(SkyAction::CountdownDone),
+        MatchPhase::NormalPlay | MatchPhase::EventOverride | MatchPhase::SuddenDeath => {
+            push_live_match_actions(state, actions);
+        }
+        MatchPhase::RoundOver => actions.push(SkyAction::ExportFinalScore),
+        MatchPhase::ResultsExported | MatchPhase::Inactive => {}
+    }
+}
+
+fn push_live_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    if !state.score.victory_pending {
+        push_active_match_actions(state, actions);
+    }
+    if state.score.victory_pending {
+        actions.push(SkyAction::VictoryCheck);
+    }
+    if matches!(
+        state.match_phase,
+        MatchPhase::NormalPlay | MatchPhase::SuddenDeath
+    ) {
+        push_ceremony_start_actions(state, actions);
+    }
+}
+
+fn push_active_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    if state.score.events_accepted < 4 && !state.rules.duel_lock {
+        actions.push(SkyAction::BracePressed);
+        actions.push(SkyAction::Joust {
+            winner: Team::Red,
+            outcome: JoustOutcome::Knockback,
+        });
+        actions.push(SkyAction::Joust {
+            winner: Team::Red,
+            outcome: JoustOutcome::Unhorse,
+        });
+        actions.push(SkyAction::Joust {
+            winner: Team::Red,
+            outcome: JoustOutcome::Shatter,
+        });
+        actions.push(SkyAction::CaptureOutpost);
+        actions.push(SkyAction::ClaimShrine);
+        actions.push(SkyAction::BlockSupplyRoute);
+        actions.push(SkyAction::DeliverHostage);
+        push_ordnance_actions(state, actions);
+    }
+    actions.push(SkyAction::TimerExpired);
+}
+
+fn push_ordnance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    if can_spawn_ordnance(state) {
+        actions.push(SkyAction::BombKeepBreach);
+    }
+}
+
+fn can_spawn_ordnance(state: &SkyState) -> bool {
+    is_match_ordnance_enabled(state) && is_player_ordnance_ready(state)
+}
+
+fn is_match_ordnance_enabled(state: &SkyState) -> bool {
+    matches!(
+        state.rules.ordnance,
+        OrdnancePolicy::Full | OrdnancePolicy::Limited
+    ) && !state.rules.joust_only
+}
+
+fn is_player_ordnance_ready(state: &SkyState) -> bool {
+    state.player_ordnance == PlayerOrdnance::Ready
+}
+
+fn push_ceremony_start_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    if state.ceremony == CeremonyState::Dormant && !state.score.victory_pending {
+        actions.push(SkyAction::TriggerTournament);
+        actions.push(SkyAction::IssueDuel);
+        actions.push(SkyAction::StartWeddingTruce);
+    }
+}
+
+fn push_ceremony_continuation_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    match state.ceremony {
+        CeremonyState::Tournament(state) => push_tournament_actions(state, actions),
+        CeremonyState::Duel(state) => push_duel_actions(state, actions),
+        CeremonyState::Wedding(state) => push_wedding_actions(state, actions),
+        CeremonyState::Banquet(state) => push_banquet_actions(state, actions),
+        CeremonyState::ConsequenceResolution => actions.push(SkyAction::EventConsequencesRecorded),
+        CeremonyState::Cooldown => actions.push(SkyAction::EventCooldownDone),
+        CeremonyState::Dormant | CeremonyState::Queued(_) | CeremonyState::Prompt(_) => {}
+    }
+}
+
+fn push_tournament_actions(state: TournamentState, actions: &mut Vec<SkyAction>) {
+    match state {
+        TournamentState::ArenaBuild => actions.push(SkyAction::ArenaReady),
+        TournamentState::Registration => actions.push(SkyAction::TournamentRegistered),
+        TournamentState::RoundActive => {
+            actions.push(SkyAction::TournamentRoundWon);
+            actions.push(SkyAction::TournamentChampionDeclared);
+        }
+        TournamentState::ChampionDeclared => {}
+    }
+}
+
+fn push_duel_actions(state: DuelState, actions: &mut Vec<SkyAction>) {
+    match state {
+        DuelState::ChallengeIssued => actions.push(SkyAction::AcceptDuel),
+        DuelState::ArenaLock => actions.push(SkyAction::DuelReady),
+        DuelState::DuelActive => {
+            actions.push(SkyAction::DuelDecisiveJoust {
+                winner: Team::Red,
+                outcome: JoustOutcome::CleanKill,
+            });
+            actions.push(SkyAction::DuelInterference {
+                offender: Team::Red,
+            });
+            actions.push(SkyAction::DuelInterference {
+                offender: Team::Blue,
+            });
+        }
+        DuelState::ResolveDuel => {}
+    }
+}
+
+fn push_wedding_actions(state: WeddingState, actions: &mut Vec<SkyAction>) {
+    match state {
+        WeddingState::TruceActive => {
+            actions.push(SkyAction::CompleteJointObjective);
+            actions.push(SkyAction::BreakTruce);
+            actions.push(SkyAction::ExpireTruce);
+        }
+        WeddingState::JointObjective => {
+            actions.push(SkyAction::BreakTruce);
+            actions.push(SkyAction::ExpireTruce);
+        }
+        WeddingState::AllianceProposed | WeddingState::Broken | WeddingState::Expired => {}
+    }
+}
+
+fn push_banquet_actions(state: BanquetState, actions: &mut Vec<SkyAction>) {
+    match state {
+        BanquetState::Seating => actions.push(SkyAction::BanquetReady),
+        BanquetState::TermsOpen => {
+            actions.push(SkyAction::ProposeTreaty);
+            actions.push(SkyAction::AcceptTreaty);
+            actions.push(SkyAction::RejectTreaty);
+        }
+        BanquetState::TreatySigned | BanquetState::Collapsed => {}
+    }
+}
+
+fn push_reward_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    match state.rewards.phase {
+        RewardPhase::LedgerOpen => actions.push(SkyAction::TallyRewards),
+        RewardPhase::Tallied => actions.push(SkyAction::CommitRewards),
+        RewardPhase::Committed => push_committed_reward_actions(state, actions),
+        RewardPhase::ReadyToSpend | RewardPhase::Dormant => {}
+    }
+}
+
+fn push_committed_reward_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    if state.warfront != WarfrontState::Inactive {
+        actions.push(SkyAction::NextWarfrontTurn);
+    } else {
+        actions.push(SkyAction::ReturnToTitle);
+    }
+}

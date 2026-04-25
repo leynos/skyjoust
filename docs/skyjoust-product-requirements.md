@@ -1,4 +1,4 @@
-# Skyjoust PRD
+# Skyjoust Product Requirements Document (PRD)
 
 ## 1. Summary
 
@@ -18,14 +18,15 @@ rules shifts, truce windows, and political consequences.
 
 ## 2. Vision and pillars
 
-**Vision:** “Arcade jousting meets total war soap opera—played at 60 FPS.”
+**Vision:** “Arcade jousting meets total war soap opera—played at 60 frames per
+second (FPS).”
 
 Gameplay pillars:
 
 1. **Height is might:** altitude advantage translates to joust dominance and
    tactical leverage.
-2. **Terrain matters:** the world is not a backdrop; it’s cover, hazard, and an
-   objective you can reshape.
+2. **Terrain matters:** the world is not a backdrop; it’s cover, hazard, and a
+   player-reshaped objective.
 3. **War as a system, not a menu:** territory control and politics create
    emergent match-to-match narrative.
 4. **Ceremony as mechanics:** tournaments and negotiations are not cutscenes;
@@ -76,7 +77,7 @@ Hard requirements:
 
 ## 6. Game modes
 
-### 6.1 MVP modes
+### 6.1 Minimum Viable Product (MVP) modes
 
 - **Skirmish (single match):** quick play with selectable rulesets.
 - **Warfront (campaign-lite):** a string of matches across a shifting
@@ -90,8 +91,8 @@ Hard requirements:
 
 ## 7. Player fantasy and roles
 
-You are a **mounted knight-pilot**, not a modern fighter ace. Skill expression
-comes from:
+The player is a **mounted knight-pilot**, not a modern fighter ace. Skill
+expression comes from:
 
 - energy management (altitude/speed),
 - collision geometry (angle, timing, lance alignment),
@@ -133,7 +134,7 @@ Two primary damage channels:
   - **Shatter** (break opponent’s lance; temporary disadvantage),
   - **Clean kill** (rare; requires strong advantage or debuffs).
 
-#### B) Ordinance and arms
+#### B) Ordnance and arms
 
 - Limited-ammo tools that complement jousting:
 
@@ -184,7 +185,7 @@ Examples (placeholder):
 - **House Gyrfalcon:** speed and chase-down; fragile structures.
 - **House Rocmere:** heavy mounts; siege bonus; slower recovery.
 - **House Nightheron:** stealth/smoke tools; strong duellists.
-- **House Wyrmwing:** risky ordinance; volatile but high ceiling.
+- **House Wyrmwing:** risky ordnance; volatile but high ceiling.
 
 ## 10. Special events system (the “ceremony layer”)
 
@@ -193,7 +194,7 @@ Events trigger within Warfront and sometimes mid-match as “edicts”. They mus
 
 ### 10.1 Jousting tournament
 
-- Temporary ruleset: reduced ordinance, emphasise joust contacts.
+- Temporary ruleset: reduced ordnance, emphasise joust contacts.
 - Bracket or score attack: players earn **Laurels** used for upgrades and
   political influence.
 - Arena spawns with clear lanes and minimal terrain randomness to keep it
@@ -220,7 +221,7 @@ Events trigger within Warfront and sometimes mid-match as “edicts”. They mus
 - Political effects:
 
   - breaking the truce creates an infamy debuff and can rally neutral factions
-    against you.
+    against the offender.
 
 ### 10.4 Banquet / peace negotiation
 
@@ -251,13 +252,13 @@ Progression principles:
 - Competitive modes should offer standardized loadouts or tightly bounded
   differences.
 
-## 12. UX/UI requirements
+## 12. User experience (UX) and user interface (UI) requirements
 
-In-match HUD must communicate fast:
+In-match heads-up display (HUD) must communicate fast:
 
 - altitude advantage indicator (subtle but readable),
 - lance brace window cue,
-- ammo/ordinance and resupply hints,
+- ammo/ordnance and resupply hints,
 - objective state (outposts, morale, keep integrity),
 - event banner with rules change summary (one line + iconography).
 
@@ -285,7 +286,8 @@ Audio:
 - Remappable controls, toggle/hold options.
 - Aim assist options for ranged weapons (separate from joust mechanics).
 - Visual clarity options (reduced screen shake, high-contrast objectives).
-- Difficulty presets affect AI aggression and resource scarcity, not physics.
+- Difficulty presets affect artificial intelligence (AI) aggression and
+  resource scarcity, not physics.
 
 ## 15. Technical requirements (high level)
 
@@ -318,7 +320,7 @@ MVP success metrics:
 - 2–3 houses
 - 4–6 mount types (including variants per house)
 - Skirmish + Warfront-lite
-- Joust contact system + 2 ordinance types
+- Joust contact system + 2 ordnance types
 - Procedural terrain with limited deformation
 - 2 special events (tournament + duel)
 

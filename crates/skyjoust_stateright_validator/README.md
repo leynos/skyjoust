@@ -6,7 +6,7 @@ contract that proves the important handoffs between parallel statecharts:
 
 - match lifecycle gates scoring,
 - ceremony events apply and clear temporary rules,
-- joust, objective, and ordinance actions become scoring atoms only when legal,
+- joust, objective, and ordnance actions become scoring atoms only when legal,
 - victory pushes the match into final score export,
 - rewards cannot commit before a finalized score snapshot,
 - truce breaks and dishonour create penalties,
@@ -18,8 +18,8 @@ contract that proves the important handoffs between parallel statecharts:
 cargo test
 ```
 
-The integration test runs a bounded Stateright DFS over the high-level model
-and asserts all `always` and `sometimes` properties.
+The integration test runs a bounded Stateright depth-first search (DFS) over
+the high-level model and asserts all `always` and `sometimes` properties.
 
 ## Explore the model in Stateright Explorer
 
@@ -61,10 +61,10 @@ For enum variants with fields:
 
 ## Files
 
-- `src/lib.rs` contains the Stateright `Model`, transition guards,
-  score/reward rules, invariants, reachability properties, and trace
-  validator.
-- `tests/stateright_contract.rs` is the CI smoke model check.
+- `src/lib.rs` exports the Stateright `Model`, state definitions, invariants,
+  reachability properties, and trace validator from focused modules.
+- `tests/stateright_contract.rs` is the continuous integration (CI) smoke
+  model check.
 - `examples/serve_explorer.rs` launches Stateright Explorer.
 - `src/bin/validate_trace.rs` replays a JSON action log from stdin.
 - `spec/validator_contract.yaml` is the machine-readable summary of the
