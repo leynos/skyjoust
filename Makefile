@@ -27,7 +27,18 @@ clean: ## Remove build artifacts
 test: ## Run tests with warnings treated as errors
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 ifneq ($(TEST_CMD),test)
-	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features
+	@doc_test_log="$$(mktemp)"; \
+	if RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features 2> "$$doc_test_log"; then \
+		rm -f "$$doc_test_log"; \
+	elif grep -q "no library targets found" "$$doc_test_log"; then \
+		cat "$$doc_test_log"; \
+		rm -f "$$doc_test_log"; \
+		echo "No library targets found; skipping doc tests."; \
+	else \
+		cat "$$doc_test_log"; \
+		rm -f "$$doc_test_log"; \
+		exit 1; \
+	fi
 endif
 
 target/%/$(TARGET): ## Build binary in debug or release mode
