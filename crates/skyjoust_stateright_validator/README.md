@@ -1,6 +1,8 @@
 # Project Skyjoust Stateright Validator
 
-This crate is a high-level Stateright validator for the Project Skyjoust engine state graphs. It is not a physics simulator. It is a compact interaction contract that proves the important handoffs between parallel statecharts:
+This crate is a high-level Stateright validator for the Project Skyjoust engine
+state graphs. It is not a physics simulator. It is a compact interaction
+contract that proves the important handoffs between parallel statecharts:
 
 - match lifecycle gates scoring,
 - ceremony events apply and clear temporary rules,
@@ -16,7 +18,8 @@ This crate is a high-level Stateright validator for the Project Skyjoust engine 
 cargo test
 ```
 
-The integration test runs a bounded Stateright DFS over the high-level model and asserts all `always` and `sometimes` properties.
+The integration test runs a bounded Stateright DFS over the high-level model
+and asserts all `always` and `sometimes` properties.
 
 ## Explore the model in Stateright Explorer
 
@@ -58,11 +61,14 @@ For enum variants with fields:
 
 ## Files
 
-- `src/lib.rs` contains the Stateright `Model`, transition guards, score/reward rules, invariants, reachability properties, and trace validator.
+- `src/lib.rs` contains the Stateright `Model`, transition guards,
+  score/reward rules, invariants, reachability properties, and trace
+  validator.
 - `tests/stateright_contract.rs` is the CI smoke model check.
 - `examples/serve_explorer.rs` launches Stateright Explorer.
 - `src/bin/validate_trace.rs` replays a JSON action log from stdin.
-- `spec/validator_contract.yaml` is the machine-readable summary of the validator contract.
+- `spec/validator_contract.yaml` is the machine-readable summary of the
+  validator contract.
 
 ## Extending the model
 
@@ -70,6 +76,9 @@ Add new gameplay interactions by doing three things:
 
 1. Add a `SkyAction` variant.
 2. Gate it in `actions` and `next_state`.
-3. Add at least one invariant or reachability property if the action touches rules, scoring, rewards, or Warfront state.
+3. Add at least one invariant or reachability property if the action touches
+   rules, scoring, rewards, or Warfront state.
 
-Keep the validator smaller than the runtime. The sweet spot is a model that catches illegal handoffs without trying to simulate every mount flap and pixel collision. Let the runtime do feathers; let Stateright watch the treaty table. 🦅
+Keep the validator smaller than the runtime. The sweet spot is a model that
+catches illegal handoffs without trying to simulate every mount flap and pixel
+collision. Let the runtime do feathers; let Stateright watch the treaty table.
