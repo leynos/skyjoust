@@ -5,7 +5,9 @@ bundle, Stateright validator contract, and reference design book into an
 outcome-oriented delivery sequence. It does not promise dates. Each phase
 carries one testable idea at the GIST level; the steps underneath answer
 sequencing questions and leave behind usable game functionality instead of
-isolated layers.
+isolated layers. Task counts are intentionally uneven: a step is split only
+where the build work has distinct acceptance surfaces, and thin validation work
+stays attached to the delivery task it proves.
 
 The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
@@ -71,9 +73,9 @@ from presentation. See `docs/skyjoust-technical-design.md` §§4-5 and
 - [ ] 1.2.1. Implement the runtime entrypoint, `winit` loop, and `pixels`
   framebuffer.
   - Requires 1.1.1 and 1.1.2.
-  - Draw placeholder sky, terrain, rider, HUD, and debug layers.
-  - Success: the application opens a nonblank window and preserves the chosen
-    virtual resolution under resize.
+  - Draw placeholder sky, terrain, riders, and debug layers.
+  - Success: the application opens, renders a nonblank frame, preserves the
+    chosen virtual resolution under resize, and reports input events.
 - [ ] 1.2.2. Add Bevy ECS resources and schedules for fixed simulation ticks.
   - Requires 1.2.1 and 1.1.3.
   - Keep presentation systems from writing authoritative simulation resources.
@@ -113,6 +115,13 @@ reward, and Warfront handoffs must already be constrained. See
     trace".
   - Success: known-good traces pass `validate_trace`, and illegal
     reward-before-score traces fail.
+- [ ] 1.3.4. Add graph-transition fixtures for illegal ordering cases.
+  - Requires 1.3.3.
+  - Cover reward-before-score, Warfront mutation during match, duel reward
+    before resolution, and tournament laurels before completion.
+  - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
+    `always_properties`.
+  - Success: runtime trace tests fail for each validator contract violation.
 
 ### 1.4. Establish the imagegen asset pipeline contract
 
@@ -140,7 +149,13 @@ review workflow, and future source art generation. See
     consuming modules.
   - See `docs/development-plan.md` §5.3.
   - Success: a sample manifest fails when paths or statuses drift.
-- [ ] 1.4.4. Document the built-in imagegen and chroma-key transparency flow.
+- [ ] 1.4.4. Add a checked sample source asset and derived placeholder output.
+  - Requires 1.4.3.
+  - Use a tiny committed fixture rather than generated production art.
+  - See `docs/development-plan.md` §§5.3 and 5.6.
+  - Success: pipeline tests can prove source-to-derived path validation before
+    real image generation starts.
+- [ ] 1.4.5. Document the built-in imagegen and chroma-key transparency flow.
   - Requires 1.4.2.
   - Include the rule that CLI fallback requires explicit confirmation.
   - See `docs/development-plan.md` §5.5.
@@ -165,20 +180,26 @@ without simulation-grade flight. It informs joust scoring and camera behaviour.
 See `docs/skyjoust-product-requirements.md` §§7-8.1 and
 `docs/skyjoust-technical-design.md` §8.
 
-- [ ] 2.1.1. Implement rider, mount, lance, velocity, team, health, and input
-  intent data.
+- [ ] 2.1.1. Implement rider, mount, lance, velocity, team, and health data.
   - Requires steps 1.1-1.3.
   - Align runtime fields with the `PlayerActor` component group in
     `docs/skyjoust-state-graphs.yaml`.
-  - Success: a test fixture can spawn two fully controllable riders.
-- [ ] 2.1.2. Implement launch, flap, dive, stall, landing, and respawn basics.
+  - Success: a test fixture can spawn two riders with deterministic starting
+    state.
+- [ ] 2.1.2. Implement input intent capture and replay fixture wiring.
   - Requires 2.1.1.
+  - Convert bindings into per-tick intent components before simulation runs.
+  - See `docs/skyjoust-technical-design.md` §§5 and 13.
+  - Success: replaying the same intent stream produces the same input state
+    sequence.
+- [ ] 2.1.3. Implement launch, flap, dive, stall, landing, and respawn basics.
+  - Requires 2.1.1 and 2.1.2.
   - See `docs/skyjoust-state-graphs.yaml` `player_actor.mobility`.
   - Success: replaying the same input stream produces the same position and
     state sequence.
-- [ ] 2.1.3. Draw flight debug overlays for altitude, velocity, and rider
+- [ ] 2.1.4. Draw flight debug overlays for altitude, velocity, and rider
   state.
-  - Requires 2.1.2 and 1.2.3.
+  - Requires 2.1.3 and 1.2.3.
   - See `docs/skyjoust-product-requirements.md` §§12 and 18.
   - Success: a surprising altitude outcome can be diagnosed from one captured
     frame and event trace.
@@ -191,7 +212,7 @@ visual-effects timing. See `docs/skyjoust-product-requirements.md` §8.2 and
 `docs/skyjoust-technical-design.md` §8.
 
 - [ ] 2.2.1. Implement stable broadphase candidate ordering for rider contact.
-  - Requires 2.1.1.
+  - Requires 2.1.3.
   - Sort candidates by tick and stable entity IDs.
   - See `docs/skyjoust-technical-design.md` §8.
   - Success: pair resolution order is identical across repeated runs.
@@ -200,15 +221,21 @@ visual-effects timing. See `docs/skyjoust-product-requirements.md` §8.2 and
   - See `docs/skyjoust-state-graphs.yaml` `player_actor.lance`.
   - Success: invalid contact produces physics response only, while valid lance
     contact emits `JOUST_OUTCOME`.
-- [ ] 2.2.3. Implement knockback, unhorse, shatter, and clean-kill outcomes.
+- [ ] 2.2.3. Implement outcome selection for knockback, unhorse, shatter, and
+  clean kills.
   - Requires 2.2.2.
-  - Feed recovery, scoring, audio-event, and debug systems from the same
-    outcome event.
   - See `docs/skyjoust-product-requirements.md` §8.2 and
     `docs/skyjoust-state-graphs.yaml` `scoring_rules.score_atoms`.
   - Success: golden tests cover all four outcomes.
-- [ ] 2.2.4. Add visual and audio event placeholders for joust outcomes.
+- [ ] 2.2.4. Route joust outcomes into recovery, scoring, and debug events.
   - Requires 2.2.3.
+  - Feed recovery, scoring, audio-event, and debug systems from the same
+    ordered outcome event.
+  - See `docs/skyjoust-state-graphs.yaml` `event_routes`.
+  - Success: one trace can explain the physical result, score atom, and
+    recovery timer for a contact.
+- [ ] 2.2.5. Add visual and audio event placeholders for joust outcomes.
+  - Requires 2.2.4.
   - Emit events for lance clash, wing flap, stun, unhorse, shatter, and kill
     without letting presentation mutate simulation.
   - See `docs/skyjoust-technical-design.md` §§10 and 12.
@@ -218,18 +245,24 @@ visual-effects timing. See `docs/skyjoust-product-requirements.md` §8.2 and
 
 This step answers whether the simplest match can start, score, end, export a
 final snapshot, and commit rewards without violating the validator contract. See
- `docs/skyjoust-state-graphs.yaml` `match_lifecycle`, `scoring`, and `rewards`.
+`docs/skyjoust-state-graphs.yaml` `match_lifecycle`, `scoring`, and `rewards`.
 
 - [ ] 2.3.1. Map joust outcomes into score atoms and morale deltas.
-  - Requires 2.2.3 and 1.3.2.
+  - Requires 2.2.4 and 1.3.2.
   - See `docs/skyjoust-state-graphs.yaml` `scoring_rules`.
   - Success: scores update only through the scoring graph.
 - [ ] 2.3.2. Implement victory by timer decision and debug-forced win.
   - Requires 2.3.1.
   - See `docs/skyjoust-state-graphs.yaml` `scoring.victory_conditions`.
   - Success: round-over states always include a winner.
-- [ ] 2.3.3. Commit skirmish rewards after final score export.
+- [ ] 2.3.3. Export the final score snapshot and freeze post-final scoring.
   - Requires 2.3.2.
+  - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
+    `always_properties`.
+  - Success: final-score snapshots reject later score writes in tests and
+    traces.
+- [ ] 2.3.4. Commit skirmish rewards after final score export.
+  - Requires 2.3.3.
   - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
     `always_properties`.
   - Success: validator traces prove rewards never open or commit before the
@@ -258,7 +291,8 @@ camera bounds, renderer caching, and replay. See
   - Include material cells, dirty rectangles, optional collision spans, and a
     deformation log.
   - See `docs/skyjoust-technical-design.md` §9.
-  - Success: seed plus biome parameters regenerate identical chunks.
+  - Success: terrain chunks expose stable material and collision queries, and
+    seed plus biome parameters regenerate identical chunks.
 - [ ] 3.1.2. Place keeps, outposts, shrines, supply anchors, and spawn
   corridors.
   - Requires 3.1.1.
@@ -280,17 +314,24 @@ rendering, and keep-breach victory. See `docs/skyjoust-state-graphs.yaml`
 `event_routes` and `docs/development-plan.md` §9.
 
 - [ ] 3.2.1. Implement bomb and bolt ordnance states.
-  - Requires 3.1.1 and 2.2.4.
+  - Requires 3.1.1 and 2.2.5.
   - Gate firing through `match.can_spawn_ordnance`.
   - See `docs/skyjoust-state-graphs.yaml` `player_actor.ordnance`.
   - Success: tournament-style joust-only rules can disable ordnance.
-- [ ] 3.2.2. Implement terrain deformation and dirty-rectangle invalidation.
+- [ ] 3.2.2. Implement impact resolution against riders, terrain, and
+  structures.
   - Requires 3.2.1.
+  - Route rider hits, terrain hits, and structure hits through distinct events.
+  - See `docs/skyjoust-state-graphs.yaml` `event_routes`.
+  - Success: impact tests can distinguish splash damage, terrain deformation,
+    and structural damage.
+- [ ] 3.2.3. Implement terrain deformation and dirty-rectangle invalidation.
+  - Requires 3.2.2.
   - Preserve indestructible materials and record deformation events.
   - See `docs/skyjoust-technical-design.md` §9.
   - Success: repeated seed and bomb inputs produce the same terrain hash.
-- [ ] 3.2.3. Implement keep damage, core exposure, and keep-breach victory.
-  - Requires 3.2.2 and 2.3.2.
+- [ ] 3.2.4. Implement keep damage, core exposure, and keep-breach victory.
+  - Requires 3.2.3 and 2.3.2.
   - See `docs/skyjoust-state-graphs.yaml` `objectives.keeps`.
   - Success: keep breach emits `VICTORY_CONDITION_MET` through scoring, not
     directly from ordnance code.
@@ -302,7 +343,7 @@ diluting arcade pace. It informs HUD priority and Warfront reward inputs. See
 `docs/skyjoust-product-requirements.md` §§5 and 8.3.
 
 - [ ] 3.3.1. Implement outpost capture and contest state.
-  - Requires 3.1.2 and 2.3.1.
+  - Requires 3.1.3 and 2.3.1.
   - See `docs/skyjoust-state-graphs.yaml` `objectives.outposts`.
   - Success: outpost capture posts score, morale, and ammo-income events.
 - [ ] 3.3.2. Implement shrine claim and buff expiry.
@@ -339,15 +380,20 @@ See `docs/skyjoust-technical-design.md` §§3 and 11.
   - See `docs/development-plan.md` §5.4.
   - Success: each accepted source image has a prompt file, manifest, input
     image roles, and review note.
-- [ ] 4.1.2. Implement palette, alpha, slicing, and atlas validation tools.
+- [ ] 4.1.2. Implement palette and alpha validation tools for source assets.
   - Requires 1.4.3 and 4.1.1.
-  - Cover `validate_asset_manifest`, `quantize`, `slice_sheet`,
-    `pack_atlas`, `check_alpha`, and `check_palette` as needed.
+  - Cover `quantize`, `check_alpha`, and `check_palette` as needed.
   - See `docs/development-plan.md` §5.6.
-  - Success: invalid palette, transparency, or slicing output fails before
-    runtime loading.
-- [ ] 4.1.3. Load only runtime-approved assets through manifests.
-  - Requires 4.1.2 and 1.2.1.
+  - Success: invalid palette or transparency output fails before runtime
+    loading.
+- [ ] 4.1.3. Implement slicing and atlas packing validation tools.
+  - Requires 4.1.2 and 1.4.4.
+  - Cover `validate_asset_manifest`, `slice_sheet`, and `pack_atlas`.
+  - See `docs/development-plan.md` §5.6.
+  - Success: frame bounds, pivots, tags, and atlas metadata fail fast when
+    source art drifts.
+- [ ] 4.1.4. Load only runtime-approved assets through manifests.
+  - Requires 4.1.3 and 1.2.1.
   - See `docs/skyjoust-technical-design.md` §11.
   - Success: missing or unapproved assets fail with named diagnostics.
 
@@ -358,19 +404,26 @@ legible at speed after source art lands. It informs animation scope and camera
 tuning. See `docs/skyjoust-product-requirements.md` §13.
 
 - [ ] 4.2.1. Integrate first rider, mount, lance, and effect atlases.
-  - Requires 4.1.3 and phase 2.
+  - Requires 4.1.4 and phase 2.
   - Start with limited animation states: idle/perched, launch, flap, dive,
     brace, hit, and recovery.
   - See `docs/development-plan.md` §5.4 wave 3.
   - Success: each combat state has a recognizable silhouette at gameplay
     scale.
-- [ ] 4.2.2. Integrate terrain materials, keep, outpost, shrine, and route
+- [ ] 4.2.2. Integrate combat effect atlases for contact and ordnance events.
+  - Requires 4.2.1 and 3.2.2.
+  - Cover lance clash, hit sparks, shatter, stun, bomb trails, and impact
+    flashes.
+  - See `docs/skyjoust-technical-design.md` §§10 and 12.
+  - Success: effects communicate the event type without hiding rider
+    silhouettes.
+- [ ] 4.2.3. Integrate terrain materials, keep, outpost, shrine, and route
   assets.
-  - Requires 4.1.3 and phase 3.
+  - Requires 4.1.4 and phase 3.
   - See `docs/development-plan.md` §5.4 wave 4.
   - Success: terrain visuals reflect collision material and deformation state.
-- [ ] 4.2.3. Add camera, shake, flash, and debug overlays that preserve clarity.
-  - Requires 4.2.1 and 4.2.2.
+- [ ] 4.2.4. Add camera, shake, flash, and debug overlays that preserve clarity.
+  - Requires 4.2.1, 4.2.2, and 4.2.3.
   - See `docs/skyjoust-product-requirements.md` §§12-14.
   - Success: visual effects can be reduced or disabled without hiding gameplay
     state.
@@ -383,17 +436,21 @@ state during actual play. It informs ceremony panels and Warfront UI. See
 
 - [ ] 4.3.1. Replace placeholder HUD panels with validated ornaments and
   renderer-owned glyphs.
-  - Requires 4.1.3 and 1.2.3.
+  - Requires 4.1.4 and 1.2.3.
   - Cover altitude, brace, morale, ammo, objectives, timer, teams, and event
     banner shell.
   - See `docs/skyjoust-product-requirements.md` §12.
   - Success: HUD values are live, readable, and independent of generated
     image text.
 - [ ] 4.3.2. Implement Kira audio buses and event-to-sound mapping.
-  - Requires 2.2.4.
-  - Include music, sound-effect, and UI buses with rate limits.
+  - Requires 2.2.5.
+  - Include music, sound-effect, and UI buses with rate limits and
+    device-failure handling.
+  - Cover lance clash, wing flap, stun, unhorse, shatter, kill, capture, and
+    menu confirmation events.
   - See `docs/skyjoust-technical-design.md` §12.
-  - Success: audio-device failure cannot change match outcome or event order.
+  - Success: audio-device failure or cue rate limiting cannot change match
+    outcome or event order.
 - [ ] 4.3.3. Add nonblank rendering and resize smoke tests.
   - Requires 4.3.1.
   - See `docs/development-plan.md` §15.
@@ -416,20 +473,30 @@ skill, award laurels, and return safely to normal match flow. See
 `docs/skyjoust-product-requirements.md` §10.1 and
 `docs/skyjoust-state-graphs.yaml` `ceremony_events.Tournament`.
 
-- [ ] 5.1.1. Implement tournament arena build, registration, bracket seed, and
-  round countdown states.
+- [ ] 5.1.1. Implement tournament arena build, registration, and rule
+  application states.
   - Requires phases 2-4.
   - Success: tournament setup applies temporary rules through
     `EVENT_RULES_APPLIED`.
-- [ ] 5.1.2. Implement round scoring, honour audit, champion declaration, and
-  laurel rewards.
-  - Requires 5.1.1 and 2.3.3.
+- [ ] 5.1.2. Implement bracket seed, round countdown, and round transition
+  states.
+  - Requires 5.1.1.
+  - See `docs/skyjoust-state-graphs.yaml` `ceremony_events.Tournament`.
+  - Success: each round starts from graph state rather than presentation
+    timers.
+- [ ] 5.1.3. Implement round scoring and honour audit.
+  - Requires 5.1.2 and 2.3.3.
+  - See `docs/skyjoust-product-requirements.md` §10.1.
+  - Success: tournament scoring rejects ordnance-only or invalid-contact
+    wins.
+- [ ] 5.1.4. Implement champion declaration and laurel rewards.
+  - Requires 5.1.3 and 2.3.4.
   - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
     `always_properties.laurels_only_after_tournament_completion`.
   - Success: laurels cannot be granted before tournament completion.
-- [ ] 5.1.3. Render tournament bracket, rule summary, and reward preview
+- [ ] 5.1.5. Render tournament bracket, rule summary, and reward preview
   panels.
-  - Requires 5.1.2 and 4.3.1.
+  - Requires 5.1.4 and 4.3.1.
   - See `docs/skyjoust-technical-design.md` §§3 and 10.
   - Success: tournament UI reflects current graph state and contains no
     gameplay-critical baked values.
@@ -441,21 +508,29 @@ resolve a decisive joust, and award consequences without corrupting scoring. See
  `docs/skyjoust-product-requirements.md` §10.2 and
 `docs/skyjoust-state-graphs.yaml` `ceremony_events.Duel`.
 
-- [ ] 5.2.1. Implement duel issue, accept/refuse, arena lock, and duel active
-  states.
+- [ ] 5.2.1. Implement duel issue, accept, and refuse states.
   - Requires phases 2-4.
+  - See `docs/skyjoust-product-requirements.md` §10.2.
+  - Success: a refused duel exits through a visible consequence path rather
+    than silently cancelling.
+- [ ] 5.2.2. Implement arena lock and duel-active participant constraints.
+  - Requires 5.2.1.
   - See `docs/skyjoust-state-graphs.yaml` selectors `event.duel_locked` and
     `player.lance_contact_valid`.
   - Success: non-duelist scoring is blocked while duel lock is active.
-- [ ] 5.2.2. Implement duel resolution, interference, honour violation, and
-  reward/penalty queueing.
-  - Requires 5.2.1 and 2.3.3.
+- [ ] 5.2.3. Implement duel resolution, interference, and honour violation
+  outcomes.
+  - Requires 5.2.2.
+  - See `docs/skyjoust-state-graphs.yaml` `ceremony_events.Duel`.
+  - Success: interference creates an explicit penalty event without resolving
+    the duel as a clean win.
+- [ ] 5.2.4. Implement duel reward and penalty queueing.
+  - Requires 5.2.3 and 2.3.4.
   - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
     `always_properties.duel_reward_only_after_resolved_duel`.
-  - Success: duel rewards require a resolved duel, and interference creates a
-    visible penalty path.
-- [ ] 5.2.3. Render duel prompts, honour rules, and consequence panels.
-  - Requires 5.2.2 and 4.3.1.
+  - Success: duel rewards require a resolved duel before reward commit.
+- [ ] 5.2.5. Render duel prompts, honour rules, and consequence panels.
+  - Requires 5.2.4 and 4.3.1.
   - See `docs/skyjoust-technical-design.md` §10.
   - Success: players can see who is locked, what is forbidden, and what the
     duel result changes.
@@ -468,7 +543,7 @@ hidden state leaks. It informs all post-MVP diplomacy events. See
 
 - [ ] 5.3.1. Add tests for temporary rule application, cooldown, and baseline
   restoration.
-  - Requires 5.1.2 and 5.2.2.
+  - Requires 5.1.4 and 5.2.4.
   - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
     `always_properties.temporary_rules_cleared_after_cooldown`.
   - Success: tournament and duel modifiers clear after cooldown when no truce
@@ -494,18 +569,22 @@ turn, and resume only after match result and reward commit. See
 `docs/skyjoust-product-requirements.md` §§5-6 and
 `docs/skyjoust-state-graphs.yaml` `warfront`.
 
-- [ ] 6.1.1. Implement region ownership, adjacency, supply routes, and
-  pressure vectors.
+- [ ] 6.1.1. Implement region ownership and adjacency data.
   - Requires phase 3.
   - See `docs/skyjoust-state-graphs.yaml` `shared_context.CampaignState`.
-  - Success: a campaign seed creates a deterministic map and route network.
-- [ ] 6.1.2. Implement battle preview, battle lock, and match launch from a
+  - Success: a campaign seed creates a deterministic control map.
+- [ ] 6.1.2. Implement supply routes and pressure vectors.
+  - Requires 6.1.1 and 3.3.3.
+  - See `docs/skyjoust-product-requirements.md` §§5 and 11.
+  - Success: route state can affect battle pressure without mutating active
+    match state.
+- [ ] 6.1.3. Implement battle preview, battle lock, and match launch from a
   selected region.
-  - Requires 6.1.1 and phase 2.
+  - Requires 6.1.2 and phase 2.
   - See `docs/skyjoust-state-graphs.yaml` `warfront.BattlePreview`.
   - Success: Warfront state freezes while the match is active.
-- [ ] 6.1.3. Apply match results to region control after reward commit.
-  - Requires 6.1.2 and 2.3.3.
+- [ ] 6.1.4. Apply match results to region control after reward commit.
+  - Requires 6.1.3 and 2.3.4.
   - See `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`
     `always_properties.warfront_not_mutated_during_match`.
   - Success: no Warfront mutation occurs before `REWARDS_COMMITTED`.
@@ -516,19 +595,23 @@ This step answers whether glory, coin, influence, laurels, and simple strategic
 actions can create a campaign-lite loop without deep strategy. See
 `docs/skyjoust-product-requirements.md` §11.
 
-- [ ] 6.2.1. Implement currency ledgers, recruit/deploy cards, and repair or
-  supply cards.
+- [ ] 6.2.1. Implement glory, coin, influence, and laurel ledgers.
   - Requires 6.1.1.
   - See `docs/skyjoust-state-graphs.yaml` `reward_rules`.
+  - Success: reward commit updates currencies through one auditable ledger
+    path.
+- [ ] 6.2.2. Implement recruit, deploy, repair, and supply cards.
+  - Requires 6.2.1.
+  - See `docs/skyjoust-product-requirements.md` §11.
   - Success: rewards can be spent on sidegrade-style actions without pure stat
     inflation.
-- [ ] 6.2.2. Implement event forecast and active modifier summaries.
-  - Requires 6.2.1 and phase 5.
+- [ ] 6.2.3. Implement event forecast and active modifier summaries.
+  - Requires 6.2.2 and phase 5.
   - See `docs/skyjoust-product-requirements.md` §12.
   - Success: upcoming events appear as probabilities or forecasts, not a fixed
     timetable.
-- [ ] 6.2.3. Persist campaign state, unlocks, and penalties.
-  - Requires 6.1.3 and 6.2.1.
+- [ ] 6.2.4. Persist campaign state, unlocks, and penalties.
+  - Requires 6.1.4 and 6.2.2.
   - See `docs/skyjoust-technical-design.md` §13.
   - Success: reloading a save preserves region ownership, currencies, queued
     events, and active modifiers.
@@ -541,13 +624,13 @@ interface rather than a static illustration. It informs final UI polish. See
 
 - [ ] 6.3.1. Render map control, route state, pressure arrows, and region
   selection overlays.
-  - Requires 6.1.1 and 4.1.3.
+  - Requires 6.1.2 and 4.1.4.
   - See `docs/development-plan.md` §5.4 wave 5.
   - Success: every displayed marker comes from campaign state or manifest
     assets.
 - [ ] 6.3.2. Render recruit, repair, political move, event forecast, active
   modifier, and summary panels.
-  - Requires 6.2.2 and 6.3.1.
+  - Requires 6.2.3 and 6.3.1.
   - See `docs/skyjoust-product-requirements.md` §12.
   - Success: the Warfront screen supports selecting the next battle and
     spending available resources.
@@ -578,22 +661,28 @@ preserving deterministic combat. See `docs/skyjoust-product-requirements.md`
   - Requires phase 4.
   - See `docs/skyjoust-product-requirements.md` §§12-14.
   - Success: visual clarity options preserve all gameplay information.
-- [ ] 7.1.3. Add tutorial prompts for altitude, brace, resupply, objectives,
-  and event rules.
-  - Requires phases 2, 3, and 5.
+- [ ] 7.1.3. Add tutorial prompts for altitude, brace, and resupply.
+  - Requires phases 2-3.
   - See `docs/skyjoust-product-requirements.md` §16.
-  - Success: a new player can complete a guided launch, joust, resupply,
-    objective, and ceremony interaction loop.
+  - Success: a new player can complete a guided launch, joust, and resupply
+    loop.
+- [ ] 7.1.4. Add tutorial prompts for objectives and ceremony rules.
+  - Requires phases 3 and 5.
+  - See `docs/skyjoust-product-requirements.md` §16.
+  - Success: a new player can complete a guided objective and ceremony
+    interaction loop without reading external documentation.
 
 ### 7.2. Make bugs reproducible and performance visible
 
 This step answers whether developers can explain simulation and rendering
 failures from captured data. See `docs/skyjoust-technical-design.md` §§13-14.
 
-- [ ] 7.2.1. Implement replay capture with seed, configuration hash, asset
-  manifest hash, and per-tick inputs.
+- [ ] 7.2.1. Implement replay capture and loading with seed, configuration
+  hash, asset manifest hash, and per-tick inputs.
   - Requires phases 2-6.
-  - Success: a replay reproduces match events and high-level validator traces.
+  - See `docs/skyjoust-technical-design.md` §13.
+  - Success: a captured bug report can launch into the same match state and
+    tick sequence, then reproduce match events and validator traces.
 - [ ] 7.2.2. Add performance counters for simulation, collision, terrain,
   rendering, and audio event processing.
   - Requires phases 3-4.
@@ -609,18 +698,24 @@ failures from captured data. See `docs/skyjoust-technical-design.md` §§13-14.
 This step answers whether the MVP matches the PRD's pacing and balance targets
 instead of only compiling. See `docs/skyjoust-product-requirements.md` §§16-18.
 
-- [ ] 7.3.1. Tune skirmish and objective scoring toward six to ten minute
-  matches.
+- [ ] 7.3.1. Build a local tuning corpus from deterministic seeds and bot
+  scripts.
   - Requires phases 2, 3, and 5.
+  - See `docs/skyjoust-product-requirements.md` §§16-18.
+  - Success: balance changes can be compared against the same repeatable
+    match set.
+- [ ] 7.3.2. Tune skirmish and objective scoring toward six to ten minute
+  matches.
+  - Requires 7.3.1.
   - Success: local test runs produce median match length inside the PRD target
     band.
-- [ ] 7.3.2. Tune house and mount sidegrades against win-rate and readability
+- [ ] 7.3.3. Tune house and mount sidegrades against win-rate and readability
   checks.
-  - Requires phases 4 and 6.
+  - Requires 7.3.1 and phases 4 and 6.
   - See `docs/skyjoust-product-requirements.md` §§9, 11, and 16.
   - Success: no house/loadout exceeds the configured balance band in local
     test data.
-- [ ] 7.3.3. Audit ceremony pacing for interruption risk.
+- [ ] 7.3.4. Audit ceremony pacing for interruption risk.
   - Requires phase 5.
   - See `docs/skyjoust-product-requirements.md` §18.
   - Success: tournament and duel prompts can be queued, accepted, declined, and
