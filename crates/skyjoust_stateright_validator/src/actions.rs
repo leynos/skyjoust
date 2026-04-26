@@ -32,7 +32,7 @@ pub enum SkyAction {
     TriggerTournament,
     ArenaReady,
     TournamentRegistered,
-    TournamentRoundWon,
+    TournamentRoundWon { winner: Team },
     TournamentChampionDeclared,
 
     IssueDuel,
@@ -42,7 +42,7 @@ pub enum SkyAction {
     DuelInterference { offender: Team },
 
     StartWeddingTruce,
-    CompleteJointObjective,
+    CompleteJointObjective { team: Team },
     BreakTruce,
     ExpireTruce,
 
@@ -58,11 +58,11 @@ pub enum SkyAction {
     BracePressed,
     BraceWindowExpired,
     Joust { winner: Team, outcome: JoustOutcome },
-    CaptureOutpost,
-    ClaimShrine,
-    BlockSupplyRoute,
-    DeliverHostage,
-    BombKeepBreach,
+    CaptureOutpost { team: Team },
+    ClaimShrine { team: Team },
+    BlockSupplyRoute { team: Team },
+    DeliverHostage { team: Team },
+    BombKeepBreach { team: Team },
     TimerExpired,
     VictoryCheck,
 

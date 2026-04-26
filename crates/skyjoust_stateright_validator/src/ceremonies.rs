@@ -58,8 +58,8 @@ fn handle_tournament(last: &SkyState, state: &mut SkyState, action: &SkyAction) 
         SkyAction::TournamentRegistered => {
             advance_tournament_registration(last, state)?;
         }
-        SkyAction::TournamentRoundWon => {
-            record_tournament_round_win(last, state)?;
+        SkyAction::TournamentRoundWon { winner } => {
+            record_tournament_round_win(last, state, *winner)?;
         }
         SkyAction::TournamentChampionDeclared => declare_tournament_champion(last, state)?,
         _ => return None,
@@ -97,7 +97,9 @@ fn handle_duel(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Opt
 fn handle_wedding(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
     match action {
         SkyAction::StartWeddingTruce => start_wedding_truce(last, state)?,
-        SkyAction::CompleteJointObjective => complete_joint_objective(last, state)?,
+        SkyAction::CompleteJointObjective { team } => {
+            complete_joint_objective(last, state, *team)?;
+        }
         SkyAction::BreakTruce => break_truce(last, state)?,
         SkyAction::ExpireTruce => expire_truce(last, state)?,
         _ => return None,
@@ -156,9 +158,9 @@ fn advance_tournament_registration(last: &SkyState, state: &mut SkyState) -> Opt
     Some(())
 }
 
-fn record_tournament_round_win(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn record_tournament_round_win(last: &SkyState, state: &mut SkyState, winner: Team) -> Option<()> {
     guard(last.ceremony == CeremonyState::Tournament(TournamentState::RoundActive))?;
-    apply_joust_score(state, Team::Red, JoustOutcome::Unhorse);
+    apply_joust_score(state, winner, JoustOutcome::Unhorse);
     state.tournament_rounds_won = state.tournament_rounds_won.saturating_add(1);
     state.ceremony = CeremonyState::Tournament(TournamentState::RoundComplete);
     Some(())
@@ -208,11 +210,11 @@ fn start_wedding_truce(last: &SkyState, state: &mut SkyState) -> Option<()> {
     Some(())
 }
 
-fn complete_joint_objective(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn complete_joint_objective(last: &SkyState, state: &mut SkyState, team: Team) -> Option<()> {
     guard(last.score.open && !last.score.finalized && !last.rules.scoring_frozen)?;
     guard(last.ceremony == CeremonyState::Wedding(WeddingState::TruceActive))?;
     state.ceremony = CeremonyState::Wedding(WeddingState::JointObjective);
-    apply_objective_score(state, Team::Red, ScoreAtom::HostageDeliver);
+    apply_objective_score(state, team, ScoreAtom::HostageDeliver);
     Some(())
 }
 

@@ -63,7 +63,11 @@ fn tournament_round_win_advances_to_round_complete() {
     };
     let mut state = last.clone();
 
-    let handled = handle_ceremonies(&last, &mut state, &SkyAction::TournamentRoundWon);
+    let handled = handle_ceremonies(
+        &last,
+        &mut state,
+        &SkyAction::TournamentRoundWon { winner: Team::Blue },
+    );
 
     assert_eq!(handled, Some(true));
     assert_eq!(
@@ -71,6 +75,7 @@ fn tournament_round_win_advances_to_round_complete() {
         CeremonyState::Tournament(TournamentState::RoundComplete)
     );
     assert_eq!(state.tournament_rounds_won, 1);
+    assert_eq!(state.score.blue_score, 150);
 }
 
 #[test]

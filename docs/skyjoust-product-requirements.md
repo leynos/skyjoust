@@ -198,8 +198,8 @@ Events trigger within Warfront and sometimes mid-match as “edicts”. They mus
 ### 10.1 Jousting tournament
 
 - Temporary ruleset: reduced ordnance, emphasize joust contacts.
-- Bracket or score attack: players earn **Laurels** used for upgrades and
-  political influence.
+- Bracket or score attack: players earn **Laurels** in the event reward ledger,
+  never as Warfront territory income.
 - Arena spawns with clear lanes and minimal terrain randomness to keep it
   skill-first.
 
@@ -248,9 +248,15 @@ Currencies:
   parts.
 - **Coin:** earned via territory/supply; spent on structures, mercs, repairs.
 - **Influence:** earned via events/negotiation; spent to steer Warfront events.
-- **Laurels:** first-class currency earned by tournament placements and event
-  rewards; redeemable for season or tournament cosmetic rewards, prestige
-  items, and leaderboard-specific upgrades.
+- **Laurels:** event-only reward ledger currency earned by tournament
+  placements and special event rewards; redeemable for season or tournament
+  cosmetics, prestige items, and leaderboard-specific upgrades. Laurels are not
+  transferable into Coin, Glory, or Influence, and validators must reject
+  Laurel grants before tournament or event completion.
+
+Laurels: definition and scope. Laurels live only in the event reward ledger and
+are validated as post-event rewards. Warfront economy uses Coin and Influence;
+match performance uses Glory.
 
 Progression principles:
 

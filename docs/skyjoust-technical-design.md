@@ -72,17 +72,17 @@ for the implementation.
 
 Table 1: Reference image implications for implementation.
 
-| Reference pages              | Implementation constraint                                                                                                                                                                                   |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `skyjoust-design-book-1.png` | The brand signal uses metallic block lettering, wing motifs, navy panels, brass trim, and large aerial joust scenes. Title and menu screens should use this language without making gameplay UI unreadable. |
-| `skyjoust-design-book-2.png` | Houses need distinct heraldry, colour ramps, champion silhouettes, role labels, and sprite-strip references. House data must drive both visual selection and gameplay doctrine.                             |
-| `skyjoust-design-book-3.png` | Mounts need readable side-view silhouettes, action poses, stat bars, flap cadence notes, and small sprite references. Runtime mounts must remain legible at speed before detail is added.                   |
-| `skyjoust-design-book-4.png` | Environments are cliffs, river gorges, aqueducts, shrine hills, villages, ridges, and material tiles. Terrain generation must expose material identity to rendering and collision.                          |
-| `skyjoust-design-book-5.png` | The HUD must expose altitude advantage, brace window state, joust outcome, tactical actions, morale, ammo, objective state, and controls. These are runtime-drawn interface elements.                       |
-| `skyjoust-design-book-6.png` | Battle scenes require vertical drama, bombing runs, keep assaults, rescue/capture beats, local versus chaos, and readable high-contrast effects. Camera and effects must preserve gameplay clarity.         |
-| `skyjoust-design-book-7.png` | Tournament and duel events need arena lanes, brackets, honour rules, champion line-ups, dishonour penalties, and reward previews. Ceremony state must drive UI panels and temporary rules.                  |
-| `skyjoust-design-book-8.png` | Wedding and banquet content requires alliance processions, resource exchange, treaty signing, truce status, breaking-truce penalties, and diplomatic upgrades. These are post-MVP but must keep data slots. |
-| `skyjoust-design-book-9.png` | Warfront UI needs regions, house control, supply routes, pressure arrows, event forecasts, active modifiers, recruit/deploy cards, and currency totals. Warfront state must be renderable as map data.      |
+| Reference pages              | Implementation constraint                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `skyjoust-design-book-1.png` | The brand signal uses metallic block lettering, wing motifs, navy panels, brass trim, and large aerial joust scenes. Title and menu screens should use this language without making gameplay UI unreadable.  |
+| `skyjoust-design-book-2.png` | Houses need distinct heraldry, colour ramps, champion silhouettes, role labels, and sprite-strip references. House data must drive both visual selection and gameplay doctrine.                              |
+| `skyjoust-design-book-3.png` | Mounts need readable side-view silhouettes, action poses, stat bars, flap cadence notes, and small sprite references. Runtime mounts must remain legible at speed before detail is added.                    |
+| `skyjoust-design-book-4.png` | Environments are cliffs, river gorges, aqueducts, shrine hills, villages, ridges, and material tiles. Terrain generation must expose material identity to rendering and collision.                           |
+| `skyjoust-design-book-5.png` | The HUD must expose altitude advantage, brace window state, joust outcome, tactical actions, morale, ammo, objective state, and controls. These are runtime-drawn interface elements.                        |
+| `skyjoust-design-book-6.png` | Battle scenes require vertical drama, bombing runs, keep assaults, rescue/capture beats, local versus chaos, and readable high-contrast effects. Camera and effects must preserve gameplay clarity.          |
+| `skyjoust-design-book-7.png` | Tournament and duel events need arena lanes, brackets, honour rules, champion line-ups, dishonour penalties, and reward previews. Ceremony state must drive UI panels and temporary rules.                   |
+| `skyjoust-design-book-8.png` | Wedding and banquet content requires alliance processions, resource exchange, treaty signing, truce status, breaking-truce penalties, and diplomatic upgrades. These are post-MVP, but must keep data slots. |
+| `skyjoust-design-book-9.png` | Warfront UI needs regions, house control, supply routes, pressure arrows, event forecasts, active modifiers, recruit/deploy cards, and currency totals. Warfront state must be renderable as map data.       |
 
 The art direction uses generated imagery for source references and production
 inputs, then converts accepted outputs into deterministic runtime assets. The
@@ -191,7 +191,9 @@ The implementation must keep these properties visible in code and tests:
 - Joust-only rules disable ordnance for match rules and player ordnance state.
 - Active truces disable friendly fire.
 - Broken truces create infamy and reward penalties.
-- Laurels are granted only after tournament completion.
+- Laurels are event-only reward ledger currency granted only after tournament
+  or special event completion; they do not transfer into Warfront Coin,
+  Influence, or Glory ledgers.
 - Duel rewards are granted only after a resolved duel.
 - Temporary rules clear after cooldown when no truce remains active.
 - Round-over and results-exported phases always have a winner.
@@ -208,7 +210,7 @@ the validator's `SkyAction` enum. A failing trace becomes a reproduction case:
   "FinishConstructing",
   "SpawnReady",
   "CountdownDone",
-  "BombKeepBreach",
+  { "BombKeepBreach": { "team": "Red" } },
   "VictoryCheck",
   "ExportFinalScore",
   "TallyRewards",

@@ -99,6 +99,21 @@ shared_context:
     - supply_routes
     - hostages
     - relics
+  action_payloads:
+    TournamentRoundWon:
+      winner: Team
+    CompleteJointObjective:
+      team: Team
+    CaptureOutpost:
+      team: Team
+    ClaimShrine:
+      team: Team
+    BlockSupplyRoute:
+      team: Team
+    DeliverHostage:
+      team: Team
+    BombKeepBreach:
+      team: Team
     TerrainWorld:
     - seed
     - chunks
@@ -1498,6 +1513,17 @@ reward_rules:
   - coin
   - influence
   - laurels
+  currency_scope:
+    laurels:
+      definition: event-only reward ledger currency
+      earned_from:
+      - tournament placements
+      - special event rewards
+      not_transferable_to:
+      - glory
+      - coin
+      - influence
+      validation: grant only after tournament or event completion
   post_match_pipeline_order:
   - participation
   - win_loss

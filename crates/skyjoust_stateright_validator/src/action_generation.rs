@@ -81,6 +81,10 @@ fn push_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
 }
 
 fn push_live_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    if state.has_active_ceremony() {
+        return;
+    }
+
     if !state.score.victory_pending {
         push_active_match_actions(state, actions);
     }
@@ -98,13 +102,19 @@ fn push_live_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
 fn push_active_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
     if state.score.events_accepted < 4 && !state.rules.duel_lock {
         push_lance_actions(state, actions);
-        actions.push(SkyAction::CaptureOutpost);
-        actions.push(SkyAction::ClaimShrine);
-        actions.push(SkyAction::BlockSupplyRoute);
-        actions.push(SkyAction::DeliverHostage);
+        push_team_objective_actions(actions);
         push_ordnance_actions(state, actions);
     }
     actions.push(SkyAction::TimerExpired);
+}
+
+fn push_team_objective_actions(actions: &mut Vec<SkyAction>) {
+    for team in [Team::Red, Team::Blue] {
+        actions.push(SkyAction::CaptureOutpost { team });
+        actions.push(SkyAction::ClaimShrine { team });
+        actions.push(SkyAction::BlockSupplyRoute { team });
+        actions.push(SkyAction::DeliverHostage { team });
+    }
 }
 
 fn push_lance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
@@ -133,7 +143,9 @@ fn push_joust_actions(actions: &mut Vec<SkyAction>) {
 
 fn push_ordnance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
     if can_spawn_ordnance(state) {
-        actions.push(SkyAction::BombKeepBreach);
+        for team in [Team::Red, Team::Blue] {
+            actions.push(SkyAction::BombKeepBreach { team });
+        }
     }
 }
 
@@ -176,7 +188,11 @@ fn push_tournament_actions(state: TournamentState, actions: &mut Vec<SkyAction>)
     match state {
         TournamentState::ArenaBuild => actions.push(SkyAction::ArenaReady),
         TournamentState::Registration => actions.push(SkyAction::TournamentRegistered),
-        TournamentState::RoundActive => actions.push(SkyAction::TournamentRoundWon),
+        TournamentState::RoundActive => {
+            for winner in [Team::Red, Team::Blue] {
+                actions.push(SkyAction::TournamentRoundWon { winner });
+            }
+        }
         TournamentState::RoundComplete => actions.push(SkyAction::TournamentChampionDeclared),
         TournamentState::ChampionDeclared => {}
     }
@@ -207,7 +223,9 @@ fn push_duel_actions(state: DuelState, actions: &mut Vec<SkyAction>) {
 fn push_wedding_actions(state: WeddingState, actions: &mut Vec<SkyAction>) {
     match state {
         WeddingState::TruceActive => {
-            actions.push(SkyAction::CompleteJointObjective);
+            for team in [Team::Red, Team::Blue] {
+                actions.push(SkyAction::CompleteJointObjective { team });
+            }
             actions.push(SkyAction::BreakTruce);
             actions.push(SkyAction::ExpireTruce);
         }
@@ -290,6 +308,37 @@ mod tests {
                 assert!(bracing_actions.contains(&SkyAction::Joust { winner, outcome }));
             }
         }
+
+        for team in [Team::Red, Team::Blue] {
+            assert!(bracing_actions.contains(&SkyAction::CaptureOutpost { team }));
+            assert!(bracing_actions.contains(&SkyAction::ClaimShrine { team }));
+            assert!(bracing_actions.contains(&SkyAction::BlockSupplyRoute { team }));
+            assert!(bracing_actions.contains(&SkyAction::DeliverHostage { team }));
+            assert!(bracing_actions.contains(&SkyAction::BombKeepBreach { team }));
+        }
+    }
+
+    #[test]
+    fn live_match_actions_suppress_gameplay_during_ceremony() {
+        let state = SkyState {
+            ceremony: CeremonyState::Tournament(TournamentState::RoundActive),
+            ..live_state(LanceState::Bracing)
+        };
+        let mut actions = Vec::new();
+
+        push_live_match_actions(&state, &mut actions);
+
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn tournament_actions_include_both_round_winners() {
+        let mut actions = Vec::new();
+
+        push_tournament_actions(TournamentState::RoundActive, &mut actions);
+
+        assert!(actions.contains(&SkyAction::TournamentRoundWon { winner: Team::Red }));
+        assert!(actions.contains(&SkyAction::TournamentRoundWon { winner: Team::Blue }));
     }
 
     #[test]

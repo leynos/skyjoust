@@ -135,7 +135,9 @@ mod tests {
                 SkyAction::FinishConstructing,
                 SkyAction::SpawnReady,
                 SkyAction::CountdownDone,
-                SkyAction::BombKeepBreach,
+                SkyAction::BombKeepBreach {
+                    team: crate::Team::Red,
+                },
                 SkyAction::VictoryCheck,
                 SkyAction::ExportFinalScore,
                 SkyAction::TallyRewards,

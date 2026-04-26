@@ -50,5 +50,10 @@ The model must remain intentionally smaller than the runtime. Renderer state,
 entity-component system (ECS) details, and physics internals belong in runtime
 tests, not in the Stateright model.
 
+Laurels are event-only reward ledger currency in this contract. The validator
+must keep Laurel grants behind tournament or special event completion instead
+of treating Laurels as Warfront income or a substitute for Glory, Coin, or
+Influence.
+
 Depth bounds are part of the validation contract. Raising `max_depth` expands
 the explored or replayed interaction horizon and can increase check time.

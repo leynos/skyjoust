@@ -21,10 +21,9 @@ Suggested engine usage:
    (ECS) World during fixed ticks.
 3. Buffer transition actions into deterministic command queues.
 4. Emit events into a stable, tick-indexed event bus.
+5. Let Scoring and Rewards consume events after gameplay resolution, not during
+   input handling.
 
 Edit only `skyjoust-state-graphs.yaml`. Regenerate the checked-in JSON bundle
 with `make generate-state-graphs`, and use `make check-state-graphs` to verify
 that `skyjoust-state-graphs.json` still matches the canonical YAML source.
-
-1. Let Scoring and Rewards consume events after gameplay resolution, not during
-   input handling.

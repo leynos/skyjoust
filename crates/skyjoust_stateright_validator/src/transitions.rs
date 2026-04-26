@@ -134,11 +134,11 @@ fn handle_gameplay(last: &SkyState, state: &mut SkyState, action: &SkyAction) ->
             state.lance = LanceState::Recovery;
         }
         SkyAction::Joust { winner, outcome } => joust(last, state, *winner, *outcome)?,
-        SkyAction::CaptureOutpost => capture_outpost(last, state)?,
-        SkyAction::ClaimShrine => claim_shrine(last, state)?,
-        SkyAction::BlockSupplyRoute => block_supply_route(last, state)?,
-        SkyAction::DeliverHostage => deliver_hostage(last, state)?,
-        SkyAction::BombKeepBreach => bomb_keep_breach(last, state)?,
+        SkyAction::CaptureOutpost { team } => capture_outpost(last, state, *team)?,
+        SkyAction::ClaimShrine { team } => claim_shrine(last, state, *team)?,
+        SkyAction::BlockSupplyRoute { team } => block_supply_route(last, state, *team)?,
+        SkyAction::DeliverHostage { team } => deliver_hostage(last, state, *team)?,
+        SkyAction::BombKeepBreach { team } => bomb_keep_breach(last, state, *team)?,
         SkyAction::TimerExpired => {
             guard(last.is_match_active())?;
             if last.rules.allow_sudden_death {
@@ -183,7 +183,7 @@ fn handle_scoring_and_rewards(
             state.rewards.phase = RewardPhase::ReadyToSpend;
         }
         SkyAction::ReturnToTitle => {
-            guard(last.rewards.phase == RewardPhase::Committed || last.app == AppState::Results)?;
+            guard(last.rewards.phase == RewardPhase::Committed)?;
             *state = SkyState::default();
             state.depth = last.depth.saturating_add(1);
             state.app = AppState::Title;
@@ -221,41 +221,41 @@ fn joust(last: &SkyState, state: &mut SkyState, winner: Team, outcome: JoustOutc
     Some(())
 }
 
-fn capture_outpost(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn capture_outpost(last: &SkyState, state: &mut SkyState, team: Team) -> Option<()> {
     guard(can_score_gameplay(last))?;
     guard(last.is_match_active() && !last.objectives.outpost_controlled && !last.rules.duel_lock)?;
     state.objectives.outpost_controlled = true;
-    apply_objective_score(state, Team::Red, ScoreAtom::OutpostCapture);
+    apply_objective_score(state, team, ScoreAtom::OutpostCapture);
     Some(())
 }
 
-fn claim_shrine(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn claim_shrine(last: &SkyState, state: &mut SkyState, team: Team) -> Option<()> {
     guard(can_score_gameplay(last))?;
     guard(last.is_match_active() && !last.objectives.shrine_claimed && !last.rules.duel_lock)?;
     state.objectives.shrine_claimed = true;
-    apply_objective_score(state, Team::Red, ScoreAtom::ShrineClaim);
+    apply_objective_score(state, team, ScoreAtom::ShrineClaim);
     Some(())
 }
 
-fn block_supply_route(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn block_supply_route(last: &SkyState, state: &mut SkyState, team: Team) -> Option<()> {
     guard(can_score_gameplay(last))?;
     guard(
         last.is_match_active() && !last.objectives.supply_route_blocked && !last.rules.duel_lock,
     )?;
     state.objectives.supply_route_blocked = true;
-    apply_objective_score(state, Team::Red, ScoreAtom::SupplyRouteBlock);
+    apply_objective_score(state, team, ScoreAtom::SupplyRouteBlock);
     Some(())
 }
 
-fn deliver_hostage(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn deliver_hostage(last: &SkyState, state: &mut SkyState, team: Team) -> Option<()> {
     guard(can_score_gameplay(last))?;
     guard(last.is_match_active() && !last.objectives.hostage_delivered && !last.rules.duel_lock)?;
     state.objectives.hostage_delivered = true;
-    apply_objective_score(state, Team::Red, ScoreAtom::HostageDeliver);
+    apply_objective_score(state, team, ScoreAtom::HostageDeliver);
     Some(())
 }
 
-fn bomb_keep_breach(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn bomb_keep_breach(last: &SkyState, state: &mut SkyState, team: Team) -> Option<()> {
     guard(last.is_match_active())?;
     guard(can_score_gameplay(last))?;
     guard(matches!(
@@ -265,13 +265,20 @@ fn bomb_keep_breach(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.player_ordnance == PlayerOrdnance::Ready && !last.rules.joust_only)?;
     state.player_ordnance = PlayerOrdnance::Cooldown;
     state.objectives.keep_breached = true;
-    apply_objective_score(state, Team::Red, ScoreAtom::KeepBreach);
+    apply_objective_score(state, team, ScoreAtom::KeepBreach);
     state.score.victory_pending = true;
-    state.winner = Winner::Red;
+    state.winner = winner_from_team(team);
     Some(())
 }
 
 fn can_score_gameplay(state: &SkyState) -> bool { state.score.open && !state.rules.scoring_frozen }
+
+fn winner_from_team(team: Team) -> Winner {
+    match team {
+        Team::Red => Winner::Red,
+        Team::Blue => Winner::Blue,
+    }
+}
 
 fn export_final_score(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.match_phase == MatchPhase::RoundOver)?;

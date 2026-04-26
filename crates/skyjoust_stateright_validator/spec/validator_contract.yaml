@@ -26,6 +26,7 @@ state_dimensions:
     scoring_frozen: boolean
     joust_only: boolean
     allow_sudden_death: boolean
+  player_ordnance: [Ready, Cooldown, ResupplyNeeded, Disabled]
   match_result:
     Winner: [None, Red, Blue, TieBreak]
     winner_field: Winner
@@ -39,7 +40,12 @@ state_dimensions:
     score: [open, finalized, pending_delta, events_accepted, red_score, blue_score, red_glory, blue_glory, red_morale, blue_morale, victory_pending]
     rewards: [phase, pending_delta, committed, glory, coin, influence, laurels, penalties, tournament_bonus_granted, duel_bonus_granted]
     infamy: numeric
+  currency_scope:
+    laurels: event_reward_ledger_only
   flags: [duel_consequence_active, truce_active, truce_broken, tournament_completed, duel_resolved, treaty_signed, post_final_score_write, warfront_mutated_during_match]
+domain_types:
+  Team: [Red, Blue]
+  JoustOutcome: [Knockback, Unhorse, Shatter, CleanKill]
 actions:
   runtime: [AssetsLoaded, StartSkirmish, StartWarfront, MapReady, SelectRegion, StartBattle, FinishConstructing, SpawnReady, CountdownDone]
   ceremonies:
@@ -50,6 +56,17 @@ actions:
     common: [EventConsequencesRecorded, EventCooldownDone]
   gameplay: [BracePressed, BraceWindowExpired, Joust, CaptureOutpost, ClaimShrine, BlockSupplyRoute, DeliverHostage, BombKeepBreach, TimerExpired, VictoryCheck]
   scoring_rewards: [ExportFinalScore, TallyRewards, CommitRewards, NextWarfrontTurn, ReturnToTitle]
+action_payloads:
+  TournamentRoundWon: { winner: Team }
+  CompleteJointObjective: { team: Team }
+  Joust: { winner: Team, outcome: JoustOutcome }
+  DuelDecisiveJoust: { winner: Team, outcome: JoustOutcome }
+  DuelInterference: { offender: Team }
+  CaptureOutpost: { team: Team }
+  ClaimShrine: { team: Team }
+  BlockSupplyRoute: { team: Team }
+  DeliverHostage: { team: Team }
+  BombKeepBreach: { team: Team }
 always_properties:
   rewards_commit_requires_final_score: RewardLedger.committed implies ScoreLedger.finalized
   rewards_open_requires_final_score: RewardLedger.phase in [LedgerOpen, Tallied, Committed, ReadyToSpend] implies ScoreLedger.finalized
@@ -71,7 +88,7 @@ sometimes_properties:
   can_resolve_duel_and_get_duel_rewards: duel_resolved and rewards.committed and influence >= 25
   can_break_truce_and_receive_infamy: truce_broken and rewards.committed and infamy > 0 and penalties > 0
   can_score_nonlethal_objective: outpost_controlled and red_score >= 200 and not keep_breached
-trace_validator:
+  trace_validator:
   input: JSON array of SkyAction enum values as serialized by serde
   command: cargo run --bin validate_trace < trace.json
   failure_exit_code: 2

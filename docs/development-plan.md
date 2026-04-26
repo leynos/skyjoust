@@ -579,7 +579,7 @@ Table 1: Required checks by subsystem.
 | Assets        | manifest parser tests, path existence checks, alpha checks, palette checks, slicing checks        |
 | Rendering     | nonblank frame smoke tests, resize tests, HUD live-text tests                                     |
 | Audio         | event mapping tests, rate-limit tests, audio-disabled safety test                                 |
-| Documentation | markdownlint, nixie when diagrams are touched, diff check                                         |
+| Documentation | make fmt, markdownlint, nixie when diagrams are touched, diff check                               |
 
 ## 16. First implementation slice
 

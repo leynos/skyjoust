@@ -58,11 +58,49 @@ fn frozen_scoring_blocks_objective_atoms() {
         ..SkyState::default()
     };
 
-    assert!(transition(&last, &SkyAction::CaptureOutpost).is_none());
-    assert!(transition(&last, &SkyAction::ClaimShrine).is_none());
-    assert!(transition(&last, &SkyAction::BlockSupplyRoute).is_none());
-    assert!(transition(&last, &SkyAction::DeliverHostage).is_none());
-    assert!(transition(&last, &SkyAction::BombKeepBreach).is_none());
+    assert!(transition(&last, &SkyAction::CaptureOutpost { team: Team::Red }).is_none());
+    assert!(transition(&last, &SkyAction::ClaimShrine { team: Team::Red }).is_none());
+    assert!(transition(&last, &SkyAction::BlockSupplyRoute { team: Team::Red }).is_none());
+    assert!(transition(&last, &SkyAction::DeliverHostage { team: Team::Red }).is_none());
+    assert!(transition(&last, &SkyAction::BombKeepBreach { team: Team::Red }).is_none());
+}
+
+#[test]
+fn objective_atoms_score_for_acting_team() {
+    let last = SkyState {
+        match_phase: MatchPhase::NormalPlay,
+        score: crate::state::ScoreLedger {
+            open: true,
+            ..crate::state::ScoreLedger::default()
+        },
+        ..SkyState::default()
+    };
+
+    let state = transition(&last, &SkyAction::CaptureOutpost { team: Team::Blue })
+        .expect("blue outpost capture should score");
+
+    assert_eq!(state.score.red_score, 0);
+    assert_eq!(state.score.blue_score, 200);
+    assert!(state.objectives.outpost_controlled);
+}
+
+#[test]
+fn keep_breach_sets_winner_from_acting_team() {
+    let last = SkyState {
+        match_phase: MatchPhase::NormalPlay,
+        score: crate::state::ScoreLedger {
+            open: true,
+            ..crate::state::ScoreLedger::default()
+        },
+        ..SkyState::default()
+    };
+
+    let state = transition(&last, &SkyAction::BombKeepBreach { team: Team::Blue })
+        .expect("blue keep breach should score");
+
+    assert_eq!(state.winner, Winner::Blue);
+    assert_eq!(state.score.blue_score, 1000);
+    assert!(state.score.victory_pending);
 }
 
 #[test]

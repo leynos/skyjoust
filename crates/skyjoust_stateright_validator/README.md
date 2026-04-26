@@ -59,7 +59,7 @@ Example trace JSON:
   "FinishConstructing",
   "SpawnReady",
   "CountdownDone",
-  "BombKeepBreach",
+  { "BombKeepBreach": { "team": "Red" } },
   "VictoryCheck",
   "ExportFinalScore",
   "TallyRewards",

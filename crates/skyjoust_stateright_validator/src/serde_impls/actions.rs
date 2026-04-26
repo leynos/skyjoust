@@ -17,6 +17,18 @@ struct OffenderDto {
     offender: Team,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TeamDto {
+    team: Team,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WinnerDto {
+    winner: Team,
+}
+
 impl Serialize for SkyAction {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -46,7 +58,62 @@ impl Serialize for SkyAction {
                     outcome: *outcome,
                 },
             ),
-            _ => serializer.serialize_str(unit_action_name(self)),
+            Self::TournamentRoundWon { winner } => serialize_tagged(
+                serializer,
+                "TournamentRoundWon",
+                WinnerDto { winner: *winner },
+            ),
+            Self::CompleteJointObjective { team } => {
+                serialize_team_action(serializer, "CompleteJointObjective", *team)
+            }
+            Self::CaptureOutpost { team } => {
+                serialize_team_action(serializer, "CaptureOutpost", *team)
+            }
+            Self::ClaimShrine { team } => serialize_team_action(serializer, "ClaimShrine", *team),
+            Self::BlockSupplyRoute { team } => {
+                serialize_team_action(serializer, "BlockSupplyRoute", *team)
+            }
+            Self::DeliverHostage { team } => {
+                serialize_team_action(serializer, "DeliverHostage", *team)
+            }
+            Self::BombKeepBreach { team } => {
+                serialize_team_action(serializer, "BombKeepBreach", *team)
+            }
+            Self::AssetsLoaded
+            | Self::StartSkirmish
+            | Self::StartWarfront
+            | Self::MapReady
+            | Self::SelectRegion
+            | Self::StartBattle
+            | Self::FinishConstructing
+            | Self::SpawnReady
+            | Self::CountdownDone
+            | Self::TriggerTournament
+            | Self::ArenaReady
+            | Self::TournamentRegistered
+            | Self::TournamentChampionDeclared
+            | Self::IssueDuel
+            | Self::AcceptDuel
+            | Self::DuelReady
+            | Self::StartWeddingTruce
+            | Self::BreakTruce
+            | Self::ExpireTruce
+            | Self::OpenBanquet
+            | Self::BanquetReady
+            | Self::ProposeTreaty
+            | Self::AcceptTreaty
+            | Self::RejectTreaty
+            | Self::EventConsequencesRecorded
+            | Self::EventCooldownDone
+            | Self::BracePressed
+            | Self::BraceWindowExpired
+            | Self::TimerExpired
+            | Self::VictoryCheck
+            | Self::ExportFinalScore
+            | Self::TallyRewards
+            | Self::CommitRewards
+            | Self::NextWarfrontTurn
+            | Self::ReturnToTitle => serializer.serialize_str(unit_action_name(self)),
         }
     }
 }
@@ -89,6 +156,35 @@ impl<'de> Deserialize<'de> for SkyAction {
                             outcome: dto.outcome,
                         })
                     }
+                    "TournamentRoundWon" => {
+                        let dto: WinnerDto =
+                            serde_json::from_value(payload).map_err(D::Error::custom)?;
+                        Ok(Self::TournamentRoundWon { winner: dto.winner })
+                    }
+                    "CompleteJointObjective" => deserialize_team_action(payload, |team| {
+                        Self::CompleteJointObjective { team }
+                    })
+                    .map_err(D::Error::custom),
+                    "CaptureOutpost" => {
+                        deserialize_team_action(payload, |team| Self::CaptureOutpost { team })
+                            .map_err(D::Error::custom)
+                    }
+                    "ClaimShrine" => {
+                        deserialize_team_action(payload, |team| Self::ClaimShrine { team })
+                            .map_err(D::Error::custom)
+                    }
+                    "BlockSupplyRoute" => {
+                        deserialize_team_action(payload, |team| Self::BlockSupplyRoute { team })
+                            .map_err(D::Error::custom)
+                    }
+                    "DeliverHostage" => {
+                        deserialize_team_action(payload, |team| Self::DeliverHostage { team })
+                            .map_err(D::Error::custom)
+                    }
+                    "BombKeepBreach" => {
+                        deserialize_team_action(payload, |team| Self::BombKeepBreach { team })
+                            .map_err(D::Error::custom)
+                    }
                     _ => Err(D::Error::unknown_variant(
                         name.as_str(),
                         TAGGED_ACTION_NAMES,
@@ -115,13 +211,11 @@ const UNIT_ACTION_NAMES: &[&str] = &[
     "TriggerTournament",
     "ArenaReady",
     "TournamentRegistered",
-    "TournamentRoundWon",
     "TournamentChampionDeclared",
     "IssueDuel",
     "AcceptDuel",
     "DuelReady",
     "StartWeddingTruce",
-    "CompleteJointObjective",
     "BreakTruce",
     "ExpireTruce",
     "OpenBanquet",
@@ -133,11 +227,6 @@ const UNIT_ACTION_NAMES: &[&str] = &[
     "EventCooldownDone",
     "BracePressed",
     "BraceWindowExpired",
-    "CaptureOutpost",
-    "ClaimShrine",
-    "BlockSupplyRoute",
-    "DeliverHostage",
-    "BombKeepBreach",
     "TimerExpired",
     "VictoryCheck",
     "ExportFinalScore",
@@ -147,7 +236,18 @@ const UNIT_ACTION_NAMES: &[&str] = &[
     "ReturnToTitle",
 ];
 
-const TAGGED_ACTION_NAMES: &[&str] = &["DuelDecisiveJoust", "DuelInterference", "Joust"];
+const TAGGED_ACTION_NAMES: &[&str] = &[
+    "DuelDecisiveJoust",
+    "DuelInterference",
+    "Joust",
+    "TournamentRoundWon",
+    "CompleteJointObjective",
+    "CaptureOutpost",
+    "ClaimShrine",
+    "BlockSupplyRoute",
+    "DeliverHostage",
+    "BombKeepBreach",
+];
 
 fn unit_action_name(action: &SkyAction) -> &'static str {
     match action {
@@ -163,13 +263,11 @@ fn unit_action_name(action: &SkyAction) -> &'static str {
         SkyAction::TriggerTournament => "TriggerTournament",
         SkyAction::ArenaReady => "ArenaReady",
         SkyAction::TournamentRegistered => "TournamentRegistered",
-        SkyAction::TournamentRoundWon => "TournamentRoundWon",
         SkyAction::TournamentChampionDeclared => "TournamentChampionDeclared",
         SkyAction::IssueDuel => "IssueDuel",
         SkyAction::AcceptDuel => "AcceptDuel",
         SkyAction::DuelReady => "DuelReady",
         SkyAction::StartWeddingTruce => "StartWeddingTruce",
-        SkyAction::CompleteJointObjective => "CompleteJointObjective",
         SkyAction::BreakTruce => "BreakTruce",
         SkyAction::ExpireTruce => "ExpireTruce",
         SkyAction::OpenBanquet => "OpenBanquet",
@@ -181,11 +279,6 @@ fn unit_action_name(action: &SkyAction) -> &'static str {
         SkyAction::EventCooldownDone => "EventCooldownDone",
         SkyAction::BracePressed => "BracePressed",
         SkyAction::BraceWindowExpired => "BraceWindowExpired",
-        SkyAction::CaptureOutpost => "CaptureOutpost",
-        SkyAction::ClaimShrine => "ClaimShrine",
-        SkyAction::BlockSupplyRoute => "BlockSupplyRoute",
-        SkyAction::DeliverHostage => "DeliverHostage",
-        SkyAction::BombKeepBreach => "BombKeepBreach",
         SkyAction::TimerExpired => "TimerExpired",
         SkyAction::VictoryCheck => "VictoryCheck",
         SkyAction::ExportFinalScore => "ExportFinalScore",
@@ -195,7 +288,14 @@ fn unit_action_name(action: &SkyAction) -> &'static str {
         SkyAction::ReturnToTitle => "ReturnToTitle",
         SkyAction::DuelDecisiveJoust { .. }
         | SkyAction::DuelInterference { .. }
-        | SkyAction::Joust { .. } => {
+        | SkyAction::Joust { .. }
+        | SkyAction::TournamentRoundWon { .. }
+        | SkyAction::CompleteJointObjective { .. }
+        | SkyAction::CaptureOutpost { .. }
+        | SkyAction::ClaimShrine { .. }
+        | SkyAction::BlockSupplyRoute { .. }
+        | SkyAction::DeliverHostage { .. }
+        | SkyAction::BombKeepBreach { .. } => {
             unreachable!("tagged action variants are serialized before unit names")
         }
     }
@@ -215,13 +315,11 @@ fn unit_action_from_name(name: &str) -> Option<SkyAction> {
         "TriggerTournament" => SkyAction::TriggerTournament,
         "ArenaReady" => SkyAction::ArenaReady,
         "TournamentRegistered" => SkyAction::TournamentRegistered,
-        "TournamentRoundWon" => SkyAction::TournamentRoundWon,
         "TournamentChampionDeclared" => SkyAction::TournamentChampionDeclared,
         "IssueDuel" => SkyAction::IssueDuel,
         "AcceptDuel" => SkyAction::AcceptDuel,
         "DuelReady" => SkyAction::DuelReady,
         "StartWeddingTruce" => SkyAction::StartWeddingTruce,
-        "CompleteJointObjective" => SkyAction::CompleteJointObjective,
         "BreakTruce" => SkyAction::BreakTruce,
         "ExpireTruce" => SkyAction::ExpireTruce,
         "OpenBanquet" => SkyAction::OpenBanquet,
@@ -233,11 +331,6 @@ fn unit_action_from_name(name: &str) -> Option<SkyAction> {
         "EventCooldownDone" => SkyAction::EventCooldownDone,
         "BracePressed" => SkyAction::BracePressed,
         "BraceWindowExpired" => SkyAction::BraceWindowExpired,
-        "CaptureOutpost" => SkyAction::CaptureOutpost,
-        "ClaimShrine" => SkyAction::ClaimShrine,
-        "BlockSupplyRoute" => SkyAction::BlockSupplyRoute,
-        "DeliverHostage" => SkyAction::DeliverHostage,
-        "BombKeepBreach" => SkyAction::BombKeepBreach,
         "TimerExpired" => SkyAction::TimerExpired,
         "VictoryCheck" => SkyAction::VictoryCheck,
         "ExportFinalScore" => SkyAction::ExportFinalScore,
@@ -248,6 +341,29 @@ fn unit_action_from_name(name: &str) -> Option<SkyAction> {
         _ => return None,
     })
 }
+
+fn serialize_team_action<S>(
+    serializer: S,
+    name: &'static str,
+    team: Team,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serialize_tagged(serializer, name, TeamDto { team })
+}
+
+fn deserialize_team_action<F>(
+    payload: serde_json::Value,
+    build: F,
+) -> Result<SkyAction, serde_json::Error>
+where
+    F: FnOnce(Team) -> SkyAction,
+{
+    let dto: TeamDto = serde_json::from_value(payload)?;
+    Ok(build(dto.team))
+}
+
 fn serialize_tagged<S, T>(serializer: S, name: &'static str, payload: T) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
