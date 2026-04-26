@@ -18,13 +18,13 @@ impl Model for SkyjoustInteractionModel {
     fn init_states(&self) -> Vec<Self::State> { vec![SkyState::default()] }
 
     fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
-        if state.depth < self.max_depth {
+        if !self.depth_exhausted(state) {
             available_actions(state, actions);
         }
     }
 
     fn next_state(&self, last: &Self::State, action: Self::Action) -> Option<Self::State> {
-        if last.depth >= self.max_depth {
+        if self.depth_exhausted(last) {
             None
         } else {
             transition(last, &action)

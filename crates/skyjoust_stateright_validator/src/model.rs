@@ -19,6 +19,11 @@ impl Default for SkyjoustInteractionModel {
     fn default() -> Self { Self { max_depth: 24 } }
 }
 
+impl SkyjoustInteractionModel {
+    /// Return whether replay or exploration has exhausted the configured depth.
+    pub(crate) fn depth_exhausted(&self, state: &SkyState) -> bool { state.depth >= self.max_depth }
+}
+
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;

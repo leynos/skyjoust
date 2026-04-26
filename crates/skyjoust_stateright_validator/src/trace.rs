@@ -66,12 +66,12 @@ where
         let next = match model.next_state(&state, action.clone()) {
             Some(next) => next,
             None => {
-                return invalid_trace(
-                    state,
-                    step_index,
-                    action,
-                    "action was not legal from the current state",
-                );
+                let reason = if model.depth_exhausted(&state) {
+                    "max depth reached / depth bound exhausted"
+                } else {
+                    "action was not legal from the current state"
+                };
+                return invalid_trace(state, step_index, action, reason);
             }
         };
 
@@ -180,41 +180,14 @@ mod tests {
 
         assert!(!result.ok);
         assert_eq!(result.final_state.depth, model.max_depth);
+        let failure = result
+            .failure
+            .expect("expected depth-bound trace to report failure");
+        assert!(failure.reason.contains("depth bound exhausted"));
     }
 
-    fn long_legal_trace() -> [SkyAction; 31] {
-        [
-            SkyAction::AssetsLoaded,
-            SkyAction::StartSkirmish,
-            SkyAction::StartBattle,
-            SkyAction::FinishConstructing,
-            SkyAction::SpawnReady,
-            SkyAction::CountdownDone,
-            SkyAction::BombKeepBreach,
-            SkyAction::VictoryCheck,
-            SkyAction::ExportFinalScore,
-            SkyAction::TallyRewards,
-            SkyAction::CommitRewards,
-            SkyAction::ReturnToTitle,
-            SkyAction::StartSkirmish,
-            SkyAction::StartBattle,
-            SkyAction::FinishConstructing,
-            SkyAction::SpawnReady,
-            SkyAction::CountdownDone,
-            SkyAction::BombKeepBreach,
-            SkyAction::VictoryCheck,
-            SkyAction::ExportFinalScore,
-            SkyAction::TallyRewards,
-            SkyAction::CommitRewards,
-            SkyAction::ReturnToTitle,
-            SkyAction::StartSkirmish,
-            SkyAction::StartBattle,
-            SkyAction::FinishConstructing,
-            SkyAction::SpawnReady,
-            SkyAction::CountdownDone,
-            SkyAction::BombKeepBreach,
-            SkyAction::VictoryCheck,
-            SkyAction::ExportFinalScore,
-        ]
+    fn long_legal_trace() -> Vec<SkyAction> {
+        serde_json::from_str(include_str!("../traces/long_legal_trace.json"))
+            .expect("long legal trace fixture should deserialize")
     }
 }
