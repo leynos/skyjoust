@@ -10,7 +10,7 @@ execution_model:
   - Transitions are driven by immutable events on the event bus or by pure guards evaluated during fixed ticks.
   - Guards are selectors over ECS resources/components; they do not mutate state.
   - Actions may issue ECS commands, mutate resources, and publish events, but should not read wall-clock time.
-  - All multi-entity resolution uses stable entity ordering to preserve deterministic-ish behavior.
+  - All multi-entity resolution uses stable entity ordering to preserve near-deterministic behaviour.
   recommended_bevy_mapping:
     statecharts: resources that own graph state and current node path
     events: Bevy Events or a custom deterministic ring-buffer event bus
@@ -203,7 +203,6 @@ event_topics:
   - STRUCTURE_DAMAGED
   - KEEP_BREACH
   - KEEP_BREACHED
-  - CAPTURE_PROGRESS_STARTED
   - CAPTURE_TICK
   - ENEMY_CAPTURE_TICK
   - CAPTURE_COMPLETE
@@ -317,12 +316,10 @@ selectors:
     - MatchRules.duel_lock
     - CeremonyState.active_event
     expression: MatchRules.duel_lock.active == true and CeremonyState.active_event.kind == 'Duel'
-  event.duel_locked_or_actor_is_duelist:
+  event.actor_is_duelist:
     reads:
-    - MatchRules.duel_lock
-    - CeremonyState.active_event
     - ActorState.role
-    expression: event.duel_locked or ActorState.role == 'duelist'
+    expression: ActorState.role == 'duelist'
   event.truce_active_between_teams:
     reads:
     - CampaignState.active_truces
@@ -341,8 +338,9 @@ selectors:
     - Transform2D
     - Velocity2D
     - MatchRules.honour_rules
-    - event.duel_locked_or_actor_is_duelist
-    expression: target_in_lance_cone and within_reach and !event.duel_locked_or_actor_is_duelist
+    - event.duel_locked
+    - event.actor_is_duelist
+    expression: target_in_lance_cone and within_reach and !(event.duel_locked and !event.actor_is_duelist)
   objective.keep_breached:
     reads:
     - ObjectiveState.keeps[*].integrity
@@ -439,9 +437,6 @@ statecharts:
         'on':
           MATCH_ENDED:
             target: Results
-            actions:
-            - publish.FINAL_SCORE_SNAPSHOT
-            - publish.REWARD_LEDGER_OPENED
           ABORT_MATCH: Title
       Results:
         'on':
@@ -514,9 +509,6 @@ statecharts:
             actions:
             - attach_match_summary_to_region
       ApplyBattleResult:
-        entry:
-        - shift_region_control
-        - update_house_relations_from_battle
         always: UpdateTerritory
       UpdateTerritory:
         entry:
@@ -535,8 +527,14 @@ statecharts:
           REWARDS_COMMITTED:
           - target: SeasonComplete
             guard: warfront.season_goal_met
+            actions:
+            - shift_region_control
+            - update_house_relations_from_battle
           - target: TurnStart
             guard: '!warfront.season_goal_met'
+            actions:
+            - shift_region_control
+            - update_house_relations_from_battle
       BanquetNegotiation:
         initial: TermsOpen
         states:
@@ -655,7 +653,6 @@ statecharts:
         entry:
         - stop_match_timer
         - flush_scoring
-        - publish.FINAL_SCORE_SNAPSHOT
         'on':
           FINAL_SCORE_SNAPSHOT: ResultsExported
       ResultsExported:
@@ -1135,7 +1132,7 @@ statecharts:
               OUTPOST_CAPTURE_TICK: Contested
           Contested:
             'on':
-              CAPTURE_PROGRESS_STARTED: Capturing
+              OUTPOST_CAPTURE_TICK: Capturing
               CAPTURE_RESET: Neutral
           Capturing:
             'on':
@@ -1257,6 +1254,7 @@ statecharts:
         entry:
         - freeze_score_ledger
         - publish.FINAL_SCORE_SNAPSHOT
+        - publish.REWARD_LEDGER_OPENED
         'on':
           RESET_MATCH_GRAPH: Closed
   rewards:

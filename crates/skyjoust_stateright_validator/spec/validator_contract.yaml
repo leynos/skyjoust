@@ -1,7 +1,7 @@
 schema: skyjoust.stateright_validator_contract.v1
 version: 0.1.0
 model: SkyjoustInteractionModel
-source_state_graph: ../../../docs/skyjoust-state-graphs.yaml
+source_state_graph: ./skyjoust-state-graphs.yaml
 stateright_crate: "0.31"
 boundary:
   default_max_depth: 24
@@ -45,7 +45,7 @@ always_properties:
   rewards_open_requires_final_score: RewardLedger.phase in [LedgerOpen, Tallied, Committed, ReadyToSpend] implies ScoreLedger.finalized
   score_closed_after_final_snapshot: ScoreLedger.finalized implies not ScoreLedger.open
   no_score_write_after_final_snapshot: post_final_score_write must remain false
-  committed_rewards_leave_active_match: RewardLedger.committed implies MatchPhase not in [NormalPlay, EventOverride, SuddenDeath]
+  committed_rewards_leave_active_match: RewardLedger.committed implies MatchPhase not in [NormalPlay, EventOverride, SuddenDeath, Paused]
   duel_lock_only_during_duel: Rules.duel_lock implies active Duel or Duel-origin ConsequenceResolution
   joust_only_disables_ordnance: Rules.joust_only implies OrdnancePolicy.Disabled and PlayerOrdnance.Disabled
   truce_disables_friendly_fire: truce_active implies not Rules.friendly_fire

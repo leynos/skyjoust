@@ -1,3 +1,8 @@
+//! Serve Stateright Explorer for the Skyjoust interaction model.
+//!
+//! Run this example, then open `http://localhost:3000/` to inspect reachable
+//! states and counterexample paths for the bounded model.
+
 use skyjoust_stateright_validator::SkyjoustInteractionModel;
 use stateright::Model;
 

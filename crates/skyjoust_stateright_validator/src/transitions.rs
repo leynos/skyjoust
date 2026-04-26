@@ -275,6 +275,23 @@ fn mark_warfront_mutation_during_match(last: &SkyState, state: &mut SkyState) {
     }
 }
 
+/// Convert a boolean guard into `Option<()>` for `?`-based validation.
+///
+/// Returns `Some(())` when `condition` is true and `None` when it is false, so
+/// callers can write `guard(condition)?;` inside functions that return
+/// `Option<T>`.
+///
+/// ```
+/// fn only_even(value: u8) -> Option<u8> {
+///     fn guard(condition: bool) -> Option<()> { condition.then_some(()) }
+///
+///     guard(value % 2 == 0)?;
+///     Some(value)
+/// }
+///
+/// assert_eq!(only_even(4), Some(4));
+/// assert_eq!(only_even(5), None);
+/// ```
 fn guard(condition: bool) -> Option<()> {
     if condition {
         Some(())

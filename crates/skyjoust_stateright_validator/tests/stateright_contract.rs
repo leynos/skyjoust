@@ -1,3 +1,9 @@
+//! Exhaustive property tests for the Skyjoust interaction model.
+//!
+//! The `exhaustive_high_level_interaction_contract` test runs
+//! `SkyjoustInteractionModel` with `max_depth` 18 to exercise
+//! skirmish, tournament, duel, truce, keep, and reward flows.
+
 use skyjoust_stateright_validator::SkyjoustInteractionModel;
 use stateright::{Checker, Model};
 
