@@ -64,6 +64,46 @@ fn frozen_scoring_blocks_objective_atoms() {
 }
 
 #[test]
+fn timer_expired_resolves_round_when_sudden_death_disabled() {
+    let last = SkyState {
+        match_phase: MatchPhase::NormalPlay,
+        rules: crate::state::Rules {
+            allow_sudden_death: false,
+            ..crate::state::Rules::baseline()
+        },
+        score: crate::state::ScoreLedger {
+            open: true,
+            red_score: 200,
+            blue_score: 100,
+            ..crate::state::ScoreLedger::default()
+        },
+        ..SkyState::default()
+    };
+
+    let state =
+        transition(&last, &SkyAction::TimerExpired).expect("timer expiry should resolve round");
+
+    assert_eq!(state.match_phase, MatchPhase::RoundOver);
+    assert_eq!(state.winner, Winner::Red);
+}
+
+#[test]
+fn timer_expired_enters_sudden_death_when_enabled() {
+    let last = SkyState {
+        match_phase: MatchPhase::NormalPlay,
+        score: crate::state::ScoreLedger {
+            open: true,
+            ..crate::state::ScoreLedger::default()
+        },
+        ..SkyState::default()
+    };
+
+    let state = transition(&last, &SkyAction::TimerExpired).expect("timer expiry should be legal");
+
+    assert_eq!(state.match_phase, MatchPhase::SuddenDeath);
+}
+
+#[test]
 fn warfront_start_battle_reaches_battle_locked_before_match_start() {
     let preview = SkyState {
         app: AppState::WarfrontRunning,

@@ -140,7 +140,12 @@ fn handle_gameplay(last: &SkyState, state: &mut SkyState, action: &SkyAction) ->
         SkyAction::BombKeepBreach => bomb_keep_breach(last, state)?,
         SkyAction::TimerExpired => {
             guard(last.is_match_active())?;
-            state.match_phase = MatchPhase::SuddenDeath;
+            if last.rules.allow_sudden_death {
+                state.match_phase = MatchPhase::SuddenDeath;
+            } else {
+                state.match_phase = MatchPhase::RoundOver;
+                state.winner = decide_winner(&state.score);
+            }
         }
         SkyAction::VictoryCheck => {
             guard(last.is_match_active() && last.score.victory_pending)?;

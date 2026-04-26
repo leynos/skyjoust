@@ -64,7 +64,8 @@ Model changes should be made in this order:
 3. Add transition handling in `transitions.rs` or the appropriate feature
    module, such as `ceremonies.rs`.
 4. Add or update invariants and reachability checks in `properties.rs`.
-5. Update the canonical graph bundle in `docs/skyjoust-state-graphs.yaml` and
+5. Update the canonical graph bundle in `docs/skyjoust-state-graphs.yaml`,
+   then run `make generate-state-graphs` to regenerate
    `docs/skyjoust-state-graphs.json`.
 6. Update
    `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`.
@@ -80,6 +81,7 @@ Run the full Rust gates before committing code:
 
 ```sh
 make check-fmt
+make check-state-graphs
 make lint
 make test
 cargo doc --no-deps --workspace

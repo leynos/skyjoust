@@ -136,6 +136,7 @@ struct RulesDto {
     duel_lock: bool,
     scoring_frozen: bool,
     joust_only: bool,
+    allow_sudden_death: bool,
 }
 
 impl Serialize for Rules {
@@ -149,6 +150,7 @@ impl Serialize for Rules {
             duel_lock: self.duel_lock,
             scoring_frozen: self.scoring_frozen,
             joust_only: self.joust_only,
+            allow_sudden_death: self.allow_sudden_death,
         }
         .serialize(serializer)
     }
@@ -166,6 +168,7 @@ impl<'de> Deserialize<'de> for Rules {
             duel_lock: dto.duel_lock,
             scoring_frozen: dto.scoring_frozen,
             joust_only: dto.joust_only,
+            allow_sudden_death: dto.allow_sudden_death,
         })
     }
 }

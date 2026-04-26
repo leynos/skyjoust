@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie
+.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie generate-state-graphs check-state-graphs
 
 
 TARGET ?= skyjoust
@@ -20,7 +20,7 @@ NIXIE ?= nixie
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
 
-all: check-fmt lint test ## Perform a comprehensive check of code
+all: check-fmt check-state-graphs lint test ## Perform a comprehensive check of code
 
 clean: ## Remove build artifacts
 	$(CARGO) clean
@@ -67,6 +67,21 @@ markdownlint: ## Lint Markdown files
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
+
+generate-state-graphs: ## Generate JSON state graph bundle from YAML
+	python3 scripts/generate-state-graphs-json.py docs/skyjoust-state-graphs.yaml docs/skyjoust-state-graphs.json
+
+check-state-graphs: ## Verify JSON state graph bundle matches YAML
+	@tmp="$$(mktemp)"; \
+	python3 scripts/generate-state-graphs-json.py docs/skyjoust-state-graphs.yaml "$$tmp"; \
+	if cmp -s "$$tmp" docs/skyjoust-state-graphs.json; then \
+		rm -f "$$tmp"; \
+	else \
+		echo "docs/skyjoust-state-graphs.json is stale. Run make generate-state-graphs."; \
+		diff -u docs/skyjoust-state-graphs.json "$$tmp"; \
+		rm -f "$$tmp"; \
+		exit 1; \
+	fi
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \

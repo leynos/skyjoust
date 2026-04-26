@@ -1590,8 +1590,7 @@
             },
             "Breached": {
               "entry": [
-                "emit.VICTORY_PROGRESS_CHANGED",
-                "emit.VICTORY_CONDITION_MET"
+                "emit.VICTORY_PROGRESS_CHANGED"
               ]
             }
           }
@@ -1930,16 +1929,6 @@
       "source": "objectives.outposts.Controlled",
       "emits": "OUTPOST_CAPTURED",
       "consumed_by": [
-        "scoring",
-        "rewards",
-        "warfront"
-      ]
-    },
-    {
-      "source": "objectives.keeps.Breached",
-      "emits": "VICTORY_CONDITION_MET",
-      "consumed_by": [
-        "match_lifecycle",
         "scoring",
         "rewards",
         "warfront"

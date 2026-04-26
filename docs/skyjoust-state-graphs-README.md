@@ -6,7 +6,7 @@ game engine flow.
 Files:
 
 - `skyjoust-state-graphs.yaml` — canonical readable spec.
-- `skyjoust-state-graphs.json` — JSON equivalent of the same spec.
+- `skyjoust-state-graphs.json` — generated JSON equivalent of the same spec.
 - `skyjoust_overview.dot` — Graphviz overview showing parallel graphs and data
   flow.
 - `skyjoust_match_lifecycle.dot` — Graphviz match lifecycle state graph.
@@ -21,5 +21,10 @@ Suggested engine usage:
    (ECS) World during fixed ticks.
 3. Buffer transition actions into deterministic command queues.
 4. Emit events into a stable, tick-indexed event bus.
-5. Let Scoring and Rewards consume events after gameplay resolution, not during
+
+Edit only `skyjoust-state-graphs.yaml`. Regenerate the checked-in JSON bundle
+with `make generate-state-graphs`, and use `make check-state-graphs` to verify
+that `skyjoust-state-graphs.json` still matches the canonical YAML source.
+
+1. Let Scoring and Rewards consume events after gameplay resolution, not during
    input handling.

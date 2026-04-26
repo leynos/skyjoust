@@ -15,7 +15,8 @@ expression: result
       "friendly_fire": true,
       "duel_lock": false,
       "scoring_frozen": false,
-      "joust_only": false
+      "joust_only": false,
+      "allow_sudden_death": true
     },
     "player_ordnance": "Ready",
     "lance": "Idle",

@@ -55,6 +55,25 @@ fn tournament_round_start_moves_from_arena_build_to_round_active() {
 }
 
 #[test]
+fn tournament_round_win_advances_to_round_complete() {
+    let last = SkyState {
+        ceremony: CeremonyState::Tournament(TournamentState::RoundActive),
+        match_phase: MatchPhase::EventOverride,
+        ..active_state()
+    };
+    let mut state = last.clone();
+
+    let handled = handle_ceremonies(&last, &mut state, &SkyAction::TournamentRoundWon);
+
+    assert_eq!(handled, Some(true));
+    assert_eq!(
+        state.ceremony,
+        CeremonyState::Tournament(TournamentState::RoundComplete)
+    );
+    assert_eq!(state.tournament_rounds_won, 1);
+}
+
+#[test]
 fn duel_decisive_joust_scores_for_each_winning_team() {
     for (winner, red_score, blue_score) in [(Team::Red, 350, 0), (Team::Blue, 0, 350)] {
         let last = SkyState {

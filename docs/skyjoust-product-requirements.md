@@ -53,10 +53,11 @@ Hard requirements:
   consistent.
 - **Low-latency input**; buffered actions and generous coyote-time where
   appropriate.
-- Deterministic physics and simulation are required for the Minimum Viable
-  Product (MVP). Collision outcomes, fixed-tick updates, and input-driven state
-  changes must support the validator contract, replayable seeds, and later
-  rollback-friendly simulation.
+- Deterministic simulation is required for the Minimum Viable Product (MVP).
+  Deterministic physics must be bitwise reproducible across runs given the same
+  seed, inputs, simulation tick rate, and supported platform target. Collision
+  outcomes, fixed-tick updates, and input-driven state changes must support the
+  validator contract, replayable seeds, and later rollback-friendly simulation.
 
 ## 5. Core game loop
 
@@ -247,8 +248,9 @@ Currencies:
   parts.
 - **Coin:** earned via territory/supply; spent on structures, mercs, repairs.
 - **Influence:** earned via events/negotiation; spent to steer Warfront events.
-- **Laurels:** event-only ledger earned through tournaments and special events;
-  spent on tournament rewards, entry, or prestige-gated upgrades.
+- **Laurels:** first-class currency earned by tournament placements and event
+  rewards; redeemable for season or tournament cosmetic rewards, prestige
+  items, and leaderboard-specific upgrades.
 
 Progression principles:
 
@@ -295,14 +297,10 @@ Audio:
 
 ## 15. Technical requirements (high level)
 
-- Deterministic physics and simulation must be bitwise reproducible across runs
-  given the same seed, inputs, fixed simulation tick rate, and supported
-  platform target. Collision outcomes and input-driven updates must remain
-  validator-compatible and rollback-friendly. If an implementation path cannot
-  meet that standard, it must define documented non-determinism bounds before
-  adoption, including tolerated random number generation sources, accepted
-  divergence windows, supported platforms, and the physics validator
-  expectations for those bounds.
+- Deterministic simulation is required. Deterministic physics must be bitwise
+  reproducible across runs given the same seed, inputs, simulation tick rate,
+  and supported platform target. Collision outcomes, fixed-tick simulation, and
+  input-driven updates must remain validator-compatible and rollback-friendly.
 - Procedural generation that guarantees:
 
   - spawn safety,

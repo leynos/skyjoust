@@ -178,10 +178,8 @@ fn push_tournament_actions(state: TournamentState, actions: &mut Vec<SkyAction>)
     match state {
         TournamentState::ArenaBuild => actions.push(SkyAction::ArenaReady),
         TournamentState::Registration => actions.push(SkyAction::TournamentRegistered),
-        TournamentState::RoundActive => {
-            actions.push(SkyAction::TournamentRoundWon);
-            actions.push(SkyAction::TournamentChampionDeclared);
-        }
+        TournamentState::RoundActive => actions.push(SkyAction::TournamentRoundWon),
+        TournamentState::RoundComplete => actions.push(SkyAction::TournamentChampionDeclared),
         TournamentState::ChampionDeclared => {}
     }
 }

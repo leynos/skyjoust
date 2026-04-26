@@ -160,11 +160,12 @@ fn record_tournament_round_win(last: &SkyState, state: &mut SkyState) -> Option<
     guard(last.ceremony == CeremonyState::Tournament(TournamentState::RoundActive))?;
     apply_joust_score(state, Team::Red, JoustOutcome::Unhorse);
     state.tournament_rounds_won = state.tournament_rounds_won.saturating_add(1);
+    state.ceremony = CeremonyState::Tournament(TournamentState::RoundComplete);
     Some(())
 }
 
 fn declare_tournament_champion(last: &SkyState, state: &mut SkyState) -> Option<()> {
-    guard(last.ceremony == CeremonyState::Tournament(TournamentState::RoundActive))?;
+    guard(last.ceremony == CeremonyState::Tournament(TournamentState::RoundComplete))?;
     guard(last.tournament_rounds_won > 0)?;
     state.ceremony = CeremonyState::ConsequenceResolution;
     state.tournament_completed = true;

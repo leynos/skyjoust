@@ -63,6 +63,7 @@ fn clear_temporary_rules_preserves_active_truce_override() {
     assert!(!state.rules.duel_lock);
     assert!(!state.rules.joust_only);
     assert_eq!(state.rules.ordnance, OrdnancePolicy::Full);
+    assert!(state.rules.allow_sudden_death);
 }
 
 #[test]

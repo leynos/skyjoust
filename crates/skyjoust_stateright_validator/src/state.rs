@@ -131,6 +131,7 @@ pub enum TournamentState {
     ArenaBuild,
     Registration,
     RoundActive,
+    RoundComplete,
     ChampionDeclared,
 }
 
@@ -170,6 +171,7 @@ pub struct Rules {
     pub duel_lock: bool,
     pub scoring_frozen: bool,
     pub joust_only: bool,
+    pub allow_sudden_death: bool,
 }
 
 impl Rules {
@@ -180,6 +182,7 @@ impl Rules {
             duel_lock: false,
             scoring_frozen: false,
             joust_only: false,
+            allow_sudden_death: true,
         }
     }
 }

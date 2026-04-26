@@ -14,7 +14,7 @@ state_dimensions:
     dormant: Dormant
     queued: [Queued(_)]
     prompt: [Prompt(_)]
-    tournament: [ArenaBuild, Registration, RoundActive, ChampionDeclared]
+    tournament: [ArenaBuild, Registration, RoundActive, RoundComplete, ChampionDeclared]
     duel: [ChallengeIssued, ArenaLock, DuelActive, ResolveDuel]
     wedding: [AllianceProposed, TruceActive, JointObjective, Broken, Expired]
     banquet: [Seating, TermsOpen, TreatySigned, Collapsed]
@@ -25,10 +25,21 @@ state_dimensions:
     duel_lock: boolean
     scoring_frozen: boolean
     joust_only: boolean
+    allow_sudden_death: boolean
+  match_result:
+    Winner: [None, Red, Blue, TieBreak]
+    winner_field: Winner
+  objectives:
+    keep_breached: boolean
+    outpost_controlled: boolean
+    shrine_claimed: boolean
+    supply_route_blocked: boolean
+    hostage_delivered: boolean
   ledgers:
     score: [open, finalized, pending_delta, events_accepted, red_score, blue_score, red_glory, blue_glory, red_morale, blue_morale, victory_pending]
     rewards: [phase, pending_delta, committed, glory, coin, influence, laurels, penalties, tournament_bonus_granted, duel_bonus_granted]
-  flags: [duel_consequence_active, truce_active, truce_broken, treaty_signed, post_final_score_write, warfront_mutated_during_match]
+    infamy: numeric
+  flags: [duel_consequence_active, truce_active, truce_broken, tournament_completed, duel_resolved, treaty_signed, post_final_score_write, warfront_mutated_during_match]
 actions:
   runtime: [AssetsLoaded, StartSkirmish, StartWarfront, MapReady, SelectRegion, StartBattle, FinishConstructing, SpawnReady, CountdownDone]
   ceremonies:
@@ -41,7 +52,6 @@ actions:
   scoring_rewards: [ExportFinalScore, TallyRewards, CommitRewards, NextWarfrontTurn, ReturnToTitle]
 always_properties:
   rewards_commit_requires_final_score: RewardLedger.committed implies ScoreLedger.finalized
-  reward_commit_guard: CommitRewards requires RewardLedger.phase == Tallied, ScoreLedger.finalized, and MatchPhase != Paused
   rewards_open_requires_final_score: RewardLedger.phase in [LedgerOpen, Tallied, Committed, ReadyToSpend] implies ScoreLedger.finalized
   score_closed_after_final_snapshot: ScoreLedger.finalized implies not ScoreLedger.open
   no_score_write_after_final_snapshot: post_final_score_write must remain false

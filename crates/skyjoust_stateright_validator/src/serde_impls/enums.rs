@@ -116,6 +116,7 @@ string_enum_serde!(TournamentState, {
     ArenaBuild => "ArenaBuild",
     Registration => "Registration",
     RoundActive => "RoundActive",
+    RoundComplete => "RoundComplete",
     ChampionDeclared => "ChampionDeclared",
 });
 string_enum_serde!(DuelState, {
