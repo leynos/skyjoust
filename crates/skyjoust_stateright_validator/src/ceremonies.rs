@@ -292,6 +292,8 @@ fn finish_event_cooldown(last: &SkyState, state: &mut SkyState) -> Option<()> {
 /// callers can write `guard(condition)?;` inside functions that return
 /// `Option<T>`.
 ///
+/// # Examples
+///
 /// ```
 /// fn only_even(value: u8) -> Option<u8> {
 ///     fn guard(condition: bool) -> Option<()> { condition.then_some(()) }
