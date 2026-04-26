@@ -1401,8 +1401,6 @@ event_routes:
 - source: match_lifecycle.RoundOver
   emits: FINAL_SCORE_SNAPSHOT
   consumed_by:
-  - rewards
-  - warfront
   - scoring.Listening
 - source: scoring.FinalSnapshot
   emits: REWARD_LEDGER_OPENED
