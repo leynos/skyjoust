@@ -35,6 +35,14 @@ Then open `http://localhost:3000/`.
 cargo run --bin validate_trace < trace.json
 ```
 
+The trace replayer uses the same bounded `SkyjoustInteractionModel` as the
+Stateright checks. The default bound is `max_depth = 24`; raise it for longer
+recorded traces:
+
+```bash
+cargo run --bin validate_trace -- --max-depth 64 < trace.json
+```
+
 Example trace JSON:
 
 ```json

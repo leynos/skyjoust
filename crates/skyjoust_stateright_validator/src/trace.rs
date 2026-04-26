@@ -32,9 +32,9 @@ pub struct TraceFailure {
     pub reason: String,
 }
 
-/// Replay a concrete engine event log against the same guards and invariants as
-/// the Stateright model. This is useful for validating recorded gameplay traces
-/// produced by the Bevy/Pixels runtime.
+/// Replay a concrete engine event log against the same guards, invariants, and
+/// depth bound as the Stateright model. This is useful for validating recorded
+/// gameplay traces produced by the Bevy/Pixels runtime.
 ///
 /// ```
 /// use skyjoust_stateright_validator::{
@@ -74,15 +74,6 @@ where
                 );
             }
         };
-
-        if !model.within_boundary(&next) {
-            return invalid_trace(
-                next,
-                step_index,
-                action,
-                "trace exceeded the configured exploration boundary",
-            );
-        }
 
         if let Some(name) = violated_invariant(model, &next) {
             return invalid_trace(
@@ -171,5 +162,59 @@ mod tests {
             .failure
             .expect("expected trace to have a failure with a reason");
         assert!(failure.reason.contains("action was not legal"));
+    }
+
+    #[test]
+    fn longer_trace_validates_when_depth_is_raised() {
+        let model = SkyjoustInteractionModel { max_depth: 40 };
+        let result = validate_trace(&model, long_legal_trace());
+
+        assert!(result.ok, "{result:?}");
+        assert_eq!(result.final_state.depth, 31);
+    }
+
+    #[test]
+    fn longer_trace_fails_with_default_depth() {
+        let model = SkyjoustInteractionModel::default();
+        let result = validate_trace(&model, long_legal_trace());
+
+        assert!(!result.ok);
+        assert_eq!(result.final_state.depth, model.max_depth);
+    }
+
+    fn long_legal_trace() -> [SkyAction; 31] {
+        [
+            SkyAction::AssetsLoaded,
+            SkyAction::StartSkirmish,
+            SkyAction::StartBattle,
+            SkyAction::FinishConstructing,
+            SkyAction::SpawnReady,
+            SkyAction::CountdownDone,
+            SkyAction::BombKeepBreach,
+            SkyAction::VictoryCheck,
+            SkyAction::ExportFinalScore,
+            SkyAction::TallyRewards,
+            SkyAction::CommitRewards,
+            SkyAction::ReturnToTitle,
+            SkyAction::StartSkirmish,
+            SkyAction::StartBattle,
+            SkyAction::FinishConstructing,
+            SkyAction::SpawnReady,
+            SkyAction::CountdownDone,
+            SkyAction::BombKeepBreach,
+            SkyAction::VictoryCheck,
+            SkyAction::ExportFinalScore,
+            SkyAction::TallyRewards,
+            SkyAction::CommitRewards,
+            SkyAction::ReturnToTitle,
+            SkyAction::StartSkirmish,
+            SkyAction::StartBattle,
+            SkyAction::FinishConstructing,
+            SkyAction::SpawnReady,
+            SkyAction::CountdownDone,
+            SkyAction::BombKeepBreach,
+            SkyAction::VictoryCheck,
+            SkyAction::ExportFinalScore,
+        ]
     }
 }
