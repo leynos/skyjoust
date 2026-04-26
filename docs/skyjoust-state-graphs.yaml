@@ -599,7 +599,6 @@ statecharts:
             actions:
             - seed_rng
             - load_region_rules
-            - open_score_ledger
       Constructing:
         entry:
         - generate_terrain
@@ -673,6 +672,7 @@ statecharts:
       ResultsExported:
         entry:
         - publish.MATCH_ENDED
+        - publish.MATCH_RESULT_POSTED
         - export_match_result_to_warfront_if_any
         'on':
           RESET_MATCH_GRAPH: Inactive
@@ -1359,7 +1359,7 @@ event_routes:
   - collision_cache
   - render_dirty_chunks
   - scoring
-- source: objectives.outposts.Controlled
+- source: player_actor.interaction.CaptureChannel
   emits: OUTPOST_CAPTURED
   consumed_by:
   - scoring
@@ -1386,16 +1386,19 @@ event_routes:
 - source: scoring.PublishVictory
   emits: VICTORY_CONDITION_MET
   consumed_by:
-  - match_lifecycle.RoundOver
+  - match_lifecycle.Active
 - source: match_lifecycle.RoundOver
   emits: FINAL_SCORE_SNAPSHOT
   consumed_by:
-  - rewards
-  - warfront
+  - scoring.Listening
 - source: scoring.FinalSnapshot
   emits: REWARD_LEDGER_OPENED
   consumed_by:
   - rewards
+- source: match_lifecycle.ResultsExported
+  emits: MATCH_RESULT_POSTED
+  consumed_by:
+  - warfront.AwaitingBattleResult
 - source: rewards.Commit
   emits: REWARDS_COMMITTED
   consumed_by:
@@ -1585,6 +1588,8 @@ parallel_query_contracts:
   - CampaignState
   writes_via_events:
   - MATCH_ENDED
+  - MATCH_RESULT_POSTED
+  - FINAL_SCORE_SNAPSHOT
 - consumer: ceremony_events
   reads:
   - CampaignState.house_relations
@@ -1609,7 +1614,6 @@ parallel_query_contracts:
   writes_via_events:
   - SCORE_DELTA_POSTED
   - VICTORY_CONDITION_MET
-  - FINAL_SCORE_SNAPSHOT
 - consumer: rewards
   reads:
   - ScoreLedger.final_snapshot
