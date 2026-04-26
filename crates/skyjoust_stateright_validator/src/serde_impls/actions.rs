@@ -5,12 +5,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
 use crate::actions::{JoustOutcome, SkyAction, Team};
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DuelJoustDto {
     winner: Team,
     outcome: JoustOutcome,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct OffenderDto {
     offender: Team,
 }

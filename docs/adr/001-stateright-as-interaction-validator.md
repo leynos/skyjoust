@@ -31,7 +31,7 @@ The validator crate provides:
 
 ## Alternatives considered
 
-Hand-written scenario tests were rejected as the only mechanism because they
+Handwritten scenario tests were rejected as the only mechanism because they
 cover selected examples rather than the action space.
 
 Property tests using random action generation were rejected as the primary

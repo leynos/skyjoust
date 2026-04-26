@@ -131,4 +131,28 @@ mod tests {
         assert!(options.verbose);
         Ok(())
     }
+
+    #[test]
+    fn missing_max_depth_fails() -> Result<(), Report> {
+        let result = TraceCliOptions::parse(["--max-depth"]);
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_max_depth_fails() -> Result<(), Report> {
+        let result = TraceCliOptions::parse(["--max-depth", "foo"]);
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn unrecognized_argument_fails() -> Result<(), Report> {
+        let result = TraceCliOptions::parse(["--unknown"]);
+
+        assert!(result.is_err());
+        Ok(())
+    }
 }

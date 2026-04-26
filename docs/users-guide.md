@@ -66,7 +66,8 @@ trace, standard output carries the JSON result, and standard error carries
 optional diagnostics.
 
 ```sh
-cargo run -p skyjoust-stateright-validator --bin validate_trace < crates/skyjoust_stateright_validator/traces/keep_breach_reward_commit.json
+cargo run -p skyjoust-stateright-validator --bin validate_trace \
+  < crates/skyjoust_stateright_validator/traces/keep_breach_reward_commit.json
 ```
 
 The output has three top-level fields:
@@ -92,6 +93,67 @@ Expected result:
 ```json
 {
   "ok": false,
+  "final_state": {
+    "depth": 2,
+    "app": "SkirmishSetup",
+    "warfront": "Inactive",
+    "match_phase": "Inactive",
+    "ceremony": "Dormant",
+    "rules": {
+      "ordnance": "Full",
+      "friendly_fire": true,
+      "duel_lock": false,
+      "scoring_frozen": false,
+      "joust_only": false,
+      "allow_sudden_death": true
+    },
+    "player_ordnance": "Ready",
+    "lance": "Idle",
+    "recovery": "Alive",
+    "objectives": {
+      "keep_breached": false,
+      "outpost_controlled": false,
+      "shrine_claimed": false,
+      "supply_route_blocked": false,
+      "hostage_delivered": false
+    },
+    "score": {
+      "open": false,
+      "finalized": false,
+      "pending_delta": false,
+      "events_accepted": 0,
+      "red_score": 0,
+      "blue_score": 0,
+      "red_glory": 0,
+      "blue_glory": 0,
+      "red_morale": 10,
+      "blue_morale": 10,
+      "victory_pending": false
+    },
+    "rewards": {
+      "phase": "Dormant",
+      "pending_delta": false,
+      "committed": false,
+      "glory": 0,
+      "coin": 0,
+      "influence": 0,
+      "laurels": 0,
+      "penalties": 0,
+      "tournament_bonus_granted": false,
+      "duel_bonus_granted": false
+    },
+    "winner": "None",
+    "truce_active": false,
+    "truce_broken": false,
+    "tournament_rounds_won": 0,
+    "tournament_completed": false,
+    "duel_resolved": false,
+    "duel_consequence_active": false,
+    "treaty_signed": false,
+    "infamy": 0,
+    "post_final_score_write": false,
+    "warfront_mutated_during_match": false
+  },
   "failure": {
     "step_index": 2,
     "action": "CommitRewards",

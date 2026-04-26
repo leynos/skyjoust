@@ -123,6 +123,7 @@ fn select_region(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn handle_gameplay(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
+    guard(!last.has_active_ceremony())?;
     match action {
         SkyAction::BracePressed => {
             guard(last.is_match_active() && last.lance == LanceState::Idle)?;

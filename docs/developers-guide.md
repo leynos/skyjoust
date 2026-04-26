@@ -104,7 +104,8 @@ cargo run -p skyjoust-stateright-validator --example serve_explorer
 The trace validator can replay a fixture:
 
 ```sh
-cargo run -p skyjoust-stateright-validator --bin validate_trace < crates/skyjoust_stateright_validator/traces/tournament_reward_commit.json
+cargo run -p skyjoust-stateright-validator --bin validate_trace \
+  < crates/skyjoust_stateright_validator/traces/tournament_reward_commit.json
 ```
 
 Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to print transition

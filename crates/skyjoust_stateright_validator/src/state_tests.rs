@@ -96,7 +96,7 @@ fn reset_for_match_start_zeroes_match_scoped_fields() {
 
     assert_eq!(state.match_phase, MatchPhase::Constructing);
     assert_eq!(state.ceremony, CeremonyState::Dormant);
-    assert!(state.score.open);
+    assert!(!state.score.open);
     assert_eq!(state.score.red_score, 0);
     assert_eq!(state.rewards.phase, RewardPhase::Dormant);
     assert!(!state.truce_active);

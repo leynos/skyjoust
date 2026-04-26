@@ -33,6 +33,7 @@ fn reward_commit_before_final_score_matches_failure_snapshot() {
     );
 
     assert!(!result.ok);
+    assert!(result.failure.is_some());
     insta::assert_json_snapshot!(result.failure);
 }
 

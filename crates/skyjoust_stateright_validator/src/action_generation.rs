@@ -119,18 +119,16 @@ fn push_lance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
 }
 
 fn push_joust_actions(actions: &mut Vec<SkyAction>) {
-    actions.push(SkyAction::Joust {
-        winner: Team::Red,
-        outcome: JoustOutcome::Knockback,
-    });
-    actions.push(SkyAction::Joust {
-        winner: Team::Red,
-        outcome: JoustOutcome::Unhorse,
-    });
-    actions.push(SkyAction::Joust {
-        winner: Team::Red,
-        outcome: JoustOutcome::Shatter,
-    });
+    for winner in [Team::Red, Team::Blue] {
+        for outcome in [
+            JoustOutcome::Knockback,
+            JoustOutcome::Unhorse,
+            JoustOutcome::Shatter,
+            JoustOutcome::CleanKill,
+        ] {
+            actions.push(SkyAction::Joust { winner, outcome });
+        }
+    }
 }
 
 fn push_ordnance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
@@ -189,10 +187,12 @@ fn push_duel_actions(state: DuelState, actions: &mut Vec<SkyAction>) {
         DuelState::ChallengeIssued => actions.push(SkyAction::AcceptDuel),
         DuelState::ArenaLock => actions.push(SkyAction::DuelReady),
         DuelState::DuelActive => {
-            actions.push(SkyAction::DuelDecisiveJoust {
-                winner: Team::Red,
-                outcome: JoustOutcome::CleanKill,
-            });
+            for winner in [Team::Red, Team::Blue] {
+                actions.push(SkyAction::DuelDecisiveJoust {
+                    winner,
+                    outcome: JoustOutcome::CleanKill,
+                });
+            }
             actions.push(SkyAction::DuelInterference {
                 offender: Team::Red,
             });
@@ -280,10 +280,31 @@ mod tests {
         let mut bracing_actions = Vec::new();
         push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
         assert!(bracing_actions.contains(&SkyAction::BraceWindowExpired));
-        assert!(
-            bracing_actions
-                .iter()
-                .any(|action| matches!(action, SkyAction::Joust { .. }))
-        );
+        for winner in [Team::Red, Team::Blue] {
+            for outcome in [
+                JoustOutcome::Knockback,
+                JoustOutcome::Unhorse,
+                JoustOutcome::Shatter,
+                JoustOutcome::CleanKill,
+            ] {
+                assert!(bracing_actions.contains(&SkyAction::Joust { winner, outcome }));
+            }
+        }
+    }
+
+    #[test]
+    fn duel_actions_include_both_clean_kill_winners() {
+        let mut actions = Vec::new();
+
+        push_duel_actions(DuelState::DuelActive, &mut actions);
+
+        assert!(actions.contains(&SkyAction::DuelDecisiveJoust {
+            winner: Team::Red,
+            outcome: JoustOutcome::CleanKill,
+        }));
+        assert!(actions.contains(&SkyAction::DuelDecisiveJoust {
+            winner: Team::Blue,
+            outcome: JoustOutcome::CleanKill,
+        }));
     }
 }

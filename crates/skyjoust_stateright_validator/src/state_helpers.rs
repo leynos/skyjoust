@@ -186,10 +186,7 @@ impl SkyState {
         self.lance = LanceState::Idle;
         self.recovery = RecoveryState::Alive;
         self.objectives = ObjectiveSnapshot::default();
-        self.score = ScoreLedger {
-            open: true,
-            ..ScoreLedger::default()
-        };
+        self.score = ScoreLedger::default();
         self.rewards = RewardLedger::default();
         self.winner = Winner::None;
         self.truce_active = false;
