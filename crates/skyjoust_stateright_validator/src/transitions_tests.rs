@@ -31,14 +31,16 @@ fn joust_requires_bracing_lance() {
         ..SkyState::default()
     };
 
-    assert!(transition(
-        &last,
-        &SkyAction::Joust {
-            winner: Team::Red,
-            outcome: JoustOutcome::Knockback,
-        },
-    )
-    .is_none());
+    assert!(
+        transition(
+            &last,
+            &SkyAction::Joust {
+                winner: Team::Red,
+                outcome: JoustOutcome::Knockback,
+            },
+        )
+        .is_none()
+    );
 }
 
 #[test]

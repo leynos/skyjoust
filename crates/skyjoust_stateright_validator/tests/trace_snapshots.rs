@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use skyjoust_stateright_validator::{validate_trace, SkyAction, SkyjoustInteractionModel};
+use skyjoust_stateright_validator::{SkyAction, SkyjoustInteractionModel, validate_trace};
 
 #[test]
 fn tournament_reward_commit_trace_matches_snapshot() -> Result<(), Box<dyn Error>> {

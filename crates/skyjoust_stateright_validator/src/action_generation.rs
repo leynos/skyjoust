@@ -271,15 +271,19 @@ mod tests {
         let mut idle_actions = Vec::new();
         push_active_match_actions(&live_state(LanceState::Idle), &mut idle_actions);
         assert!(idle_actions.contains(&SkyAction::BracePressed));
-        assert!(!idle_actions
-            .iter()
-            .any(|action| matches!(action, SkyAction::Joust { .. })));
+        assert!(
+            !idle_actions
+                .iter()
+                .any(|action| matches!(action, SkyAction::Joust { .. }))
+        );
 
         let mut bracing_actions = Vec::new();
         push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
         assert!(bracing_actions.contains(&SkyAction::BraceWindowExpired));
-        assert!(bracing_actions
-            .iter()
-            .any(|action| matches!(action, SkyAction::Joust { .. })));
+        assert!(
+            bracing_actions
+                .iter()
+                .any(|action| matches!(action, SkyAction::Joust { .. }))
+        );
     }
 }

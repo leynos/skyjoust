@@ -11,8 +11,8 @@ use std::{
     io::{self, Read},
 };
 
-use eyre::{bail, Context, Report};
-use skyjoust_stateright_validator::{validate_trace, SkyAction, SkyjoustInteractionModel};
+use eyre::{Context, Report, bail};
+use skyjoust_stateright_validator::{SkyAction, SkyjoustInteractionModel, validate_trace};
 
 fn main() -> Result<(), Report> {
     let options = TraceCliOptions::parse(env::args().skip(1))?;

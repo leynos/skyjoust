@@ -38,12 +38,12 @@ pub struct TraceFailure {
 ///
 /// ```
 /// use skyjoust_stateright_validator::{
-///     validate_trace,
 ///     SkyAction,
 ///     SkyState,
 ///     SkyjoustInteractionModel,
 ///     TraceFailure,
 ///     TraceValidation,
+///     validate_trace,
 /// };
 ///
 /// let model = SkyjoustInteractionModel { max_depth: 8 };
@@ -121,7 +121,7 @@ fn invalid_trace(
 mod tests {
     //! Tests for trace replay validation.
 
-    use crate::{validate_trace, SkyAction, SkyjoustInteractionModel};
+    use crate::{SkyAction, SkyjoustInteractionModel, validate_trace};
 
     #[test]
     fn known_good_keep_breach_trace_validates() {

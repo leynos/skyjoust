@@ -53,4 +53,4 @@ pub use state::{
     WeddingState,
     Winner,
 };
-pub use trace::{validate_trace, TraceFailure, TraceValidation};
+pub use trace::{TraceFailure, TraceValidation, validate_trace};

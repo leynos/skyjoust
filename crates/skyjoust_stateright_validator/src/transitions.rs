@@ -4,12 +4,12 @@ use crate::{
     actions::{JoustOutcome, SkyAction, Team},
     ceremonies::handle_ceremonies,
     scoring::{
+        ScoreAtom,
         apply_joust_score,
         apply_objective_score,
         decide_winner,
         tally_rewards,
         update_recovery_from_outcome,
-        ScoreAtom,
     },
     state::{
         AppState,
@@ -321,13 +321,7 @@ fn mark_warfront_mutation_during_match(last: &SkyState, state: &mut SkyState) {
 /// assert_eq!(only_even(4), Some(4));
 /// assert_eq!(only_even(5), None);
 /// ```
-fn guard(condition: bool) -> Option<()> {
-    if condition {
-        Some(())
-    } else {
-        None
-    }
-}
+fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
 
 #[cfg(test)]
 #[path = "transitions_tests.rs"]

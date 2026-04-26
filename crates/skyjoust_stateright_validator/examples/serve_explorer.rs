@@ -6,12 +6,15 @@
 use skyjoust_stateright_validator::SkyjoustInteractionModel;
 use stateright::Model;
 
+const EXPLORER_HOST: &str = "localhost:3000";
+const EXPLORER_URL: &str = "http://localhost:3000/";
+
 fn main() {
-    eprintln!("attempting to serve Stateright Explorer at localhost:3000");
+    eprintln!("attempting to serve Stateright Explorer at {EXPLORER_HOST}");
     let _checker = SkyjoustInteractionModel { max_depth: 18 }
         .checker()
-        .serve("localhost:3000");
+        .serve(EXPLORER_HOST);
 
-    println!("Stateright Explorer is serving Project Skyjoust at http://localhost:3000/");
+    println!("Stateright Explorer is serving Project Skyjoust at {EXPLORER_URL}");
     std::thread::park();
 }

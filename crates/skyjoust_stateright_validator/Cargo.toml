@@ -1,7 +1,7 @@
 [package]
 name = "skyjoust-stateright-validator"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Stateright model checker and trace validator for Project Skyjoust high-level engine interactions."
 license = "MIT OR Apache-2.0"
 

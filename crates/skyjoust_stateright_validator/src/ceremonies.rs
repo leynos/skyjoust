@@ -2,7 +2,7 @@
 
 use crate::{
     actions::{JoustOutcome, SkyAction, Team},
-    scoring::{apply_dishonour_penalty, apply_joust_score, apply_objective_score, ScoreAtom},
+    scoring::{ScoreAtom, apply_dishonour_penalty, apply_joust_score, apply_objective_score},
     state::{
         AppState,
         BanquetState,
@@ -284,13 +284,7 @@ fn finish_event_cooldown(last: &SkyState, state: &mut SkyState) -> Option<()> {
     Some(())
 }
 
-fn guard(condition: bool) -> Option<()> {
-    if condition {
-        Some(())
-    } else {
-        None
-    }
-}
+fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
 
 #[cfg(test)]
 #[path = "ceremonies_tests.rs"]

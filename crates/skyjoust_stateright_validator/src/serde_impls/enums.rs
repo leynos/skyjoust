@@ -1,6 +1,6 @@
 //! Serde adapter implementations for unit-like enum domain types.
 
-use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
 
 use crate::{
     actions::{JoustOutcome, Team},

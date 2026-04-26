@@ -1,6 +1,6 @@
 //! Serde adapter implementations for action domain types.
 
-use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
 
 use crate::actions::{JoustOutcome, SkyAction, Team};
 
