@@ -510,7 +510,7 @@ Tournament tasks:
 
 Duel tasks:
 
-- Add challenge, accept/refuse, arena lock, active duel, honour violation, and
+- Add challenge, accept, arena lock, active duel, honour violation, and
   resolve-duel states.
 - Lock duelists and block non-duelist scoring.
 - Emit dishonour penalties for interference.

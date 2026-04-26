@@ -26,7 +26,7 @@ use crate::state::{
 
 #[derive(Serialize, Deserialize)]
 struct SkyStateDto {
-    depth: u8,
+    depth: u16,
     app: AppState,
     warfront: WarfrontState,
     match_phase: MatchPhase,

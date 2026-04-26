@@ -209,3 +209,42 @@ fn match_scoped_ceremonies_reject_after_final_score() {
         None
     );
 }
+
+#[test]
+fn banquet_can_open_after_final_score() {
+    let last = SkyState {
+        app: AppState::WarfrontRunning,
+        warfront: WarfrontState::StrategicChoice,
+        score: ScoreLedger {
+            finalized: true,
+            ..ScoreLedger::default()
+        },
+        ..active_state()
+    };
+    let mut state = last.clone();
+
+    let handled = handle_ceremonies(&last, &mut state, &SkyAction::OpenBanquet);
+
+    assert_eq!(handled, Some(true));
+    assert_eq!(state.warfront, WarfrontState::BanquetNegotiation);
+    assert_eq!(
+        state.ceremony,
+        CeremonyState::Banquet(BanquetState::Seating)
+    );
+}
+
+#[test]
+fn banquet_cannot_open_during_active_ceremony() {
+    let last = SkyState {
+        app: AppState::WarfrontRunning,
+        warfront: WarfrontState::StrategicChoice,
+        ceremony: CeremonyState::ConsequenceResolution,
+        ..active_state()
+    };
+    let mut state = last.clone();
+
+    assert_eq!(
+        handle_ceremonies(&last, &mut state, &SkyAction::OpenBanquet),
+        None
+    );
+}

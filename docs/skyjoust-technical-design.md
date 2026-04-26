@@ -450,10 +450,14 @@ Table 4: Current decisions.
 ## 16. Deferred decisions
 
 - Final virtual resolution after HUD legibility tests.
-- Exact crate split for the first implementation pass.
-- Fixed-point type and scale after movement prototype benchmarks.
-- Atlas packing format and manifest schema version.
+- Exact crate split for the first implementation pass is tracked in
+  [ADR 002](adr/002-crate-layout-and-public-api.md).
+- Fixed-point type and scale after movement prototype benchmarks is tracked in
+  [ADR 003](adr/003-fixed-point-type-and-scale.md).
+- Atlas packing format and manifest schema version is tracked in
+  [ADR 004](adr/004-atlas-packing-format-and-manifest-schema.md).
 - Whether Warfront map rendering uses generated region base art or
-  deterministic map tiles plus generated ornamentation.
+  deterministic map tiles plus generated ornamentation is tracked in
+  [ADR 005](adr/005-warfront-renderer-map-art-strategy.md).
 - Whether weddings and banquets ship as visible preview content or remain
   hidden post-MVP graph states until diplomacy is implemented.

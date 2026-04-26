@@ -56,7 +56,7 @@ fn main() -> Result<(), Report> {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct TraceCliOptions {
-    max_depth: Option<u8>,
+    max_depth: Option<u16>,
     verbose: bool,
 }
 
@@ -77,7 +77,7 @@ impl TraceCliOptions {
                         .ok_or_else(|| eyre::eyre!("--max-depth requires a numeric value"))?;
                     options.max_depth = Some(
                         raw_depth
-                            .parse::<u8>()
+                            .parse::<u16>()
                             .wrap_err_with(|| format!("invalid --max-depth value: {raw_depth}"))?,
                     );
                 }

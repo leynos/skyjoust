@@ -12,7 +12,7 @@ pub type AlwaysProperty = fn(&SkyjoustInteractionModel, &SkyState) -> bool;
 pub struct SkyjoustInteractionModel {
     /// Exploration boundary. Increase for deeper interaction sequences, lower
     /// it for fast continuous integration smoke checks.
-    pub max_depth: u8,
+    pub max_depth: u16,
 }
 
 impl Default for SkyjoustInteractionModel {

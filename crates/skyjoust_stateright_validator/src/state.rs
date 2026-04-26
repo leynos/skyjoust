@@ -5,7 +5,7 @@ pub use crate::ledgers::{RewardLedger, RewardPhase, ScoreLedger};
 /// Complete validator snapshot for app, match, ceremony, scoring, and rewards.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SkyState {
-    pub depth: u8,
+    pub depth: u16,
     pub app: AppState,
     pub warfront: WarfrontState,
     pub match_phase: MatchPhase,
@@ -176,6 +176,22 @@ pub struct Rules {
 }
 
 impl Rules {
+    /// Return the baseline match rules used before temporary ceremony modifiers.
+    ///
+    /// Baseline rules enable full ordnance and friendly fire, leave duel locking
+    /// disabled, keep scoring live, do not force joust-only play, and allow
+    /// sudden death.
+    ///
+    /// ```
+    /// use skyjoust_stateright_validator::{OrdnancePolicy, Rules};
+    ///
+    /// let rules = Rules::baseline();
+    ///
+    /// assert_eq!(rules.ordnance, OrdnancePolicy::Full);
+    /// assert!(rules.friendly_fire);
+    /// assert!(!rules.duel_lock);
+    /// assert!(rules.allow_sudden_death);
+    /// ```
     pub const fn baseline() -> Self {
         Self {
             ordnance: OrdnancePolicy::Full,

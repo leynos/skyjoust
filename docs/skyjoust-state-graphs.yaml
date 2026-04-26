@@ -54,6 +54,7 @@ shared_context:
     - scoring_multipliers
     - honour_rules
     - duel_lock
+    - glory_threshold
     MatchState:
     - tick
     - timer
@@ -71,14 +72,22 @@ shared_context:
     - house_relations
     - queued_events
     - active_truces
+    - active_treaty
     - pressure_vectors
     ScoreLedger:
+    - open
+    - finalized
+    - final_snapshot
     - per_player
     - per_team
     - event_subscores
     - morale_deltas
     - victory_progress
     RewardLedger:
+    - phase
+    - pending_delta
+    - committed
+    - has_uncommitted_delta
     - glory
     - coin
     - influence
@@ -760,6 +769,7 @@ statecharts:
               ChampionDeclared:
                 entry:
                 - queue_tournament_rewards
+                - publish.LAURELS_GRANTED
                 - publish.EVENT_COMPLETED
                 always: '#ceremony_events.ConsequenceResolution'
           Duel:
@@ -793,6 +803,7 @@ statecharts:
               HonourViolation:
                 entry:
                 - apply_infamy_or_dishonour
+                - publish.HONOUR_VIOLATION
                 - emit_score_penalty
                 always: DuelActive
               ResolveDuel:
@@ -1365,12 +1376,12 @@ event_routes:
   - scoring
   - rewards
   - warfront
-- source: ceremony_events.Tournament.RoundScore
+- source: ceremony_events.Active.Tournament.ChampionDeclared
   emits: LAURELS_GRANTED
   consumed_by:
   - scoring
   - rewards
-- source: ceremony_events.Duel.HonourViolation
+- source: ceremony_events.Active.Duel.HonourViolation
   emits: HONOUR_VIOLATION
   consumed_by:
   - scoring

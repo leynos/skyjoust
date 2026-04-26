@@ -7,16 +7,21 @@ fn warfront_mutation_flag_is_set_for_in_match_changes() {
     let last = SkyState {
         match_phase: MatchPhase::NormalPlay,
         warfront: WarfrontState::AwaitingBattleResult,
+        score: crate::state::ScoreLedger {
+            finalized: true,
+            ..crate::state::ScoreLedger::default()
+        },
+        rewards: crate::state::RewardLedger {
+            phase: RewardPhase::Tallied,
+            ..crate::state::RewardLedger::default()
+        },
         ..SkyState::default()
     };
-    let mut next = SkyState {
-        warfront: WarfrontState::RewardCommit,
-        ..last.clone()
-    };
 
-    mark_warfront_mutation_during_match(&last, &mut next);
+    let next = transition(&last, &SkyAction::CommitRewards).expect("reward commit should be legal");
 
     assert!(next.warfront_mutated_during_match);
+    assert_eq!(next.warfront, WarfrontState::RewardCommit);
 }
 
 #[test]

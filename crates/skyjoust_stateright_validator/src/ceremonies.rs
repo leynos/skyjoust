@@ -239,6 +239,7 @@ fn expire_truce(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn open_banquet(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(last.ceremony == CeremonyState::Dormant)?;
     guard(
         last.app == AppState::WarfrontRunning && last.warfront == WarfrontState::StrategicChoice,
     )?;
