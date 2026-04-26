@@ -70,6 +70,7 @@ Code gates:
 
 ```bash
 make check-fmt 2>&1 | tee /tmp/check-fmt-skyjoust-$(git branch --show-current).out
+make check-state-graphs 2>&1 | tee /tmp/check-state-graphs-skyjoust-$(git branch --show-current).out
 make lint 2>&1 | tee /tmp/lint-skyjoust-$(git branch --show-current).out
 make test 2>&1 | tee /tmp/test-skyjoust-$(git branch --show-current).out
 ```
@@ -78,6 +79,7 @@ Documentation gates:
 
 ```bash
 make fmt 2>&1 | tee /tmp/markdownfmt-skyjoust-$(git branch --show-current).out
+cargo doc --no-deps --workspace 2>&1 | tee /tmp/cargo-doc-skyjoust-$(git branch --show-current).out
 make markdownlint 2>&1 | tee /tmp/markdownlint-skyjoust-$(git branch --show-current).out
 make nixie 2>&1 | tee /tmp/nixie-skyjoust-$(git branch --show-current).out
 git diff --check 2>&1 | tee /tmp/diff-check-skyjoust-$(git branch --show-current).out

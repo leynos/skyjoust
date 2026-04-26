@@ -113,9 +113,7 @@ fn handle_banquet(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> 
         SkyAction::BanquetReady => {
             open_banquet_terms(last, state)?;
         }
-        SkyAction::ProposeTreaty => {
-            guard(last.ceremony == CeremonyState::Banquet(BanquetState::TermsOpen))?;
-        }
+        SkyAction::ProposeTreaty => propose_treaty(last, state)?,
         SkyAction::AcceptTreaty => accept_treaty(last, state)?,
         SkyAction::RejectTreaty => reject_treaty(last, state)?,
         _ => return None,
@@ -255,8 +253,14 @@ fn open_banquet_terms(last: &SkyState, state: &mut SkyState) -> Option<()> {
     Some(())
 }
 
-fn accept_treaty(last: &SkyState, state: &mut SkyState) -> Option<()> {
+fn propose_treaty(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.ceremony == CeremonyState::Banquet(BanquetState::TermsOpen))?;
+    state.ceremony = CeremonyState::Banquet(BanquetState::CounterOffer);
+    Some(())
+}
+
+fn accept_treaty(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(last.ceremony == CeremonyState::Banquet(BanquetState::CounterOffer))?;
     state.ceremony = CeremonyState::ConsequenceResolution;
     state.treaty_signed = true;
     state.warfront = WarfrontState::StrategicChoice;
@@ -264,7 +268,7 @@ fn accept_treaty(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn reject_treaty(last: &SkyState, state: &mut SkyState) -> Option<()> {
-    guard(last.ceremony == CeremonyState::Banquet(BanquetState::TermsOpen))?;
+    guard(last.ceremony == CeremonyState::Banquet(BanquetState::CounterOffer))?;
     state.ceremony = CeremonyState::ConsequenceResolution;
     state.warfront = WarfrontState::StrategicChoice;
     state.infamy += 5;

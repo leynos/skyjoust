@@ -1,5 +1,7 @@
 //! Tests for ceremony transition handlers.
 
+use rstest::{fixture, rstest};
+
 use super::*;
 use crate::state::{Rules, ScoreLedger};
 
@@ -11,6 +13,15 @@ fn active_state() -> SkyState {
             ..ScoreLedger::default()
         },
         ..SkyState::default()
+    }
+}
+
+#[fixture]
+fn duel_active_state() -> SkyState {
+    SkyState {
+        ceremony: CeremonyState::Duel(DuelState::DuelActive),
+        match_phase: MatchPhase::EventOverride,
+        ..active_state()
     }
 }
 
@@ -78,55 +89,75 @@ fn tournament_round_win_advances_to_round_complete() {
     assert_eq!(state.score.blue_score, 150);
 }
 
-#[test]
-fn duel_decisive_joust_scores_for_each_winning_team() {
-    for (winner, red_score, blue_score) in [(Team::Red, 350, 0), (Team::Blue, 0, 350)] {
-        let last = SkyState {
-            ceremony: CeremonyState::Duel(DuelState::DuelActive),
-            match_phase: MatchPhase::EventOverride,
-            rules: Rules {
-                duel_lock: true,
-                joust_only: true,
-                ordnance: crate::state::OrdnancePolicy::Disabled,
-                ..Rules::baseline()
-            },
-            ..active_state()
-        };
-        let mut state = last.clone();
+#[rstest]
+#[case(Team::Red, 350, 0)]
+#[case(Team::Blue, 0, 350)]
+fn duel_decisive_joust_scores_for_each_winning_team(
+    mut duel_active_state: SkyState,
+    #[case] winner: Team,
+    #[case] red_score: i16,
+    #[case] blue_score: i16,
+) {
+    duel_active_state.rules = Rules {
+        duel_lock: true,
+        joust_only: true,
+        ordnance: crate::state::OrdnancePolicy::Disabled,
+        ..Rules::baseline()
+    };
+    let mut state = duel_active_state.clone();
 
-        let handled = handle_ceremonies(
-            &last,
-            &mut state,
-            &SkyAction::DuelDecisiveJoust {
-                winner,
-                outcome: JoustOutcome::CleanKill,
-            },
-        );
+    let handled = handle_ceremonies(
+        &duel_active_state,
+        &mut state,
+        &SkyAction::DuelDecisiveJoust {
+            winner,
+            outcome: JoustOutcome::CleanKill,
+        },
+    );
 
-        assert_eq!(handled, Some(true));
-        assert_eq!(state.score.red_score, red_score);
-        assert_eq!(state.score.blue_score, blue_score);
-    }
+    assert_eq!(handled, Some(true));
+    assert_eq!(state.score.red_score, red_score);
+    assert_eq!(state.score.blue_score, blue_score);
+}
+
+#[rstest]
+#[case(Team::Red, -500, 0)]
+#[case(Team::Blue, 0, -500)]
+fn duel_interference_penalizes_only_offending_team(
+    duel_active_state: SkyState,
+    #[case] offender: Team,
+    #[case] red_score: i16,
+    #[case] blue_score: i16,
+) {
+    let mut state = duel_active_state.clone();
+
+    let handled = handle_ceremonies(
+        &duel_active_state,
+        &mut state,
+        &SkyAction::DuelInterference { offender },
+    );
+
+    assert_eq!(handled, Some(true));
+    assert_eq!(state.infamy, 10);
+    assert_eq!(state.score.red_score, red_score);
+    assert_eq!(state.score.blue_score, blue_score);
 }
 
 #[test]
-fn duel_interference_penalizes_only_offending_team() {
-    for (offender, red_score, blue_score) in [(Team::Red, -500, 0), (Team::Blue, 0, -500)] {
-        let last = SkyState {
-            ceremony: CeremonyState::Duel(DuelState::DuelActive),
-            match_phase: MatchPhase::EventOverride,
-            ..active_state()
-        };
-        let mut state = last.clone();
+fn propose_treaty_advances_to_counter_offer() {
+    let last = SkyState {
+        ceremony: CeremonyState::Banquet(BanquetState::TermsOpen),
+        ..active_state()
+    };
+    let mut state = last.clone();
 
-        let handled =
-            handle_ceremonies(&last, &mut state, &SkyAction::DuelInterference { offender });
+    let handled = handle_ceremonies(&last, &mut state, &SkyAction::ProposeTreaty);
 
-        assert_eq!(handled, Some(true));
-        assert_eq!(state.infamy, 10);
-        assert_eq!(state.score.red_score, red_score);
-        assert_eq!(state.score.blue_score, blue_score);
-    }
+    assert_eq!(handled, Some(true));
+    assert_eq!(
+        state.ceremony,
+        CeremonyState::Banquet(BanquetState::CounterOffer)
+    );
 }
 
 #[test]

@@ -17,7 +17,7 @@ state_dimensions:
     tournament: [ArenaBuild, Registration, RoundActive, RoundComplete, ChampionDeclared]
     duel: [ChallengeIssued, ArenaLock, DuelActive, ResolveDuel]
     wedding: [AllianceProposed, TruceActive, JointObjective, Broken, Expired]
-    banquet: [Seating, TermsOpen, TreatySigned, Collapsed]
+    banquet: [Seating, TermsOpen, CounterOffer, TreatySigned, Collapsed]
     post_event: [ConsequenceResolution, Cooldown]
   rules:
     ordnance: [Full, Limited, Disabled]
@@ -57,16 +57,28 @@ actions:
   gameplay: [BracePressed, BraceWindowExpired, Joust, CaptureOutpost, ClaimShrine, BlockSupplyRoute, DeliverHostage, BombKeepBreach, TimerExpired, VictoryCheck]
   scoring_rewards: [ExportFinalScore, TallyRewards, CommitRewards, NextWarfrontTurn, ReturnToTitle]
 action_payloads:
-  TournamentRoundWon: { winner: Team }
-  CompleteJointObjective: { team: Team }
-  Joust: { winner: Team, outcome: JoustOutcome }
-  DuelDecisiveJoust: { winner: Team, outcome: JoustOutcome }
-  DuelInterference: { offender: Team }
-  CaptureOutpost: { team: Team }
-  ClaimShrine: { team: Team }
-  BlockSupplyRoute: { team: Team }
-  DeliverHostage: { team: Team }
-  BombKeepBreach: { team: Team }
+  TournamentRoundWon:
+    winner: Team
+  CompleteJointObjective:
+    team: Team
+  Joust:
+    winner: Team
+    outcome: JoustOutcome
+  DuelDecisiveJoust:
+    winner: Team
+    outcome: JoustOutcome
+  DuelInterference:
+    offender: Team
+  CaptureOutpost:
+    team: Team
+  ClaimShrine:
+    team: Team
+  BlockSupplyRoute:
+    team: Team
+  DeliverHostage:
+    team: Team
+  BombKeepBreach:
+    team: Team
 always_properties:
   rewards_commit_requires_final_score: RewardLedger.committed implies ScoreLedger.finalized
   rewards_open_requires_final_score: RewardLedger.phase in [LedgerOpen, Tallied, Committed, ReadyToSpend] implies ScoreLedger.finalized
@@ -89,7 +101,7 @@ sometimes_properties:
   can_break_truce_and_receive_infamy: truce_broken and rewards.committed and infamy > 0 and penalties > 0
   can_score_nonlethal_objective: outpost_controlled and red_score >= 200 and not keep_breached
   trace_validator:
-  input: JSON array of SkyAction enum values as serialized by serde
-  command: cargo run --bin validate_trace < trace.json
-  failure_exit_code: 2
-  output: TraceValidation JSON containing ok, final_state, and optional failure
+    input: JSON array of SkyAction enum values as serialized by serde
+    command: cargo run --bin validate_trace < trace.json
+    failure_exit_code: 2
+    output: TraceValidation JSON containing ok, final_state, and optional failure

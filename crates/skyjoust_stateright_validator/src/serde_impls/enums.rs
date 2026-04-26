@@ -135,6 +135,7 @@ string_enum_serde!(WeddingState, {
 string_enum_serde!(BanquetState, {
     Seating => "Seating",
     TermsOpen => "TermsOpen",
+    CounterOffer => "CounterOffer",
     TreatySigned => "TreatySigned",
     Collapsed => "Collapsed",
 });

@@ -159,6 +159,7 @@ pub enum WeddingState {
 pub enum BanquetState {
     Seating,
     TermsOpen,
+    CounterOffer,
     TreatySigned,
     Collapsed,
 }

@@ -242,6 +242,8 @@ fn push_banquet_actions(state: BanquetState, actions: &mut Vec<SkyAction>) {
         BanquetState::Seating => actions.push(SkyAction::BanquetReady),
         BanquetState::TermsOpen => {
             actions.push(SkyAction::ProposeTreaty);
+        }
+        BanquetState::CounterOffer => {
             actions.push(SkyAction::AcceptTreaty);
             actions.push(SkyAction::RejectTreaty);
         }

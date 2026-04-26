@@ -250,9 +250,9 @@ Currencies:
 - **Influence:** earned via events/negotiation; spent to steer Warfront events.
 - **Laurels:** event-only reward ledger currency earned by tournament
   placements and special event rewards; redeemable for season or tournament
-  cosmetics, prestige items, and leaderboard-specific upgrades. Laurels are not
-  transferable into Coin, Glory, or Influence, and validators must reject
-  Laurel grants before tournament or event completion.
+  cosmetics and prestige items. Laurels are not transferable into Coin, Glory,
+  or Influence, and validators must reject Laurel grants before tournament or
+  event completion.
 
 Laurels: definition and scope. Laurels live only in the event reward ledger and
 are validated as post-event rewards. Warfront economy uses Coin and Influence;

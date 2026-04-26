@@ -86,16 +86,16 @@ For enum variants with fields:
 
 ## Extending the model
 
-Add new gameplay interactions by doing four things:
+Add new gameplay interactions in this order:
 
-1. Add a `SkyAction` variant.
-2. Gate it in `actions` and `next_state`.
-3. Add at least one invariant or reachability property if the action touches
-   rules, scoring, rewards, or Warfront state.
-4. Update the canonical graph bundle (`docs/skyjoust-state-graphs.*`) and
-   `spec/validator_contract.yaml` whenever the new action or guard changes the
-   behaviour represented by `SkyAction`, `actions`, `next_state`, or the
-   invariants.
+1. Add the `SkyAction` variant in `src/actions.rs`.
+2. Add action generation in `src/action_generation.rs`.
+3. Implement transition handling in `src/transitions.rs` or the relevant
+   feature module.
+4. Update invariants and reachability properties in `src/properties.rs`.
+5. Regenerate the canonical state graphs in `docs/skyjoust-state-graphs.*`.
+6. Update `spec/validator_contract.yaml`.
+7. Add corresponding tests and trace fixtures under `tests/` or `traces/`.
 
 Keep the validator smaller than the runtime. The sweet spot is a model that
 catches illegal handoffs without trying to simulate every mount flap and pixel

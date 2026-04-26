@@ -417,8 +417,10 @@ Required gates before code commits:
 
 ```bash
 make check-fmt
+make check-state-graphs
 make lint
 make test
+cargo doc --no-deps --workspace
 ```
 
 Required gates for documentation changes:

@@ -73,6 +73,10 @@ fn objective_atoms_score_for_acting_team() {
             open: true,
             ..crate::state::ScoreLedger::default()
         },
+        rules: crate::state::Rules {
+            allow_sudden_death: true,
+            ..crate::state::Rules::baseline()
+        },
         ..SkyState::default()
     };
 
