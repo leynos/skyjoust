@@ -10,23 +10,52 @@ use crate::{
     state::SkyState,
 };
 
+/// Result returned after replaying a concrete action trace.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceValidation {
+    /// Whether every action was legal and every invariant stayed true.
     pub ok: bool,
+    /// State reached after the last replayed action, or at the failing step.
     pub final_state: SkyState,
+    /// Failure details when replay stops before accepting the whole trace.
     pub failure: Option<TraceFailure>,
 }
 
+/// Description of the first illegal action or invariant failure in a trace.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceFailure {
+    /// Zero-based index of the action that failed validation.
     pub step_index: usize,
+    /// Action that could not be applied or that violated an invariant.
     pub action: SkyAction,
+    /// Human-readable reason for the failure.
     pub reason: String,
 }
 
 /// Replay a concrete engine event log against the same guards and invariants as
 /// the Stateright model. This is useful for validating recorded gameplay traces
 /// produced by the Bevy/Pixels runtime.
+///
+/// ```
+/// use skyjoust_stateright_validator::{
+///     validate_trace,
+///     SkyAction,
+///     SkyState,
+///     SkyjoustInteractionModel,
+///     TraceFailure,
+///     TraceValidation,
+/// };
+///
+/// let model = SkyjoustInteractionModel { max_depth: 8 };
+/// let trace = [SkyAction::AssetsLoaded, SkyAction::StartSkirmish];
+/// let result: TraceValidation = validate_trace(&model, trace);
+///
+/// assert!(result.ok);
+/// let final_state: SkyState = result.final_state.clone();
+/// assert_eq!(final_state.depth, 2);
+/// let failure: Option<TraceFailure> = result.failure;
+/// assert!(failure.is_none());
+/// ```
 pub fn validate_trace<I>(model: &SkyjoustInteractionModel, trace: I) -> TraceValidation
 where
     I: IntoIterator<Item = SkyAction>,
@@ -138,10 +167,9 @@ mod tests {
             ],
         );
         assert!(!result.ok);
-        assert!(result
+        let failure = result
             .failure
-            .unwrap()
-            .reason
-            .contains("action was not legal"));
+            .expect("expected trace to have a failure with a reason");
+        assert!(failure.reason.contains("action was not legal"));
     }
 }

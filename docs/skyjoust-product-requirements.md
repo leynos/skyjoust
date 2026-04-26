@@ -194,7 +194,7 @@ Events trigger within Warfront and sometimes mid-match as “edicts”. They mus
 
 ### 10.1 Jousting tournament
 
-- Temporary ruleset: reduced ordnance, emphasise joust contacts.
+- Temporary ruleset: reduced ordnance, emphasize joust contacts.
 - Bracket or score attack: players earn **Laurels** used for upgrades and
   political influence.
 - Arena spawns with clear lanes and minimal terrain randomness to keep it
@@ -291,8 +291,12 @@ Audio:
 
 ## 15. Technical requirements (high level)
 
-- Deterministic-ish physics for consistent collision outcomes; avoid “floaty
-  ambiguity”.
+- Deterministic physics must be bitwise reproducible across runs given the same
+  seed, inputs, simulation tick rate, and supported platform target. If an
+  implementation path cannot meet that standard, it must define documented
+  non-determinism bounds before adoption, including tolerated random number
+  generation sources, accepted divergence windows, supported platforms, and the
+  physics validator expectations for those bounds.
 - Procedural generation that guarantees:
 
   - spawn safety,

@@ -11,8 +11,10 @@ use crate::{
     transitions::transition,
 };
 
+/// Predicate used by a Stateright property over the model and current state.
 pub type AlwaysProperty = fn(&SkyjoustInteractionModel, &SkyState) -> bool;
 
+/// Configure the bounded Skyjoust interaction model explored by Stateright.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SkyjoustInteractionModel {
     /// Exploration boundary. Increase for deeper interaction sequences, lower

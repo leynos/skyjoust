@@ -69,17 +69,17 @@ the runtime does not need a structural rewrite later.
 Code gates:
 
 ```bash
-make check-fmt 2>&1 | tee /tmp/check-fmt-skyjoust-$(git branch --show).out
-make lint 2>&1 | tee /tmp/lint-skyjoust-$(git branch --show).out
-make test 2>&1 | tee /tmp/test-skyjoust-$(git branch --show).out
+make check-fmt 2>&1 | tee /tmp/check-fmt-skyjoust-$(git branch --show-current).out
+make lint 2>&1 | tee /tmp/lint-skyjoust-$(git branch --show-current).out
+make test 2>&1 | tee /tmp/test-skyjoust-$(git branch --show-current).out
 ```
 
 Documentation gates:
 
 ```bash
-make markdownlint 2>&1 | tee /tmp/markdownlint-skyjoust-$(git branch --show).out
-make nixie 2>&1 | tee /tmp/nixie-skyjoust-$(git branch --show).out
-git diff --check 2>&1 | tee /tmp/diff-check-skyjoust-$(git branch --show).out
+make markdownlint 2>&1 | tee /tmp/markdownlint-skyjoust-$(git branch --show-current).out
+make nixie 2>&1 | tee /tmp/nixie-skyjoust-$(git branch --show-current).out
+git diff --check 2>&1 | tee /tmp/diff-check-skyjoust-$(git branch --show-current).out
 ```
 
 ## 4. Phase 0: repository and documentation baseline
@@ -361,6 +361,7 @@ Tasks:
 - Draw a placeholder HUD shaped like the reference page:
   - team strip,
   - timer,
+  - renderer-owned debug seed text labelled `Seed`,
   - altitude indicator,
   - brace window,
   - morale,

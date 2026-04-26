@@ -7,6 +7,7 @@ use crate::{
         BanquetState,
         CeremonyState,
         DuelState,
+        LanceState,
         MatchPhase,
         OrdnancePolicy,
         PlayerOrdnance,
@@ -45,7 +46,9 @@ fn push_warfront_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
             actions.push(SkyAction::SelectRegion);
             actions.push(SkyAction::OpenBanquet);
         }
-        WarfrontState::BattlePreview => actions.push(SkyAction::StartBattle),
+        WarfrontState::BattlePreview | WarfrontState::BattleLocked => {
+            actions.push(SkyAction::StartBattle);
+        }
         _ => {}
     }
 }
@@ -59,7 +62,7 @@ fn push_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
             push_live_match_actions(state, actions);
         }
         MatchPhase::RoundOver => actions.push(SkyAction::ExportFinalScore),
-        MatchPhase::ResultsExported | MatchPhase::Inactive => {}
+        MatchPhase::Paused | MatchPhase::ResultsExported | MatchPhase::Inactive => {}
     }
 }
 
@@ -80,19 +83,7 @@ fn push_live_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
 
 fn push_active_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
     if state.score.events_accepted < 4 && !state.rules.duel_lock {
-        actions.push(SkyAction::BracePressed);
-        actions.push(SkyAction::Joust {
-            winner: Team::Red,
-            outcome: JoustOutcome::Knockback,
-        });
-        actions.push(SkyAction::Joust {
-            winner: Team::Red,
-            outcome: JoustOutcome::Unhorse,
-        });
-        actions.push(SkyAction::Joust {
-            winner: Team::Red,
-            outcome: JoustOutcome::Shatter,
-        });
+        push_lance_actions(state, actions);
         actions.push(SkyAction::CaptureOutpost);
         actions.push(SkyAction::ClaimShrine);
         actions.push(SkyAction::BlockSupplyRoute);
@@ -100,6 +91,32 @@ fn push_active_match_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
         push_ordnance_actions(state, actions);
     }
     actions.push(SkyAction::TimerExpired);
+}
+
+fn push_lance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
+    match state.lance {
+        LanceState::Idle => actions.push(SkyAction::BracePressed),
+        LanceState::Bracing => {
+            push_joust_actions(actions);
+            actions.push(SkyAction::BraceWindowExpired);
+        }
+        LanceState::Recovery | LanceState::Broken => {}
+    }
+}
+
+fn push_joust_actions(actions: &mut Vec<SkyAction>) {
+    actions.push(SkyAction::Joust {
+        winner: Team::Red,
+        outcome: JoustOutcome::Knockback,
+    });
+    actions.push(SkyAction::Joust {
+        winner: Team::Red,
+        outcome: JoustOutcome::Unhorse,
+    });
+    actions.push(SkyAction::Joust {
+        winner: Team::Red,
+        outcome: JoustOutcome::Shatter,
+    });
 }
 
 fn push_ordnance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
@@ -216,5 +233,41 @@ fn push_committed_reward_actions(state: &SkyState, actions: &mut Vec<SkyAction>)
         actions.push(SkyAction::NextWarfrontTurn);
     } else {
         actions.push(SkyAction::ReturnToTitle);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Tests for action generation guards.
+
+    use super::*;
+
+    fn live_state(lance: LanceState) -> SkyState {
+        SkyState {
+            match_phase: MatchPhase::NormalPlay,
+            lance,
+            score: crate::state::ScoreLedger {
+                open: true,
+                ..crate::state::ScoreLedger::default()
+            },
+            ..SkyState::default()
+        }
+    }
+
+    #[test]
+    fn active_match_actions_follow_lance_lifecycle() {
+        let mut idle_actions = Vec::new();
+        push_active_match_actions(&live_state(LanceState::Idle), &mut idle_actions);
+        assert!(idle_actions.contains(&SkyAction::BracePressed));
+        assert!(!idle_actions
+            .iter()
+            .any(|action| matches!(action, SkyAction::Joust { .. })));
+
+        let mut bracing_actions = Vec::new();
+        push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
+        assert!(bracing_actions.contains(&SkyAction::BraceWindowExpired));
+        assert!(bracing_actions
+            .iter()
+            .any(|action| matches!(action, SkyAction::Joust { .. })));
     }
 }

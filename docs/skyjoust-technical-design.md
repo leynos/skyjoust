@@ -335,7 +335,10 @@ prompts/
 tools/
   slice_sheet.*
   quantize.*
-  validate_assets.*
+  pack_atlas.*
+  check_alpha.*
+  check_palette.*
+  validate_asset_manifest.*
 ```
 
 Each generated asset needs a manifest. The manifest should include:

@@ -169,7 +169,11 @@ fn start_battle(last: &SkyState, state: &mut SkyState) -> Option<()> {
         AppState::SkirmishSetup | AppState::WarfrontRunning
     ))?;
     if last.app == AppState::WarfrontRunning {
-        guard(last.can_start_warfront_battle())?;
+        if last.can_start_warfront_battle() {
+            state.warfront = WarfrontState::BattleLocked;
+            return Some(());
+        }
+        guard(last.warfront == WarfrontState::BattleLocked)?;
         state.warfront = WarfrontState::AwaitingBattleResult;
     }
     state.app = AppState::MatchRunning;
@@ -179,6 +183,7 @@ fn start_battle(last: &SkyState, state: &mut SkyState) -> Option<()> {
 
 fn joust(last: &SkyState, state: &mut SkyState, winner: Team, outcome: JoustOutcome) -> Option<()> {
     guard(last.is_match_active() && last.score.open && !last.rules.scoring_frozen)?;
+    guard(last.lance == LanceState::Bracing)?;
     guard(!last.rules.duel_lock)?;
     apply_joust_score(state, winner, outcome);
     state.lance = LanceState::Recovery;
@@ -187,6 +192,7 @@ fn joust(last: &SkyState, state: &mut SkyState, winner: Team, outcome: JoustOutc
 }
 
 fn capture_outpost(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(can_score_gameplay(last))?;
     guard(last.is_match_active() && !last.objectives.outpost_controlled && !last.rules.duel_lock)?;
     state.objectives.outpost_controlled = true;
     apply_objective_score(state, Team::Red, ScoreAtom::OutpostCapture);
@@ -194,6 +200,7 @@ fn capture_outpost(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn claim_shrine(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(can_score_gameplay(last))?;
     guard(last.is_match_active() && !last.objectives.shrine_claimed && !last.rules.duel_lock)?;
     state.objectives.shrine_claimed = true;
     apply_objective_score(state, Team::Red, ScoreAtom::ShrineClaim);
@@ -201,6 +208,7 @@ fn claim_shrine(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn block_supply_route(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(can_score_gameplay(last))?;
     guard(
         last.is_match_active() && !last.objectives.supply_route_blocked && !last.rules.duel_lock,
     )?;
@@ -210,6 +218,7 @@ fn block_supply_route(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn deliver_hostage(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(can_score_gameplay(last))?;
     guard(last.is_match_active() && !last.objectives.hostage_delivered && !last.rules.duel_lock)?;
     state.objectives.hostage_delivered = true;
     apply_objective_score(state, Team::Red, ScoreAtom::HostageDeliver);
@@ -218,6 +227,7 @@ fn deliver_hostage(last: &SkyState, state: &mut SkyState) -> Option<()> {
 
 fn bomb_keep_breach(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.is_match_active())?;
+    guard(can_score_gameplay(last))?;
     guard(matches!(
         last.rules.ordnance,
         OrdnancePolicy::Full | OrdnancePolicy::Limited
@@ -231,10 +241,15 @@ fn bomb_keep_breach(last: &SkyState, state: &mut SkyState) -> Option<()> {
     Some(())
 }
 
+fn can_score_gameplay(state: &SkyState) -> bool { state.score.open && !state.rules.scoring_frozen }
+
 fn export_final_score(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.match_phase == MatchPhase::RoundOver)?;
     state.match_phase = MatchPhase::ResultsExported;
     state.app = AppState::Results;
+    state.clear_temporary_rules_if_safe();
+    state.ceremony = crate::state::CeremonyState::Dormant;
+    state.duel_consequence_active = false;
     state.score.open = false;
     state.score.finalized = true;
     state.rewards.phase = RewardPhase::LedgerOpen;
@@ -244,6 +259,7 @@ fn export_final_score(last: &SkyState, state: &mut SkyState) -> Option<()> {
 
 fn commit_rewards(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.rewards.phase == RewardPhase::Tallied && last.score.finalized)?;
+    guard(last.match_phase != MatchPhase::Paused)?;
     state.rewards.phase = RewardPhase::Committed;
     state.rewards.committed = true;
     state.rewards.pending_delta = false;
@@ -288,5 +304,68 @@ mod tests {
         mark_warfront_mutation_during_match(&last, &mut next);
 
         assert!(next.warfront_mutated_during_match);
+    }
+
+    #[test]
+    fn joust_requires_bracing_lance() {
+        let last = SkyState {
+            match_phase: MatchPhase::NormalPlay,
+            lance: LanceState::Idle,
+            score: crate::state::ScoreLedger {
+                open: true,
+                ..crate::state::ScoreLedger::default()
+            },
+            ..SkyState::default()
+        };
+
+        assert!(transition(
+            &last,
+            &SkyAction::Joust {
+                winner: Team::Red,
+                outcome: JoustOutcome::Knockback
+            }
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn frozen_scoring_blocks_objective_atoms() {
+        let last = SkyState {
+            match_phase: MatchPhase::NormalPlay,
+            score: crate::state::ScoreLedger {
+                open: true,
+                ..crate::state::ScoreLedger::default()
+            },
+            rules: crate::state::Rules {
+                scoring_frozen: true,
+                ..crate::state::Rules::baseline()
+            },
+            ..SkyState::default()
+        };
+
+        assert!(transition(&last, &SkyAction::CaptureOutpost).is_none());
+        assert!(transition(&last, &SkyAction::ClaimShrine).is_none());
+        assert!(transition(&last, &SkyAction::BlockSupplyRoute).is_none());
+        assert!(transition(&last, &SkyAction::DeliverHostage).is_none());
+        assert!(transition(&last, &SkyAction::BombKeepBreach).is_none());
+    }
+
+    #[test]
+    fn warfront_start_battle_reaches_battle_locked_before_match_start() {
+        let preview = SkyState {
+            app: AppState::WarfrontRunning,
+            warfront: WarfrontState::BattlePreview,
+            ..SkyState::default()
+        };
+
+        let locked = transition(&preview, &SkyAction::StartBattle)
+            .expect("battle preview should lock the selected battle");
+        assert_eq!(locked.app, AppState::WarfrontRunning);
+        assert_eq!(locked.warfront, WarfrontState::BattleLocked);
+
+        let started = transition(&locked, &SkyAction::StartBattle)
+            .expect("locked battle should start the match");
+        assert_eq!(started.app, AppState::MatchRunning);
+        assert_eq!(started.warfront, WarfrontState::AwaitingBattleResult);
     }
 }

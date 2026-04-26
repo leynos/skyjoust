@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Score, glory, morale, and finalization state for the current match.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ScoreLedger {
     pub open: bool,
@@ -35,6 +36,7 @@ impl Default for ScoreLedger {
     }
 }
 
+/// Reward payout state derived from a finalized score snapshot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RewardLedger {
     pub phase: RewardPhase,
@@ -66,6 +68,7 @@ impl Default for RewardLedger {
     }
 }
 
+/// Reward ledger lifecycle phase used to gate payout transitions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RewardPhase {
     Dormant,

@@ -21,10 +21,6 @@ pub(crate) fn handle_ceremonies(
     state: &mut SkyState,
     action: &SkyAction,
 ) -> Option<bool> {
-    if last.score.finalized {
-        return None;
-    }
-
     handle_tournament(last, state, action)
         .or_else(|| handle_duel(last, state, action))
         .or_else(|| handle_wedding(last, state, action))
@@ -33,6 +29,10 @@ pub(crate) fn handle_ceremonies(
 }
 
 fn handle_tournament(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
+    if last.score.finalized {
+        return None;
+    }
+
     match action {
         SkyAction::TriggerTournament => start_tournament(last, state)?,
         SkyAction::ArenaReady => {
@@ -51,6 +51,10 @@ fn handle_tournament(last: &SkyState, state: &mut SkyState, action: &SkyAction) 
 }
 
 fn handle_duel(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
+    if last.score.finalized {
+        return None;
+    }
+
     match action {
         SkyAction::IssueDuel => {
             guard(last.can_issue_duel())?;
@@ -76,11 +80,7 @@ fn handle_duel(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Opt
 fn handle_wedding(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
     match action {
         SkyAction::StartWeddingTruce => start_wedding_truce(last, state)?,
-        SkyAction::CompleteJointObjective => {
-            guard(last.ceremony == CeremonyState::Wedding(WeddingState::TruceActive))?;
-            state.ceremony = CeremonyState::Wedding(WeddingState::JointObjective);
-            apply_objective_score(state, Team::Red, ScoreAtom::HostageDeliver);
-        }
+        SkyAction::CompleteJointObjective => complete_joint_objective(last, state)?,
         SkyAction::BreakTruce => break_truce(last, state)?,
         SkyAction::ExpireTruce => expire_truce(last, state)?,
         _ => return None,
@@ -176,6 +176,7 @@ fn resolve_duel(
     ))?;
     apply_joust_score(state, winner, outcome);
     state.duel_resolved = true;
+    state.duel_consequence_active = true;
     state.ceremony = CeremonyState::ConsequenceResolution;
     state.match_phase = MatchPhase::NormalPlay;
     Some(())
@@ -189,7 +190,16 @@ fn start_wedding_truce(last: &SkyState, state: &mut SkyState) -> Option<()> {
     Some(())
 }
 
+fn complete_joint_objective(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(last.score.open && !last.score.finalized && !last.rules.scoring_frozen)?;
+    guard(last.ceremony == CeremonyState::Wedding(WeddingState::TruceActive))?;
+    state.ceremony = CeremonyState::Wedding(WeddingState::JointObjective);
+    apply_objective_score(state, Team::Red, ScoreAtom::HostageDeliver);
+    Some(())
+}
+
 fn break_truce(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(!last.score.finalized)?;
     guard(last.in_wedding_truce())?;
     state.ceremony = CeremonyState::ConsequenceResolution;
     state.truce_active = false;
@@ -202,6 +212,7 @@ fn break_truce(last: &SkyState, state: &mut SkyState) -> Option<()> {
 }
 
 fn expire_truce(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(!last.score.finalized)?;
     guard(last.in_wedding_truce())?;
     state.ceremony = CeremonyState::ConsequenceResolution;
     state.truce_active = false;
@@ -243,6 +254,7 @@ fn reject_treaty(last: &SkyState, state: &mut SkyState) -> Option<()> {
 fn record_event_consequences(last: &SkyState, state: &mut SkyState) -> Option<()> {
     guard(last.ceremony == CeremonyState::ConsequenceResolution)?;
     state.clear_temporary_rules_if_safe();
+    state.duel_consequence_active = false;
     state.ceremony = CeremonyState::Cooldown;
     Some(())
 }

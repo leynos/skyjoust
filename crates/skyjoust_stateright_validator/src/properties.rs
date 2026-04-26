@@ -107,7 +107,7 @@ fn prop_no_score_write_after_final_snapshot(_: &SkyjoustInteractionModel, s: &Sk
 }
 
 fn prop_committed_rewards_leave_active_match(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
-    !s.rewards.committed || !s.is_match_active()
+    !s.rewards.committed || (!s.is_match_active() && s.match_phase != MatchPhase::Paused)
 }
 
 fn prop_duel_lock_only_during_duel(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
@@ -117,8 +117,8 @@ fn prop_duel_lock_only_during_duel(_: &SkyjoustInteractionModel, s: &SkyState) -
             CeremonyState::Duel(DuelState::ArenaLock)
                 | CeremonyState::Duel(DuelState::DuelActive)
                 | CeremonyState::Duel(DuelState::ResolveDuel)
-                | CeremonyState::ConsequenceResolution
         )
+        || (s.ceremony == CeremonyState::ConsequenceResolution && s.duel_consequence_active)
 }
 
 fn prop_joust_only_disables_ordnance(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
@@ -200,6 +200,29 @@ mod tests {
         state.rewards.phase = crate::state::RewardPhase::LedgerOpen;
 
         assert!(!prop_rewards_open_requires_final_score(
+            &SkyjoustInteractionModel::default(),
+            &state
+        ));
+    }
+
+    #[test]
+    fn duel_lock_consequence_requires_duel_origin() {
+        let mut state = SkyState {
+            ceremony: CeremonyState::ConsequenceResolution,
+            rules: Rules {
+                duel_lock: true,
+                ..Rules::baseline()
+            },
+            ..SkyState::default()
+        };
+
+        assert!(!prop_duel_lock_only_during_duel(
+            &SkyjoustInteractionModel::default(),
+            &state
+        ));
+
+        state.duel_consequence_active = true;
+        assert!(prop_duel_lock_only_during_duel(
             &SkyjoustInteractionModel::default(),
             &state
         ));

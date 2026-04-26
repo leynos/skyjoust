@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::ledgers::{RewardLedger, RewardPhase, ScoreLedger};
 
+/// Complete validator snapshot for app, match, ceremony, scoring, and rewards.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SkyState {
     pub depth: u8,
@@ -24,6 +25,7 @@ pub struct SkyState {
     pub tournament_rounds_won: u8,
     pub tournament_completed: bool,
     pub duel_resolved: bool,
+    pub duel_consequence_active: bool,
     pub treaty_signed: bool,
     pub infamy: i16,
     pub post_final_score_write: bool,
@@ -51,6 +53,7 @@ impl Default for SkyState {
             tournament_rounds_won: 0,
             tournament_completed: false,
             duel_resolved: false,
+            duel_consequence_active: false,
             treaty_signed: false,
             infamy: 0,
             post_final_score_write: false,
@@ -60,6 +63,17 @@ impl Default for SkyState {
 }
 
 impl SkyState {
+    /// Return true when the match can accept active gameplay actions.
+    ///
+    /// ```
+    /// use skyjoust_stateright_validator::{MatchPhase, SkyState};
+    ///
+    /// let state = SkyState {
+    ///     match_phase: MatchPhase::NormalPlay,
+    ///     ..SkyState::default()
+    /// };
+    /// assert!(state.is_match_active());
+    /// ```
     pub fn is_match_active(&self) -> bool {
         matches!(
             self.match_phase,
@@ -67,6 +81,17 @@ impl SkyState {
         )
     }
 
+    /// Return true while the match lifecycle is constructing, active, or exporting.
+    ///
+    /// ```
+    /// use skyjoust_stateright_validator::{MatchPhase, SkyState};
+    ///
+    /// let state = SkyState {
+    ///     match_phase: MatchPhase::Constructing,
+    ///     ..SkyState::default()
+    /// };
+    /// assert!(state.is_in_match_or_building_match());
+    /// ```
     pub fn is_in_match_or_building_match(&self) -> bool {
         matches!(
             self.match_phase,
@@ -76,11 +101,23 @@ impl SkyState {
                 | MatchPhase::NormalPlay
                 | MatchPhase::EventOverride
                 | MatchPhase::SuddenDeath
+                | MatchPhase::Paused
                 | MatchPhase::RoundOver
                 | MatchPhase::ResultsExported
         )
     }
 
+    /// Return true when a ceremony flow owns the current interaction state.
+    ///
+    /// ```
+    /// use skyjoust_stateright_validator::{CeremonyState, DuelState, SkyState};
+    ///
+    /// let state = SkyState {
+    ///     ceremony: CeremonyState::Duel(DuelState::DuelActive),
+    ///     ..SkyState::default()
+    /// };
+    /// assert!(state.has_active_ceremony());
+    /// ```
     pub fn has_active_ceremony(&self) -> bool {
         matches!(
             self.ceremony,
@@ -149,6 +186,7 @@ impl SkyState {
         self.tournament_rounds_won = 0;
         self.tournament_completed = false;
         self.duel_resolved = false;
+        self.duel_consequence_active = false;
         self.post_final_score_write = false;
         self.warfront_mutated_during_match = false;
     }
@@ -171,6 +209,7 @@ impl SkyState {
     }
 }
 
+/// Top-level application mode explored by the validator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AppState {
     Boot,
@@ -182,6 +221,7 @@ pub enum AppState {
     Results,
 }
 
+/// Warfront campaign state relevant to match handoff and reward commits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WarfrontState {
     Inactive,
@@ -196,6 +236,7 @@ pub enum WarfrontState {
     SeasonComplete,
 }
 
+/// Match lifecycle phase used to gate scoring, rewards, and Warfront mutation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MatchPhase {
     Inactive,
@@ -205,10 +246,12 @@ pub enum MatchPhase {
     NormalPlay,
     EventOverride,
     SuddenDeath,
+    Paused,
     RoundOver,
     ResultsExported,
 }
 
+/// Ceremony state nested under tournament, duel, wedding, and banquet flows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CeremonyState {
     Dormant,
@@ -222,6 +265,7 @@ pub enum CeremonyState {
     Cooldown,
 }
 
+/// Ceremony categories that can be queued or prompted before activation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EventKind {
     Tournament,
@@ -230,6 +274,7 @@ pub enum EventKind {
     Banquet,
 }
 
+/// Tournament sub-state used while temporary tournament rules are active.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TournamentState {
     ArenaBuild,
@@ -238,6 +283,7 @@ pub enum TournamentState {
     ChampionDeclared,
 }
 
+/// Duel sub-state used while duel lock and joust-only rules are active.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DuelState {
     ChallengeIssued,
@@ -246,6 +292,7 @@ pub enum DuelState {
     ResolveDuel,
 }
 
+/// Wedding alliance sub-state used for truce and joint-objective modelling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WeddingState {
     AllianceProposed,
@@ -255,6 +302,7 @@ pub enum WeddingState {
     Expired,
 }
 
+/// Banquet negotiation sub-state used for Warfront treaty modelling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BanquetState {
     Seating,
@@ -263,6 +311,7 @@ pub enum BanquetState {
     Collapsed,
 }
 
+/// Current temporary and baseline rules that gate legal match actions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Rules {
     pub ordnance: OrdnancePolicy,
@@ -284,6 +333,7 @@ impl Rules {
     }
 }
 
+/// Ordnance availability policy for match and ceremony rules.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OrdnancePolicy {
     Full,
@@ -291,6 +341,7 @@ pub enum OrdnancePolicy {
     Disabled,
 }
 
+/// Player ordnance lifecycle state used by legal ordnance action checks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PlayerOrdnance {
     Ready,
@@ -299,6 +350,7 @@ pub enum PlayerOrdnance {
     Disabled,
 }
 
+/// Lance lifecycle state used to gate brace windows and joust contacts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LanceState {
     Idle,
@@ -307,6 +359,7 @@ pub enum LanceState {
     Broken,
 }
 
+/// Rider recovery state after collisions, unhorsing, and respawn windows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RecoveryState {
     Alive,
@@ -316,6 +369,7 @@ pub enum RecoveryState {
     Respawning,
 }
 
+/// Objective flags that can emit score atoms during a match.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ObjectiveSnapshot {
     pub keep_breached: bool,
@@ -325,6 +379,7 @@ pub struct ObjectiveSnapshot {
     pub hostage_delivered: bool,
 }
 
+/// Winner classification exported with the final score snapshot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Winner {
     None,
