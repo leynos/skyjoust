@@ -1,16 +1,14 @@
 //! Action and small domain enums used by the Skyjoust validator model.
 
-use serde::{Deserialize, Serialize};
-
 /// Team identifier used for score, morale, and penalty routing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Team {
     Red,
     Blue,
 }
 
 /// Joust result categories that can become score atoms.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum JoustOutcome {
     Knockback,
     Unhorse,
@@ -19,7 +17,7 @@ pub enum JoustOutcome {
 }
 
 /// High-level actions explored by the Stateright model and trace validator.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SkyAction {
     AssetsLoaded,
     StartSkirmish,

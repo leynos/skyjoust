@@ -34,6 +34,22 @@ struct ScoreDelta {
     morale_effect: MoraleEffect,
 }
 
+/// Apply the score, glory, and morale effect for one joust outcome.
+///
+/// Parameters:
+/// - `s` is the match state to update.
+/// - `winner` selects the team receiving points and glory.
+/// - `outcome` selects the score atom emitted by the contact.
+///
+/// Return semantics:
+/// - Returns no value; callers inspect the mutated state.
+///
+/// Preconditions:
+/// - Callers must already have checked that scoring is legal for the current match phase.
+///
+/// Side effects:
+/// - Opens the score ledger, increments accepted events, adjusts morale, and may mark victory
+///   pending. If the score was finalized, records a rejected post-final write instead.
 pub(crate) fn apply_joust_score(s: &mut SkyState, winner: Team, outcome: JoustOutcome) {
     if reject_finalized_score_write(s) {
         return;
@@ -63,6 +79,22 @@ pub(crate) fn apply_joust_score(s: &mut SkyState, winner: Team, outcome: JoustOu
     apply_score_delta(s, winner, delta);
 }
 
+/// Apply score and morale effects for a non-joust objective atom.
+///
+/// Parameters:
+/// - `s` is the match state to update.
+/// - `winner` selects the team credited with the objective.
+/// - `atom` selects the objective scoring rule.
+///
+/// Return semantics:
+/// - Returns no value; callers inspect the mutated state.
+///
+/// Preconditions:
+/// - Callers must already have checked objective legality and scoring openness.
+///
+/// Side effects:
+/// - Mutates score, glory, morale, event count, and possible victory state. If the score was
+///   finalized, records a rejected post-final write instead.
 pub(crate) fn apply_objective_score(s: &mut SkyState, winner: Team, atom: ScoreAtom) {
     if reject_finalized_score_write(s) {
         return;
@@ -97,6 +129,21 @@ pub(crate) fn apply_objective_score(s: &mut SkyState, winner: Team, atom: ScoreA
     apply_score_delta(s, winner, delta);
 }
 
+/// Deduct points and record infamy for a dishonour violation.
+///
+/// Parameters:
+/// - `s` is the match state to update.
+/// - `offender` is the team that receives the point deduction.
+///
+/// Return semantics:
+/// - Returns no value; callers inspect the mutated state.
+///
+/// Preconditions:
+/// - Callers must determine the offending team from the active rule context.
+///
+/// Side effects:
+/// - Increments infamy and reward penalties, deducts points from the offender, and marks the score
+///   ledger as having a pending delta.
 pub(crate) fn apply_dishonour_penalty(s: &mut SkyState, offender: Team) {
     s.infamy += 10;
     s.rewards.penalties = s.rewards.penalties.saturating_add(1);
@@ -111,6 +158,21 @@ pub(crate) fn apply_dishonour_penalty(s: &mut SkyState, offender: Team) {
     s.score.pending_delta = true;
 }
 
+/// Update local recovery state from a joust result.
+///
+/// Parameters:
+/// - `s` is the match state to update.
+/// - `winner` identifies which team won the contact.
+/// - `outcome` selects the recovery severity.
+///
+/// Return semantics:
+/// - Returns no value; callers inspect `s.recovery`.
+///
+/// Preconditions:
+/// - The model treats Blue winning as the local rider losing the exchange.
+///
+/// Side effects:
+/// - Mutates only `s.recovery`.
 pub(crate) fn update_recovery_from_outcome(s: &mut SkyState, winner: Team, outcome: JoustOutcome) {
     let local_lost = winner == Team::Blue;
     s.recovery = match (local_lost, outcome) {
@@ -121,6 +183,19 @@ pub(crate) fn update_recovery_from_outcome(s: &mut SkyState, winner: Team, outco
     };
 }
 
+/// Classify the final winner from the score ledger.
+///
+/// Parameters:
+/// - `score` is the finalized or pending score ledger to compare.
+///
+/// Return semantics:
+/// - Returns `Winner::Red`, `Winner::Blue`, or `Winner::TieBreak`.
+///
+/// Preconditions:
+/// - The caller should only use this once the match is ready to resolve.
+///
+/// Side effects:
+/// - None.
 pub(crate) fn decide_winner(score: &ScoreLedger) -> Winner {
     match compare_scores(score) {
         ScoreComparison::RedLeads => Winner::Red,
@@ -129,6 +204,20 @@ pub(crate) fn decide_winner(score: &ScoreLedger) -> Winner {
     }
 }
 
+/// Convert a finalized score snapshot into pending reward ledger entries.
+///
+/// Parameters:
+/// - `s` is the state containing the finalized score and event flags.
+///
+/// Return semantics:
+/// - Returns no value; callers inspect `s.rewards`.
+///
+/// Preconditions:
+/// - Callers must ensure the reward ledger is open and score finalized.
+///
+/// Side effects:
+/// - Moves rewards to `Tallied`, leaves the match inactive, and applies victory, tournament, duel,
+///   treaty, and truce-break reward modifiers.
 pub(crate) fn tally_rewards(s: &mut SkyState) {
     s.rewards.phase = RewardPhase::Tallied;
     s.rewards.pending_delta = true;

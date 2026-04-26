@@ -1,0 +1,68 @@
+---
+source: crates/skyjoust_stateright_validator/tests/trace_snapshots.rs
+expression: result
+---
+{
+  "ok": true,
+  "final_state": {
+    "depth": 11,
+    "app": "Results",
+    "warfront": "Inactive",
+    "match_phase": "Inactive",
+    "ceremony": "Dormant",
+    "rules": {
+      "ordnance": "Full",
+      "friendly_fire": true,
+      "duel_lock": false,
+      "scoring_frozen": false,
+      "joust_only": false
+    },
+    "player_ordnance": "Ready",
+    "lance": "Idle",
+    "recovery": "Alive",
+    "objectives": {
+      "keep_breached": true,
+      "outpost_controlled": false,
+      "shrine_claimed": false,
+      "supply_route_blocked": false,
+      "hostage_delivered": false
+    },
+    "score": {
+      "open": false,
+      "finalized": true,
+      "pending_delta": true,
+      "events_accepted": 1,
+      "red_score": 1000,
+      "blue_score": 0,
+      "red_glory": 100,
+      "blue_glory": 0,
+      "red_morale": 10,
+      "blue_morale": -989,
+      "victory_pending": true
+    },
+    "rewards": {
+      "phase": "Committed",
+      "pending_delta": false,
+      "committed": true,
+      "glory": 180,
+      "coin": 50,
+      "influence": 10,
+      "laurels": 0,
+      "penalties": 0,
+      "tournament_bonus_granted": false,
+      "duel_bonus_granted": false
+    },
+    "winner": "Red",
+    "truce_active": false,
+    "truce_broken": false,
+    "tournament_rounds_won": 0,
+    "tournament_completed": false,
+    "duel_resolved": false,
+    "duel_consequence_active": false,
+    "treaty_signed": false,
+    "infamy": 0,
+    "post_final_score_write": false,
+    "warfront_mutated_during_match": false
+  },
+  "failure": null
+}

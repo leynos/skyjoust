@@ -16,5 +16,10 @@ fn exhaustive_high_level_interaction_contract() {
         .spawn_dfs()
         .join();
 
+    eprintln!(
+        "Stateright explored {} total states and {} unique states",
+        checker.state_count(),
+        checker.unique_state_count()
+    );
     checker.assert_properties();
 }

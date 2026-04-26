@@ -19,6 +19,20 @@ use crate::{
     },
 };
 
+/// Append every legal action available from `state`.
+///
+/// Parameters:
+/// - `state` is the current validator snapshot.
+/// - `actions` is extended in place with candidate `SkyAction` values.
+///
+/// Return semantics:
+/// - The function returns no value; callers inspect the appended actions.
+///
+/// Preconditions:
+/// - `actions` may already contain entries, and this function preserves them.
+///
+/// Side effects:
+/// - Mutates only the supplied `actions` buffer.
 pub(crate) fn available_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
     push_app_actions(state, actions);
     push_match_actions(state, actions);

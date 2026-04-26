@@ -3,6 +3,8 @@
 //! The `main` entrypoint reads a JSON array of `SkyAction` values from stdin,
 //! calls `validate_trace` with `SkyjoustInteractionModel`, prints a pretty JSON
 //! `TraceValidation` result, and exits with code 2 when the trace is invalid.
+//! Passing `--verbose` prints replay diagnostics to stderr without changing the
+//! machine-readable output on stdout.
 
 use std::{
     env,
@@ -22,7 +24,25 @@ fn main() -> Result<(), Report> {
     let trace: Vec<SkyAction> =
         serde_json::from_str(&input).wrap_err("failed to parse JSON trace as SkyAction list")?;
     let model = options.model();
+
+    if options.verbose {
+        for (step_index, action) in trace.iter().enumerate() {
+            eprintln!("trace step {step_index}: {action:?}");
+        }
+    }
+
     let result = validate_trace(&model, trace);
+
+    if options.verbose {
+        eprintln!(
+            "trace final state: ok={} depth={} app={:?} match_phase={:?} rewards={:?}",
+            result.ok,
+            result.final_state.depth,
+            result.final_state.app,
+            result.final_state.match_phase,
+            result.final_state.rewards.phase
+        );
+    }
 
     let output = serde_json::to_string_pretty(&result)
         .wrap_err("failed to serialize trace validation result")?;
@@ -37,6 +57,7 @@ fn main() -> Result<(), Report> {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct TraceCliOptions {
     max_depth: Option<u8>,
+    verbose: bool,
 }
 
 impl TraceCliOptions {
@@ -59,6 +80,9 @@ impl TraceCliOptions {
                             .parse::<u8>()
                             .wrap_err_with(|| format!("invalid --max-depth value: {raw_depth}"))?,
                     );
+                }
+                "--verbose" => {
+                    options.verbose = true;
                 }
                 _ => bail!("unrecognised argument: {arg}"),
             }
@@ -97,6 +121,14 @@ mod tests {
             options.model().max_depth,
             SkyjoustInteractionModel::default().max_depth
         );
+        Ok(())
+    }
+
+    #[test]
+    fn verbose_flag_is_recorded() -> Result<(), Report> {
+        let options = TraceCliOptions::parse(["--verbose"])?;
+
+        assert!(options.verbose);
         Ok(())
     }
 }

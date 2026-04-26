@@ -16,6 +16,23 @@ use crate::{
     },
 };
 
+/// Apply a ceremony-scoped transition when `action` belongs to an event flow.
+///
+/// Parameters:
+/// - `last` is the immutable source state used for guard checks.
+/// - `state` is the already-cloned destination state to mutate.
+/// - `action` is the candidate action to handle.
+///
+/// Return semantics:
+/// - Returns `Some(true)` when a ceremony handler accepts the action.
+/// - Returns `None` when the action is not a legal ceremony transition.
+///
+/// Preconditions:
+/// - `state` must start as the caller's clone of `last`.
+///
+/// Side effects:
+/// - Mutates ceremony, rule, score, reward, truce, and Warfront fields that belong to the accepted
+///   ceremony transition.
 pub(crate) fn handle_ceremonies(
     last: &SkyState,
     state: &mut SkyState,
@@ -273,3 +290,7 @@ fn guard(condition: bool) -> Option<()> {
         None
     }
 }
+
+#[cfg(test)]
+#[path = "ceremonies_tests.rs"]
+mod tests;

@@ -43,6 +43,12 @@ recorded traces:
 cargo run --bin validate_trace -- --max-depth 64 < trace.json
 ```
 
+Print replay diagnostics to stderr without changing the JSON result on stdout:
+
+```bash
+cargo run --bin validate_trace -- --verbose < trace.json
+```
+
 Example trace JSON:
 
 ```json

@@ -79,10 +79,53 @@ pub enum RewardPhase {
 }
 
 impl RewardPhase {
+    /// Return whether this phase has opened the reward ledger.
+    ///
+    /// Parameters:
+    /// - `self` is the phase to classify.
+    ///
+    /// Return semantics:
+    /// - Returns `false` for `Dormant`.
+    /// - Returns `true` once rewards are open, tallied, committed, or spendable.
+    ///
+    /// Preconditions:
+    /// - None.
+    ///
+    /// Side effects:
+    /// - None.
     pub(crate) fn is_open(self) -> bool {
         matches!(
             self,
             Self::LedgerOpen | Self::Tallied | Self::Committed | Self::ReadyToSpend
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Tests for score and reward ledgers.
+
+    use super::*;
+
+    #[test]
+    fn reward_phase_is_open_after_dormant() {
+        assert!(!RewardPhase::Dormant.is_open());
+        assert!(RewardPhase::LedgerOpen.is_open());
+        assert!(RewardPhase::Tallied.is_open());
+        assert!(RewardPhase::Committed.is_open());
+        assert!(RewardPhase::ReadyToSpend.is_open());
+    }
+
+    #[test]
+    fn score_ledger_default_starts_morale_at_ten() {
+        let ledger = ScoreLedger::default();
+
+        assert_eq!(ledger.red_morale, 10);
+        assert_eq!(ledger.blue_morale, 10);
+    }
+
+    #[test]
+    fn reward_ledger_default_starts_dormant() {
+        assert_eq!(RewardLedger::default().phase, RewardPhase::Dormant);
     }
 }

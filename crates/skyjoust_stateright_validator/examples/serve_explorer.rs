@@ -7,7 +7,7 @@ use skyjoust_stateright_validator::SkyjoustInteractionModel;
 use stateright::Model;
 
 fn main() {
-    // Then open http://localhost:3000/ to inspect reachable states and paths.
+    eprintln!("attempting to serve Stateright Explorer at localhost:3000");
     let _checker = SkyjoustInteractionModel { max_depth: 18 }
         .checker()
         .serve("localhost:3000");
