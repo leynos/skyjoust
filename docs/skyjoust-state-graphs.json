@@ -857,11 +857,10 @@
         "RoundOver": {
           "entry": [
             "stop_match_timer",
-            "flush_scoring"
+            "flush_scoring",
+            "publish.FINAL_SCORE_SNAPSHOT"
           ],
-          "on": {
-            "FINAL_SCORE_SNAPSHOT": "ResultsExported"
-          }
+          "always": "ResultsExported"
         },
         "ResultsExported": {
           "entry": [
@@ -1730,7 +1729,7 @@
         "Listening": {
           "on": {
             "SCORE_EVENT_ACCEPTED": "BatchGameplayEvents",
-            "MATCH_ENDED": "FinalSnapshot"
+            "FINAL_SCORE_SNAPSHOT": "FinalSnapshot"
           }
         },
         "BatchGameplayEvents": {
@@ -1790,7 +1789,6 @@
         "FinalSnapshot": {
           "entry": [
             "freeze_score_ledger",
-            "publish.FINAL_SCORE_SNAPSHOT",
             "publish.REWARD_LEDGER_OPENED"
           ],
           "on": {
@@ -1974,6 +1972,13 @@
       "consumed_by": [
         "rewards",
         "warfront"
+      ]
+    },
+    {
+      "source": "scoring.FinalSnapshot",
+      "emits": "REWARD_LEDGER_OPENED",
+      "consumed_by": [
+        "rewards"
       ]
     },
     {

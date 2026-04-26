@@ -653,8 +653,8 @@ statecharts:
         entry:
         - stop_match_timer
         - flush_scoring
-        'on':
-          FINAL_SCORE_SNAPSHOT: ResultsExported
+        - publish.FINAL_SCORE_SNAPSHOT
+        always: ResultsExported
       ResultsExported:
         entry:
         - publish.MATCH_ENDED
@@ -1211,7 +1211,7 @@ statecharts:
       Listening:
         'on':
           SCORE_EVENT_ACCEPTED: BatchGameplayEvents
-          MATCH_ENDED: FinalSnapshot
+          FINAL_SCORE_SNAPSHOT: FinalSnapshot
       BatchGameplayEvents:
         entry:
         - collect_events_for_tick
@@ -1252,7 +1252,6 @@ statecharts:
       FinalSnapshot:
         entry:
         - freeze_score_ledger
-        - publish.FINAL_SCORE_SNAPSHOT
         - publish.REWARD_LEDGER_OPENED
         'on':
           RESET_MATCH_GRAPH: Closed
@@ -1378,6 +1377,10 @@ event_routes:
   consumed_by:
   - rewards
   - warfront
+- source: scoring.FinalSnapshot
+  emits: REWARD_LEDGER_OPENED
+  consumed_by:
+  - rewards
 - source: rewards.Commit
   emits: REWARDS_COMMITTED
   consumed_by:
