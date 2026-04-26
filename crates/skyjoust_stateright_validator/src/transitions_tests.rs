@@ -78,10 +78,6 @@ fn objective_atoms_score_for_acting_team() {
             open: true,
             ..crate::state::ScoreLedger::default()
         },
-        rules: crate::state::Rules {
-            allow_sudden_death: true,
-            ..crate::state::Rules::baseline()
-        },
         ..SkyState::default()
     };
 
@@ -143,6 +139,10 @@ fn timer_expired_enters_sudden_death_when_enabled() {
         score: crate::state::ScoreLedger {
             open: true,
             ..crate::state::ScoreLedger::default()
+        },
+        rules: crate::state::Rules {
+            allow_sudden_death: true,
+            ..crate::state::Rules::baseline()
         },
         ..SkyState::default()
     };

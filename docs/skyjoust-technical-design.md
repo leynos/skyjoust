@@ -427,6 +427,7 @@ Required gates for documentation changes:
 
 ```bash
 make fmt 2>&1 | tee /tmp/markdownfmt-skyjoust-$(git branch --show-current).out
+cargo doc --no-deps --workspace 2>&1 | tee /tmp/cargo-doc-skyjoust-$(git branch --show-current).out
 make markdownlint 2>&1 | tee /tmp/markdownlint-skyjoust-$(git branch --show-current).out
 make nixie 2>&1 | tee /tmp/nixie-skyjoust-$(git branch --show-current).out
 git diff --check 2>&1 | tee /tmp/diff-check-skyjoust-$(git branch --show-current).out
