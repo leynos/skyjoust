@@ -127,6 +127,13 @@
         "supply_routes",
         "hostages",
         "relics"
+      ],
+      "TerrainWorld": [
+        "seed",
+        "chunks",
+        "dirty_rects",
+        "deformation_log",
+        "material_counts"
       ]
     },
     "action_payloads": {
@@ -150,14 +157,7 @@
       },
       "BombKeepBreach": {
         "team": "Team"
-      },
-      "TerrainWorld": [
-        "seed",
-        "chunks",
-        "dirty_rects",
-        "deformation_log",
-        "material_counts"
-      ]
+      }
     },
     "component_groups": {
       "PlayerActor": [
@@ -374,21 +374,21 @@
         "player_actor.ordnance.state",
         "CeremonyState.temporary_rules"
       ],
-      "expression": "MatchRules.ordnance_policy in ['full','limited'] and player_actor.ordnance.state == 'Ready'"
+      "expression": "MatchRules.ordnance_policy in ['Full','Limited'] and player_actor.ordnance.state == 'Ready'"
     },
     "match.joust_only": {
       "reads": [
         "MatchRules.ordnance_policy",
         "CeremonyState.active_event"
       ],
-      "expression": "MatchRules.ordnance_policy == 'disabled' or CeremonyState.active_event.kind == 'Tournament'"
+      "expression": "MatchRules.ordnance_policy == 'Disabled' or CeremonyState.active_event.kind == 'Tournament'"
     },
     "event.duel_locked": {
       "reads": [
         "MatchRules.duel_lock",
         "CeremonyState.active_event"
       ],
-      "expression": "MatchRules.duel_lock.active == true and CeremonyState.active_event.kind == 'Duel'"
+      "expression": "MatchRules.duel_lock == true and CeremonyState.active_event.kind == 'Duel'"
     },
     "event.actor_is_duelist": {
       "reads": [
@@ -952,19 +952,31 @@
               "always": [
                 {
                   "target": "Tournament.ArenaBuild",
-                  "guard": "queued_event.kind == 'Tournament'"
+                  "guard": "queued_event.kind == 'Tournament'",
+                  "actions": [
+                    "publish.EVENT_RULES_APPLIED"
+                  ]
                 },
                 {
                   "target": "Duel.ChallengeIssued",
-                  "guard": "queued_event.kind == 'Duel'"
+                  "guard": "queued_event.kind == 'Duel'",
+                  "actions": [
+                    "publish.EVENT_RULES_APPLIED"
+                  ]
                 },
                 {
                   "target": "WeddingAlliance.AllianceProposed",
-                  "guard": "queued_event.kind == 'WeddingAlliance'"
+                  "guard": "queued_event.kind == 'WeddingAlliance'",
+                  "actions": [
+                    "publish.EVENT_RULES_APPLIED"
+                  ]
                 },
                 {
                   "target": "Banquet.Seating",
-                  "guard": "queued_event.kind == 'Banquet'"
+                  "guard": "queued_event.kind == 'Banquet'",
+                  "actions": [
+                    "publish.EVENT_RULES_APPLIED"
+                  ]
                 }
               ]
             },

@@ -27,6 +27,9 @@ state_dimensions:
     joust_only: boolean
     allow_sudden_death: boolean
   player_ordnance: [Ready, Cooldown, ResupplyNeeded, Disabled]
+  lance: [Idle, Bracing, Recovery, Broken]
+  recovery: [Alive, Stunned, Unhorsed, Dead, Respawning]
+  tournament_rounds_won: numeric
   match_result:
     Winner: [None, Red, Blue, TieBreak]
     winner_field: Winner
@@ -100,8 +103,8 @@ sometimes_properties:
   can_resolve_duel_and_get_duel_rewards: duel_resolved and rewards.committed and influence >= 25
   can_break_truce_and_receive_infamy: truce_broken and rewards.committed and infamy > 0 and penalties > 0
   can_score_nonlethal_objective: outpost_controlled and red_score >= 200 and not keep_breached
-  trace_validator:
-    input: JSON array of SkyAction enum values as serialized by serde
-    command: cargo run -p skyjoust-stateright-validator --bin validate_trace -- < trace.json
-    failure_exit_code: 2
-    output: TraceValidation JSON containing ok, final_state, and optional failure
+trace_validator:
+  input: JSON array of SkyAction enum values as serialized by serde
+  command: cargo run -p skyjoust-stateright-validator --bin validate_trace -- < trace.json
+  failure_exit_code: 2
+  output: TraceValidation JSON containing ok, final_state, and optional failure

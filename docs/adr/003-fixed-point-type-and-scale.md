@@ -6,9 +6,9 @@ Date: 2026-04-26
 
 ## Context
 
-Skyjoust requires deterministic physics and replayable input streams. Floating
-point arithmetic risks platform divergence, but the exact coordinate range,
-velocity range, and collision precision are not known until the movement
+Skyjoust requires deterministic physics and replayable input streams.
+Floating-point arithmetic risks platform divergence, but the exact coordinate
+range, velocity range, and collision precision are not known until the movement
 prototype exists.
 
 Choosing the fixed-point representation before those measurements could either

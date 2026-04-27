@@ -29,5 +29,5 @@ Candidate crates are:
 ## Consequences
 
 The first implementation pass can move faster without unstable public APIs.
-Before crate extraction, module APIs must stay documented and testable so the
+Before crate extraction, module APIs must stay documented and testable, so the
 eventual split remains mechanical rather than architectural.

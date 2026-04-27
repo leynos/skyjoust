@@ -399,7 +399,7 @@ Warfront saves store:
 
 Replay capture stores seed, configuration hash, asset manifest hash, and
 per-tick validated inputs. High-level state actions should also be exportable
-as a validator trace so lifecycle bugs can be checked without replaying every
+as a validator trace, so lifecycle bugs can be checked without replaying every
 pixel-level interaction.
 
 ## 14. Testing and gates

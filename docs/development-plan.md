@@ -53,8 +53,8 @@ change that resolves the contradiction.
 - Full localization.
 - Generated images used directly as gameplay-critical user interface (UI).
 
-Wedding and banquet states remain in the data model and state graph contract so
-the runtime does not need a structural rewrite later.
+Wedding and banquet states remain in the data model and state graph contract,
+so the runtime does not need a structural rewrite later.
 
 ## 3. Branch and gate rules
 
