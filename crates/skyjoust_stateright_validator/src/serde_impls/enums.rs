@@ -121,6 +121,7 @@ string_enum_serde!(TournamentState, {
 });
 string_enum_serde!(DuelState, {
     ChallengeIssued => "ChallengeIssued",
+    Refused => "Refused",
     ArenaLock => "ArenaLock",
     DuelActive => "DuelActive",
     ResolveDuel => "ResolveDuel",

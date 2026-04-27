@@ -200,7 +200,10 @@ fn push_tournament_actions(state: TournamentState, actions: &mut Vec<SkyAction>)
 
 fn push_duel_actions(state: DuelState, actions: &mut Vec<SkyAction>) {
     match state {
-        DuelState::ChallengeIssued => actions.push(SkyAction::AcceptDuel),
+        DuelState::ChallengeIssued => {
+            actions.push(SkyAction::AcceptDuel);
+            actions.push(SkyAction::RefuseDuel);
+        }
         DuelState::ArenaLock => actions.push(SkyAction::DuelReady),
         DuelState::DuelActive => {
             for winner in [Team::Red, Team::Blue] {
@@ -216,7 +219,7 @@ fn push_duel_actions(state: DuelState, actions: &mut Vec<SkyAction>) {
                 offender: Team::Blue,
             });
         }
-        DuelState::ResolveDuel => {}
+        DuelState::Refused | DuelState::ResolveDuel => {}
     }
 }
 

@@ -37,6 +37,7 @@ pub enum SkyAction {
 
     IssueDuel,
     AcceptDuel,
+    RefuseDuel,
     DuelReady,
     DuelDecisiveJoust { winner: Team, outcome: JoustOutcome },
     DuelInterference { offender: Team },

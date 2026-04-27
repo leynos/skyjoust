@@ -120,6 +120,21 @@ fn duel_decisive_joust_scores_for_each_winning_team(
     assert_eq!(state.score.blue_score, blue_score);
 }
 
+#[test]
+fn refuse_duel_records_refused_state() {
+    let last = SkyState {
+        ceremony: CeremonyState::Duel(DuelState::ChallengeIssued),
+        match_phase: MatchPhase::NormalPlay,
+        ..active_state()
+    };
+    let mut state = last.clone();
+
+    let handled = handle_ceremonies(&last, &mut state, &SkyAction::RefuseDuel);
+
+    assert_eq!(handled, Some(true));
+    assert_eq!(state.ceremony, CeremonyState::Duel(DuelState::Refused));
+}
+
 #[rstest]
 #[case(Team::Red, -500, 0)]
 #[case(Team::Blue, 0, -500)]

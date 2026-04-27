@@ -94,6 +94,7 @@ impl Serialize for SkyAction {
             | Self::TournamentChampionDeclared
             | Self::IssueDuel
             | Self::AcceptDuel
+            | Self::RefuseDuel
             | Self::DuelReady
             | Self::StartWeddingTruce
             | Self::BreakTruce
@@ -214,6 +215,7 @@ const UNIT_ACTION_NAMES: &[&str] = &[
     "TournamentChampionDeclared",
     "IssueDuel",
     "AcceptDuel",
+    "RefuseDuel",
     "DuelReady",
     "StartWeddingTruce",
     "BreakTruce",
@@ -266,6 +268,7 @@ fn unit_action_name(action: &SkyAction) -> &'static str {
         SkyAction::TournamentChampionDeclared => "TournamentChampionDeclared",
         SkyAction::IssueDuel => "IssueDuel",
         SkyAction::AcceptDuel => "AcceptDuel",
+        SkyAction::RefuseDuel => "RefuseDuel",
         SkyAction::DuelReady => "DuelReady",
         SkyAction::StartWeddingTruce => "StartWeddingTruce",
         SkyAction::BreakTruce => "BreakTruce",
@@ -318,6 +321,7 @@ fn unit_action_from_name(name: &str) -> Option<SkyAction> {
         "TournamentChampionDeclared" => SkyAction::TournamentChampionDeclared,
         "IssueDuel" => SkyAction::IssueDuel,
         "AcceptDuel" => SkyAction::AcceptDuel,
+        "RefuseDuel" => SkyAction::RefuseDuel,
         "DuelReady" => SkyAction::DuelReady,
         "StartWeddingTruce" => SkyAction::StartWeddingTruce,
         "BreakTruce" => SkyAction::BreakTruce,

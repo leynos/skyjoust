@@ -1996,7 +1996,7 @@
       ]
     },
     {
-      "source": "ceremony_events.WeddingAlliance.Broken",
+      "source": "ceremony_events.Active.WeddingAlliance.Broken",
       "emits": "TRUCE_BROKEN",
       "consumed_by": [
         "MatchRules",

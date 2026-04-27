@@ -139,6 +139,7 @@ pub enum TournamentState {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum DuelState {
     ChallengeIssued,
+    Refused,
     ArenaLock,
     DuelActive,
     ResolveDuel,

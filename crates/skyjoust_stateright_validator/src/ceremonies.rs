@@ -78,6 +78,7 @@ fn handle_duel(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Opt
             state.ceremony = CeremonyState::Duel(DuelState::ChallengeIssued);
         }
         SkyAction::AcceptDuel => accept_duel(last, state)?,
+        SkyAction::RefuseDuel => refuse_duel(last, state)?,
         SkyAction::DuelReady => {
             guard(last.ceremony == CeremonyState::Duel(DuelState::ArenaLock))?;
             state.ceremony = CeremonyState::Duel(DuelState::DuelActive);
@@ -178,6 +179,12 @@ fn accept_duel(last: &SkyState, state: &mut SkyState) -> Option<()> {
     state.ceremony = CeremonyState::Duel(DuelState::ArenaLock);
     state.match_phase = MatchPhase::EventOverride;
     state.enter_duel_mode();
+    Some(())
+}
+
+fn refuse_duel(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(last.ceremony == CeremonyState::Duel(DuelState::ChallengeIssued))?;
+    state.ceremony = CeremonyState::Duel(DuelState::Refused);
     Some(())
 }
 

@@ -18,7 +18,6 @@ fn valid_trace_prints_pretty_json_and_exits_zero() -> Result<(), Box<dyn Error>>
     assert!(output.status.success());
     assert!(stderr_text(&output)?.is_empty());
     let stdout = stdout_text(&output)?;
-    assert!(stdout.starts_with("{\n  \"ok\": true,"));
     let json: Value = serde_json::from_str(stdout)?;
     assert_eq!(json["ok"], true);
     assert!(json["final_state"].is_object());

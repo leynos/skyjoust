@@ -15,7 +15,7 @@ state_dimensions:
     queued: [Queued(_)]
     prompt: [Prompt(_)]
     tournament: [ArenaBuild, Registration, RoundActive, RoundComplete, ChampionDeclared]
-    duel: [ChallengeIssued, ArenaLock, DuelActive, ResolveDuel]
+    duel: [ChallengeIssued, Refused, ArenaLock, DuelActive, ResolveDuel]
     wedding: [AllianceProposed, TruceActive, JointObjective, Broken, Expired]
     banquet: [Seating, TermsOpen, CounterOffer, TreatySigned, Collapsed]
     post_event: [ConsequenceResolution, Cooldown]
@@ -53,7 +53,7 @@ actions:
   runtime: [AssetsLoaded, StartSkirmish, StartWarfront, MapReady, SelectRegion, StartBattle, FinishConstructing, SpawnReady, CountdownDone]
   ceremonies:
     tournament: [TriggerTournament, ArenaReady, TournamentRegistered, TournamentRoundWon, TournamentChampionDeclared]
-    duel: [IssueDuel, AcceptDuel, DuelReady, DuelDecisiveJoust, DuelInterference]
+    duel: [IssueDuel, AcceptDuel, RefuseDuel, DuelReady, DuelDecisiveJoust, DuelInterference]
     wedding: [StartWeddingTruce, CompleteJointObjective, BreakTruce, ExpireTruce]
     banquet: [OpenBanquet, BanquetReady, ProposeTreaty, AcceptTreaty, RejectTreaty]
     common: [EventConsequencesRecorded, EventCooldownDone]
