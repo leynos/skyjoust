@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie generate-state-graphs check-state-graphs
+.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie check-diagrams generate-state-graphs check-state-graphs
 
 
 TARGET ?= skyjoust
@@ -17,11 +17,13 @@ TEST_FLAGS ?= $(CARGO_FLAGS)
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
+DIAGRAM_DIFF_BASE ?= origin/main
+DIAGRAM_PATHS := docs/*.dot docs/*.svg docs/*.md
 
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
 
-all: check-fmt check-state-graphs lint test ## Perform a comprehensive check of code
+all: check-fmt check-state-graphs markdownlint check-diagrams lint test ## Perform a comprehensive check of code
 
 clean: ## Remove build artifacts
 	$(CARGO) clean
@@ -69,10 +71,18 @@ markdownlint: ## Lint Markdown files
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
 
+check-diagrams: ## Validate diagrams when documentation diagrams changed
+	@if git rev-parse --verify "$(DIAGRAM_DIFF_BASE)" >/dev/null 2>&1 && \
+		test -z "$$(git diff --name-only "$(DIAGRAM_DIFF_BASE)" -- $(DIAGRAM_PATHS))"; then \
+		echo "No documentation diagram changes detected; skipping nixie."; \
+	else \
+		$(MAKE) nixie; \
+	fi
+
 generate-state-graphs: ## Generate JSON state graph bundle from YAML
 	python3 scripts/generate-state-graphs-json.py docs/skyjoust-state-graphs.yaml docs/skyjoust-state-graphs.json
 
-check-state-graphs: ## Verify JSON state graph bundle matches YAML
+check-state-graphs: check-diagrams ## Verify JSON state graph bundle matches YAML
 	@tmp="$$(mktemp)"; \
 	python3 scripts/generate-state-graphs-json.py docs/skyjoust-state-graphs.yaml "$$tmp"; \
 	if cmp -s "$$tmp" docs/skyjoust-state-graphs.json; then \

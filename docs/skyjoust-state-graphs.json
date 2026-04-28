@@ -127,6 +127,7 @@
         "queued_event",
         "honour_violations",
         "temporary_rules",
+        "scoring_frozen",
         "event_rewards"
       ],
       "ObjectiveState": [
@@ -373,9 +374,9 @@
     "match.scoring_open": {
       "reads": [
         "match_lifecycle.state",
-        "ceremony_events.flags.scoring_frozen"
+        "CeremonyState.scoring_frozen"
       ],
-      "expression": "match_lifecycle.state in active_match_states and !ceremony_events.flags.scoring_frozen"
+      "expression": "match_lifecycle.state in active_match_states and !CeremonyState.scoring_frozen"
     },
     "match.can_spawn_ordnance": {
       "reads": [
@@ -922,7 +923,7 @@
         "Dormant": {
           "on": {
             "EVENT_ROLL_REQUESTED": "CandidateSelection",
-            "DUEL_ISSUED": "Active.Duel.ChallengeIssued"
+            "DUEL_ISSUED": "Active.ActivateIssuedDuel"
           }
         },
         "CandidateSelection": {
@@ -955,25 +956,37 @@
           }
         },
         "Active": {
-          "initial": "DispatchByKind",
+          "initial": "ActivateAcceptedEvent",
           "states": {
+            "ActivateAcceptedEvent": {
+              "entry": [
+                "copy_queued_event_to_active_event"
+              ],
+              "always": "DispatchByKind"
+            },
+            "ActivateIssuedDuel": {
+              "entry": [
+                "copy_issued_duel_to_active_event"
+              ],
+              "always": "Duel.ChallengeIssued"
+            },
             "DispatchByKind": {
               "always": [
                 {
                   "target": "Tournament.ArenaBuild",
-                  "guard": "queued_event.kind == 'Tournament'"
+                  "guard": "CeremonyState.active_event.kind == 'Tournament'"
                 },
                 {
                   "target": "Duel.ChallengeIssued",
-                  "guard": "queued_event.kind == 'Duel'"
+                  "guard": "CeremonyState.active_event.kind == 'Duel'"
                 },
                 {
                   "target": "WeddingAlliance.AllianceProposed",
-                  "guard": "queued_event.kind == 'WeddingAlliance'"
+                  "guard": "CeremonyState.active_event.kind == 'WeddingAlliance'"
                 },
                 {
                   "target": "Banquet.Seating",
-                  "guard": "queued_event.kind == 'Banquet'"
+                  "guard": "CeremonyState.active_event.kind == 'Banquet'"
                 }
               ]
             },
@@ -2274,7 +2287,7 @@
       "consumer": "match_lifecycle",
       "reads": [
         "scoring.victory_pending",
-        "ceremony_events.temporary_rules",
+        "CeremonyState.temporary_rules",
         "warfront.battle_context"
       ],
       "must_not_write": [
