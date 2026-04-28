@@ -45,6 +45,11 @@ root_parallel:
       statechart_ref: rewards
       activation: warfront.active or match_lifecycle.results_pending
 shared_context:
+  constants:
+    active_match_states:
+    - Active.NormalPlay
+    - Active.EventOverride
+    - Active.SuddenDeath
   resources:
     MatchRules:
     - victory_condition
@@ -325,7 +330,9 @@ selectors:
     reads:
     - match_lifecycle.state
     - ceremony_events.flags.scoring_frozen
-    expression: match_lifecycle.state in ['Active.NormalPlay','Active.EventOverride','Active.SuddenDeath'] and !ceremony_events.flags.scoring_frozen
+    expression: >-
+      match_lifecycle.state in active_match_states and
+      !ceremony_events.flags.scoring_frozen
   match.can_spawn_ordnance:
     reads:
     - MatchRules.ordnance_policy

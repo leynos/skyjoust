@@ -167,18 +167,19 @@ mod tests {
     }
 
     #[test]
-    fn longer_trace_validates_when_depth_is_raised() {
+    fn longer_trace_validates_when_depth_is_raised() -> serde_json::Result<()> {
         let model = SkyjoustInteractionModel { max_depth: 40 };
-        let result = validate_trace(&model, long_legal_trace());
+        let result = validate_trace(&model, long_legal_trace()?);
 
         assert!(result.ok, "{result:?}");
         assert_eq!(result.final_state.depth, 31);
+        Ok(())
     }
 
     #[test]
-    fn longer_trace_fails_with_default_depth() {
+    fn longer_trace_fails_with_default_depth() -> serde_json::Result<()> {
         let model = SkyjoustInteractionModel::default();
-        let result = validate_trace(&model, long_legal_trace());
+        let result = validate_trace(&model, long_legal_trace()?);
 
         assert!(!result.ok);
         assert_eq!(result.final_state.depth, model.max_depth);
@@ -186,10 +187,10 @@ mod tests {
             .failure
             .expect("expected depth-bound trace to report failure");
         assert!(failure.reason.contains("depth bound exhausted"));
+        Ok(())
     }
 
-    fn long_legal_trace() -> Vec<SkyAction> {
+    fn long_legal_trace() -> serde_json::Result<Vec<SkyAction>> {
         serde_json::from_str(include_str!("../traces/long_legal_trace.json"))
-            .expect("long legal trace fixture should deserialize")
     }
 }
