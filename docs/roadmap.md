@@ -508,7 +508,7 @@ skill, award laurels, and return safely to normal match flow. See
 ### 5.2. Deliver duel as a constrained champion challenge
 
 This step answers whether a duel can lock participants, block interference,
-resolve a decisive joust, and award consequences without corrupting scoring.
+resolve a decisive joust, and apply consequences without corrupting scoring.
 See `docs/skyjoust-product-requirements.md` §10.2 and
 `docs/skyjoust-state-graphs.yaml` `ceremony_events.Duel`.
 
