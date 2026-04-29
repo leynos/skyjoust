@@ -1,0 +1,13 @@
+[
+  "AssetsLoaded",
+  "StartSkirmish",
+  "StartBattle",
+  "FinishConstructing",
+  "SpawnReady",
+  "CountdownDone",
+  { "BombKeepBreach": { "team": "Red" } },
+  "VictoryCheck",
+  "ExportFinalScore",
+  "TallyRewards",
+  "CommitRewards"
+]

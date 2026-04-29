@@ -1,0 +1,17 @@
+[package]
+name = "skyjoust-stateright-validator"
+version = "0.1.0"
+edition = "2024"
+description = "Stateright model checker and trace validator for Project Skyjoust high-level engine interactions."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+stateright = "0.31"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+eyre = "0.6"
+
+[dev-dependencies]
+insta = { version = "1", features = ["json"] }
+pretty_assertions = "1"
+rstest = "0.18"

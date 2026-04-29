@@ -1,0 +1,20 @@
+[
+  "AssetsLoaded",
+  "StartSkirmish",
+  "StartBattle",
+  "FinishConstructing",
+  "SpawnReady",
+  "CountdownDone",
+  "TriggerTournament",
+  "ArenaReady",
+  "TournamentRegistered",
+  { "TournamentRoundWon": { "winner": "Red" } },
+  "TournamentChampionDeclared",
+  "EventConsequencesRecorded",
+  "EventCooldownDone",
+  { "BombKeepBreach": { "team": "Red" } },
+  "VictoryCheck",
+  "ExportFinalScore",
+  "TallyRewards",
+  "CommitRewards"
+]

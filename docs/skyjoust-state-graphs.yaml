@@ -1,0 +1,1684 @@
+schema: skyjoust.engine_state_graph.v1
+version: 0.1.0
+description: High-level parallel state graphs for Project Skyjoust. Designed for a Rust + Bevy entity-component system
+  (ECS) simulation with a fixed tick, event bus, and explicit query contracts between graphs.
+execution_model:
+  fixed_tick_hz: 120
+  render_audio_ui: variable-rate presentation pass; never mutates authoritative simulation state
+  statechart_semantics:
+  - All graphs listed under root_parallel.regions run concurrently while their activation guard is true.
+  - Transitions are driven by immutable events on the event bus or by pure guards evaluated during fixed ticks.
+  - Guards are selectors over ECS resources/components; they do not mutate state.
+  - Actions may issue ECS commands, mutate resources, and publish events, but should not read wall-clock time.
+  - All multi-entity resolution uses stable entity ordering to preserve near-deterministic behaviour.
+  recommended_bevy_mapping:
+    statecharts: resources that own graph state and current node path
+    events: Bevy Events or a custom deterministic ring-buffer event bus
+    guards: pure query functions over World snapshots
+    actions: systems that consume transition commands after graph evaluation
+root_parallel:
+  id: root_parallel
+  type: parallel
+  regions:
+    app_runtime:
+      statechart_ref: app_runtime
+      activation: always
+    warfront:
+      statechart_ref: warfront
+      activation: always
+    match_lifecycle:
+      statechart_ref: match_lifecycle
+      activation: app_runtime.in_match == true
+    ceremony_events:
+      statechart_ref: ceremony_events
+      activation: app_runtime.mode in ['warfront','skirmish','versus']
+    objectives:
+      statechart_ref: objectives
+      activation: match_lifecycle.state in active_match_states
+    player_actor:
+      statechart_ref: player_actor
+      activation: for_each(PlayerActor entity)
+    scoring:
+      statechart_ref: scoring
+      activation: always
+    rewards:
+      statechart_ref: rewards
+      activation: warfront.active or match_lifecycle.results_pending
+shared_context:
+  constants:
+    active_match_states:
+    - Active.NormalPlay
+    - Active.EventOverride
+    - Active.SuddenDeath
+  resources:
+    MatchRules:
+    - victory_condition
+    - ordnance_policy
+    - friendly_fire
+    - event_modifiers
+    - scoring_multipliers
+    - honour_rules
+    - duel_lock
+    - glory_threshold
+    - allow_sudden_death
+    MatchState:
+    - tick
+    - timer
+    - phase
+    - team_morale
+    - keep_integrity
+    - spawn_corridors
+    - sudden_death
+    - winner
+    CampaignState:
+    - seed
+    - turn
+    - regions
+    - supply_routes
+    - house_relations
+    - queued_events
+    - active_truces
+    - active_treaty
+    - region_result
+    - pressure_vectors
+    ScoreLedger:
+    - open
+    - finalized
+    - final_snapshot
+    - per_player
+    - per_team
+    - event_subscores
+    - morale_deltas
+    - victory_progress
+    RewardLedger:
+    - phase
+    - pending_delta
+    - committed
+    - has_uncommitted_delta
+    - glory
+    - coin
+    - influence
+    - laurels
+    - items
+    - penalties
+    - political_consequences
+    CeremonyState:
+    - active_event
+    - queued_event
+    - honour_violations
+    - temporary_rules
+    - scoring_frozen
+    - event_rewards
+    ObjectiveState:
+    - outposts
+    - shrines
+    - keeps
+    - supply_routes
+    - hostages
+    - relics
+    TerrainWorld:
+    - seed
+    - chunks
+    - dirty_rects
+    - deformation_log
+    - material_counts
+  action_payloads:
+    TournamentRoundWon:
+      winner: Team
+    CompleteJointObjective:
+      team: Team
+    CaptureOutpost:
+      team: Team
+    ClaimShrine:
+      team: Team
+    BlockSupplyRoute:
+      team: Team
+    DeliverHostage:
+      team: Team
+    BombKeepBreach:
+      team: Team
+  component_groups:
+    PlayerActor:
+    - Transform2D
+    - Velocity2D
+    - Mount
+    - Rider
+    - Lance
+    - Loadout
+    - Team
+    - ScoreHandle
+    - InputBuffer
+    ObjectiveEntity:
+    - Objective
+    - Team
+    - Collider
+    - Structure
+    - CaptureZone
+    ProjectileEntity:
+    - Projectile
+    - Team
+    - Transform2D
+    - Velocity2D
+    - Lifetime
+event_topics:
+  runtime:
+  - APP_BOOT
+  - ASSETS_LOADED
+  - ENTER_MENU
+  - START_SKIRMISH
+  - START_WARFRONT
+  - START_LOCAL_VERSUS
+  - MATCH_SETUP_READY
+  - MATCH_STARTED
+  - MATCH_ENDED
+  - MATCH_RESULT_POSTED
+  - MAP_READY
+  - SPAWN_READY
+  - COUNTDOWN_DONE
+  - WARFRONT_READY
+  - TURN_READY
+  - START_BATTLE_MATCH
+  - WARFRONT_COMPLETE
+  - CONTINUE_CAMPAIGN
+  - RETURN_TO_MENU
+  - OPEN_OPTIONS
+  - BACK
+  - BACK_TO_TITLE
+  - ABORT_MATCH
+  - PAUSE_REQUESTED
+  - RESUME
+  - CANCEL
+  - RESET_MATCH_GRAPH
+  input:
+  - PLAYER_INPUT_TICK
+  - BRACE_PRESSED
+  - BRACE_WINDOW_EXPIRED
+  - BOLT_PRESSED
+  - BOMB_PRESSED
+  - INTERACT_PRESSED
+  - LAND_PRESSED
+  - DIVE_RELEASED
+  - DUEL_ACCEPT_INPUT
+  - DUEL_REFUSE_INPUT
+  gameplay:
+  - AIRBORNE_CONFIRMED
+  - RIDER_LAUNCHED
+  - RIDER_LANDED
+  - FLAP_IMPULSE
+  - FLAP_DECAYED
+  - DIVE_STARTED
+  - STALL_STARTED
+  - WIND_POCKET_ENTERED
+  - WIND_POCKET_EXITED
+  - SPEED_RECOVERED
+  - TERRAIN_COLLISION
+  - GROUND_IMPACT
+  - LANDING_ABORTED
+  - LANCE_BRACED
+  - LANCE_BROKEN
+  - LANCE_COOLDOWN_DONE
+  - JOUST_CONTACT
+  - JOUST_OUTCOME
+  - JOUST_KNOCKBACK
+  - JOUST_UNHORSE
+  - JOUST_SHATTER
+  - JOUST_CLEAN_KILL
+  - LANCE_SHATTERED
+  - BOLT_FIRED
+  - BOLT_HIT
+  - BOLT_COOLDOWN_DONE
+  - BOMB_DROPPED
+  - BOMB_EXPLODED
+  - BOMB_SLOT_READY
+  - BOMB_STRUCTURE_DAMAGE
+  - TERRAIN_DEFORMED
+  - STRUCTURE_DAMAGED
+  - KEEP_BREACH
+  - KEEP_BREACHED
+  - CAPTURE_TICK
+  - ENEMY_CAPTURE_TICK
+  - CAPTURE_COMPLETE
+  - CAPTURE_RESET
+  - OUTPOST_CAPTURE_TICK
+  - OUTPOST_CAPTURE
+  - OUTPOST_CAPTURED
+  - SHRINE_CLAIM
+  - SHRINE_CLAIMED
+  - SHRINE_TIMER_READY
+  - SHRINE_COOLDOWN_DONE
+  - SHRINE_BUFF_EXPIRED
+  - SUPPLY_PICKED_UP
+  - SUPPLY_ROUTE_CONTESTED
+  - SUPPLY_ROUTE_BLOCK
+  - SUPPLY_ROUTE_BLOCKED
+  - ROUTE_DEFENDED
+  - ROUTE_REPAIRED
+  - HOSTAGE_RELEASED
+  - HOSTAGE_CARRIED
+  - HOSTAGE_DELIVER
+  - HOSTAGE_DELIVERED
+  - HOSTAGE_RECAPTURED
+  - PLAYER_KO
+  - PLAYER_RESPAWNED
+  - CARRIER_KO
+  - RECOVERY_MOUNT_REACHED
+  - RESPAWN_TIMER_DONE
+  - STUN_DONE
+  - OUT_OF_AMMO
+  - RESUPPLY_COMPLETE
+  - INTERRUPTED
+  - MATCH_TIMER_EXPIRED
+  - SUDDEN_DEATH_TRIGGERED
+  ceremony:
+  - EVENT_ROLL_REQUESTED
+  - EVENT_CANDIDATE_SELECTED
+  - EVENT_QUEUED
+  - EVENT_TRIGGERED
+  - ACCEPT_EVENT
+  - DECLINE_EVENT
+  - EVENT_EXPIRED
+  - EVENT_RULES_APPLIED
+  - EVENT_COMPLETED
+  - EVENT_CONSEQUENCES_RECORDED
+  - EVENT_COOLDOWN_DONE
+  - DUEL_ISSUED
+  - DUEL_ACCEPTED
+  - DUEL_REFUSED
+  - DUEL_READY
+  - DUEL_INTERFERENCE
+  - HONOUR_VIOLATION
+  - ARENA_READY
+  - BRACKET_READY
+  - TOURNAMENT_REGISTERED
+  - TOURNAMENT_ROUND_STARTED
+  - TOURNAMENT_ROUND_ENDED
+  - WEDDING_TRUCE_STARTED
+  - JOINT_OBJECTIVE_READY
+  - JOINT_OBJECTIVE_COMPLETE
+  - TRUCE_BROKEN
+  - TRUCE_EXPIRED
+  - PROPOSE_BANQUET
+  - BANQUET_READY
+  - BANQUET_TERM_PROPOSED
+  - BANQUET_TREATY_SIGNED
+  - NEGOTIATION_CANCELLED
+  - ACCEPT_TERMS
+  - REJECT_TERMS
+  - END_TURN
+  - SEEK_ALLIANCE
+  - SELECT_REGION
+  scoring:
+  - SCORE_EVENT_ACCEPTED
+  - SCORE_DELTA_POSTED
+  - MORALE_DELTA_POSTED
+  - VICTORY_PROGRESS_CHANGED
+  - VICTORY_CONDITION_MET
+  - FINAL_SCORE_SNAPSHOT
+  rewards:
+  - OPEN_UPGRADE_MENU
+  - CLOSE_UPGRADE_MENU
+  - BUY_UPGRADE
+  - NEXT_WARFRONT_TURN
+  - REWARD_LEDGER_OPENED
+  - REWARD_DELTA_POSTED
+  - LAURELS_GRANTED
+  - CURRENCY_GRANTED
+  - ITEM_UNLOCKED
+  - PENALTY_APPLIED
+  - REWARDS_COMMITTED
+selectors:
+  match.scoring_open:
+    reads:
+    - match_lifecycle.state
+    - CeremonyState.scoring_frozen
+    expression: >-
+      match_lifecycle.state in active_match_states and
+      !CeremonyState.scoring_frozen
+  match.can_spawn_ordnance:
+    reads:
+    - MatchRules.ordnance_policy
+    - player_actor.ordnance.state
+    - CeremonyState.temporary_rules
+    expression: MatchRules.ordnance_policy in ['Full','Limited'] and player_actor.ordnance.state == 'Ready'
+  match.joust_only:
+    reads:
+    - MatchRules.ordnance_policy
+    - CeremonyState.active_event
+    expression: MatchRules.ordnance_policy == 'Disabled' or CeremonyState.active_event.kind == 'Tournament'
+  event.duel_locked:
+    reads:
+    - MatchRules.duel_lock
+    - CeremonyState.active_event
+    expression: MatchRules.duel_lock == true and CeremonyState.active_event.kind == 'Duel'
+  event.actor_is_duelist:
+    reads:
+    - ActorState.role
+    expression: ActorState.role == 'duelist'
+  event.truce_active_between_teams:
+    reads:
+    - CampaignState.active_truces
+    - MatchRules.friendly_fire
+    expression: team_pair in CampaignState.active_truces and MatchRules.friendly_fire == false
+  player.has_altitude_advantage:
+    reads:
+    - Transform2D.pos.y
+    - opponent.Transform2D.pos.y
+    - Velocity2D.v.y
+    expression: player.y < opponent.y - altitude_threshold_px and player.vy <= opponent.vy + dive_bias
+  player.lance_contact_valid:
+    reads:
+    - Lance.state
+    - Lance.cone
+    - Transform2D
+    - Velocity2D
+    - MatchRules.honour_rules
+    - event.duel_locked
+    - event.actor_is_duelist
+    expression: target_in_lance_cone and within_reach and !(event.duel_locked and !event.actor_is_duelist)
+  objective.keep_breached:
+    reads:
+    - ObjectiveState.keeps[*].integrity
+    - ObjectiveState.keeps[*].core_exposed
+    expression: any(enemy_keep.core_exposed and enemy_keep.integrity <= 0)
+  objective.morale_collapsed:
+    reads:
+    - MatchState.team_morale
+    - ScoreLedger.morale_deltas
+    expression: any(team_morale <= 0)
+  objective.glory_threshold_met:
+    reads:
+    - ScoreLedger.per_team.glory_score
+    - MatchRules.victory_condition
+    expression: MatchRules.victory_condition == 'glory_threshold' and any(team.glory_score >= MatchRules.glory_threshold)
+  warfront.event_due:
+    reads:
+    - CampaignState.queued_events
+    - CampaignState.turn
+    - CampaignState.pressure_vectors
+    expression: queued_events.peek().turn <= CampaignState.turn or pressure_vectors.trigger_mid_match_edict
+  rewards.can_commit:
+    reads:
+    - RewardLedger
+    - ScoreLedger.finalized
+    - CampaignState
+    expression: ScoreLedger.finalized == true and RewardLedger.has_uncommitted_delta
+statecharts:
+  app_runtime:
+    id: app_runtime
+    type: hierarchical
+    initial: Boot
+    states:
+      Boot:
+        'on':
+          ASSETS_LOADED:
+            target: Title
+            actions:
+            - init_asset_store
+            - init_audio_buses
+            - load_saved_settings
+      Title:
+        'on':
+          START_SKIRMISH:
+            target: SkirmishSetup
+            actions:
+            - set_mode.skirmish
+          START_WARFRONT:
+            target: WarfrontSetup
+            actions:
+            - set_mode.warfront
+          START_LOCAL_VERSUS:
+            target: VersusSetup
+            actions:
+            - set_mode.versus
+          OPEN_OPTIONS: Options
+      Options:
+        'on':
+          BACK: Title
+      SkirmishSetup:
+        'on':
+          MATCH_SETUP_READY:
+            target: MatchRunning
+            actions:
+            - build_match_context
+            - publish.MATCH_STARTED
+          BACK: Title
+      VersusSetup:
+        'on':
+          MATCH_SETUP_READY:
+            target: MatchRunning
+            actions:
+            - build_match_context
+            - publish.MATCH_STARTED
+          BACK: Title
+      WarfrontSetup:
+        'on':
+          WARFRONT_READY:
+            target: WarfrontRunning
+            actions:
+            - publish.START_WARFRONT
+          BACK: Title
+      WarfrontRunning:
+        'on':
+          START_BATTLE_MATCH:
+            target: MatchRunning
+            actions:
+            - freeze_warfront_turn
+            - build_match_context
+            - publish.MATCH_STARTED
+          WARFRONT_COMPLETE: Results
+          BACK_TO_TITLE: Title
+      MatchRunning:
+        'on':
+          MATCH_ENDED:
+            target: Results
+          ABORT_MATCH: Title
+      Results:
+        'on':
+          REWARDS_COMMITTED:
+          - target: WarfrontRunning
+            guard: app_runtime.mode == 'warfront'
+          - target: Title
+            guard: app_runtime.mode != 'warfront'
+          RETURN_TO_MENU: Title
+      FatalError:
+        'on':
+          RETURN_TO_MENU: Title
+  warfront:
+    id: warfront
+    type: hierarchical
+    initial: Inactive
+    states:
+      Inactive:
+        'on':
+          START_WARFRONT:
+            target: GenerateOrLoad
+            actions:
+            - load_or_generate_campaign_seed
+      GenerateOrLoad:
+        'on':
+          MAP_READY:
+            target: TurnStart
+            actions:
+            - initialize_region_control
+            - initialize_supply_routes
+      TurnStart:
+        entry:
+        - collect_income
+        - roll_event_probabilities
+        - refresh_pressure_vectors
+        'on':
+          TURN_READY: StrategicChoice
+      StrategicChoice:
+        'on':
+          SELECT_REGION:
+            target: BattlePreview
+            actions:
+            - set_target_region
+            - compute_battle_modifiers
+          PROPOSE_BANQUET:
+            target: BanquetNegotiation
+            actions:
+            - publish.BANQUET_TERM_PROPOSED
+          SEEK_ALLIANCE:
+            target: DiplomacyAction
+            actions:
+            - spend_influence
+            - modify_house_relation
+          END_TURN: ResolveNPCPressure
+      BattlePreview:
+        'on':
+          START_BATTLE_MATCH:
+            target: BattleLocked
+            actions:
+            - queue_region_battle
+            - publish.START_BATTLE_MATCH
+          CANCEL: StrategicChoice
+      BattleLocked:
+        'on':
+          MATCH_STARTED: AwaitingBattleResult
+      AwaitingBattleResult:
+        'on':
+          MATCH_RESULT_POSTED:
+            target: ApplyBattleResult
+            actions:
+            - attach_match_summary_to_region
+      ApplyBattleResult:
+        always: UpdateTerritory
+      UpdateTerritory:
+        entry:
+        - recompute_frontlines
+        - recompute_supply_network
+        - detect_isolated_regions
+        always: ResolveEvents
+      ResolveEvents:
+        entry:
+        - advance_queued_events
+        - expire_truces
+        - queue_mid_match_edicts
+        always: RewardCommit
+      RewardCommit:
+        'on':
+          REWARDS_COMMITTED:
+          - target: SeasonComplete
+            guard: warfront.season_goal_met
+            actions:
+            - shift_region_control
+            - update_house_relations_from_battle
+          - target: TurnStart
+            guard: '!warfront.season_goal_met'
+            actions:
+            - shift_region_control
+            - update_house_relations_from_battle
+      BanquetNegotiation:
+        initial: TermsOpen
+        states:
+          TermsOpen:
+            'on':
+              BANQUET_TERM_PROPOSED:
+                target: CounterOffer
+                actions:
+                - evaluate_terms_secretly
+              CANCEL: '#warfront.StrategicChoice'
+          CounterOffer:
+            'on':
+              ACCEPT_TERMS: TreatySigned
+              REJECT_TERMS: Collapsed
+          TreatySigned:
+            entry:
+            - publish.BANQUET_TREATY_SIGNED
+            - queue_diplomatic_rewards
+            always: '#warfront.ResolveEvents'
+          Collapsed:
+            entry:
+            - apply_minor_relation_penalty
+            always: '#warfront.StrategicChoice'
+      DiplomacyAction:
+        entry:
+        - resolve_diplomacy_action
+        - queue_possible_wedding_event
+        always: StrategicChoice
+      ResolveNPCPressure:
+        entry:
+        - advance_enemy_pressure
+        - block_or_restore_supply_routes
+        always: TurnStart
+      SeasonComplete:
+        'on':
+          WARFRONT_COMPLETE: Inactive
+          CONTINUE_CAMPAIGN: TurnStart
+  match_lifecycle:
+    id: match_lifecycle
+    type: hierarchical
+    initial: Inactive
+    states:
+      Inactive:
+        'on':
+          MATCH_STARTED:
+            target: Constructing
+            actions:
+            - seed_rng
+            - load_region_rules
+      Constructing:
+        entry:
+        - generate_terrain
+        - place_keeps_outposts_shrines
+        - spawn_player_actors
+        - warm_collision_world
+        'on':
+          MATCH_SETUP_READY: SpawnWarmup
+      SpawnWarmup:
+        entry:
+        - lock_inputs
+        - show_region_banner
+        'on':
+          SPAWN_READY: Countdown
+      Countdown:
+        'on':
+          COUNTDOWN_DONE:
+            target: Active.NormalPlay
+            actions:
+            - unlock_inputs
+            - start_match_timer
+            - publish.SCORE_EVENT_ACCEPTED
+      Active:
+        initial: NormalPlay
+        states:
+          NormalPlay:
+            'on':
+              EVENT_RULES_APPLIED: EventOverride
+              SUDDEN_DEATH_TRIGGERED: SuddenDeath
+              PAUSE_REQUESTED: Paused
+          EventOverride:
+            entry:
+            - apply_temporary_rules
+            'on':
+              EVENT_COMPLETED:
+                target: NormalPlay
+                actions:
+                - restore_baseline_rules
+              SUDDEN_DEATH_TRIGGERED: SuddenDeath
+              PAUSE_REQUESTED: Paused
+          SuddenDeath:
+            entry:
+            - amplify_morale_loss
+            - disable_safe_respawn_if_rules_allow
+            'on':
+              EVENT_RULES_APPLIED: EventOverride
+              PAUSE_REQUESTED: Paused
+          Paused:
+            'on':
+              RESUME: NormalPlay
+              ABORT_MATCH: '#match_lifecycle.ResultsExported'
+        'on':
+          VICTORY_CONDITION_MET:
+            target: RoundOver
+            actions:
+            - freeze_player_inputs
+            - record_winner
+          MATCH_TIMER_EXPIRED:
+          - target: Active.SuddenDeath
+            guard: MatchRules.allow_sudden_death
+          - target: RoundOver
+            guard: '!MatchRules.allow_sudden_death'
+            actions:
+            - resolve_timeout_winner
+      RoundOver:
+        entry:
+        - stop_match_timer
+        - flush_scoring
+        - publish.FINAL_SCORE_SNAPSHOT
+        always: ResultsExported
+      ResultsExported:
+        entry:
+        - publish.MATCH_ENDED
+        - publish.MATCH_RESULT_POSTED
+        - export_match_result_to_warfront_if_any
+        'on':
+          RESET_MATCH_GRAPH: Inactive
+  ceremony_events:
+    id: ceremony_events
+    type: hierarchical
+    initial: Dormant
+    states:
+      Dormant:
+        'on':
+          EVENT_ROLL_REQUESTED: CandidateSelection
+          DUEL_ISSUED: Active.ActivateIssuedDuel
+      CandidateSelection:
+        entry:
+        - query_warfront_pressure
+        - query_house_relations
+        - select_weighted_event
+        'on':
+          EVENT_CANDIDATE_SELECTED: Queued
+      Queued:
+        entry:
+        - publish.EVENT_QUEUED
+        'on':
+          EVENT_TRIGGERED: Prompt
+          EVENT_EXPIRED: Dormant
+      Prompt:
+        entry:
+        - show_event_banner
+        - preview_temporary_rules
+        'on':
+          ACCEPT_EVENT: Active
+          DECLINE_EVENT: ConsequenceResolution
+      Active:
+        initial: ActivateAcceptedEvent
+        states:
+          ActivateAcceptedEvent:
+            entry:
+            - copy_queued_event_to_active_event
+            always: DispatchByKind
+          ActivateIssuedDuel:
+            entry:
+            - copy_issued_duel_to_active_event
+            always: Duel.ChallengeIssued
+          DispatchByKind:
+            always:
+            - target: Tournament.ArenaBuild
+              guard: CeremonyState.active_event.kind == 'Tournament'
+            - target: Duel.ChallengeIssued
+              guard: CeremonyState.active_event.kind == 'Duel'
+            - target: WeddingAlliance.AllianceProposed
+              guard: CeremonyState.active_event.kind == 'WeddingAlliance'
+            - target: Banquet.Seating
+              guard: CeremonyState.active_event.kind == 'Banquet'
+          Tournament:
+            initial: ArenaBuild
+            states:
+              ArenaBuild:
+                entry:
+                - spawn_tournament_lanes
+                - rules.disable_or_limited_ordnance
+                - rules.set_victory.glory_threshold
+                - publish.EVENT_RULES_APPLIED
+                'on':
+                  ARENA_READY: Registration
+              Registration:
+                'on':
+                  TOURNAMENT_REGISTERED: BracketSeed
+              BracketSeed:
+                entry:
+                - seed_bracket_by_glory_and_house
+                'on':
+                  BRACKET_READY: RoundCountdown
+              RoundCountdown:
+                'on':
+                  TOURNAMENT_ROUND_STARTED: RoundActive
+              RoundActive:
+                'on':
+                  TOURNAMENT_ROUND_ENDED: RoundScore
+                  HONOUR_VIOLATION: HonourAudit
+              HonourAudit:
+                entry:
+                - apply_dishonour_penalty
+                - adjust_round_score
+                always: RoundActive
+              RoundScore:
+                entry:
+                - score_laurels
+                - advance_bracket
+                always:
+                - target: ChampionDeclared
+                  guard: tournament.bracket_complete
+                - target: RoundCountdown
+                  guard: '!tournament.bracket_complete'
+              ChampionDeclared:
+                entry:
+                - queue_tournament_rewards
+                - publish.LAURELS_GRANTED
+                - publish.EVENT_COMPLETED
+                always: '#ceremony_events.ConsequenceResolution'
+          Duel:
+            initial: ChallengeIssued
+            states:
+              ChallengeIssued:
+                entry:
+                - show_duel_prompt
+                - mark_duelists
+                - publish.EVENT_RULES_APPLIED
+                'on':
+                  DUEL_ACCEPTED: ArenaLock
+                  DUEL_REFUSED: Refused
+              Refused:
+                entry:
+                - apply_refusal_consequence
+                always: '#ceremony_events.ConsequenceResolution'
+              ArenaLock:
+                entry:
+                - rules.lock_duelists
+                - rules.no_interference
+                - rules.limit_objective_scoring
+                - publish.EVENT_RULES_APPLIED
+                'on':
+                  DUEL_READY: DuelActive
+              DuelActive:
+                'on':
+                  JOUST_OUTCOME:
+                  - target: ResolveDuel
+                    guard: duel.outcome_decisive
+                  DUEL_INTERFERENCE: HonourViolation
+                  HONOUR_VIOLATION: HonourViolation
+              HonourViolation:
+                entry:
+                - apply_infamy_or_dishonour
+                - publish.HONOUR_VIOLATION
+                - emit_score_penalty
+                always: DuelActive
+              ResolveDuel:
+                entry:
+                - unlock_duelists
+                - queue_duel_rewards_and_penalties
+                - publish.EVENT_COMPLETED
+                always: '#ceremony_events.ConsequenceResolution'
+          WeddingAlliance:
+            initial: AllianceProposed
+            states:
+              AllianceProposed:
+                entry:
+                - evaluate_house_relations
+                - preview_truce_terms
+                'on':
+                  ACCEPT_TERMS: TruceStarted
+                  REJECT_TERMS: Collapsed
+              TruceStarted:
+                entry:
+                - publish.WEDDING_TRUCE_STARTED
+                - rules.disable_friendly_fire_for_allies
+                - enable_shared_resupply
+                - publish.EVENT_RULES_APPLIED
+                'on':
+                  JOINT_OBJECTIVE_READY: JointObjective
+                  TRUCE_BROKEN: Broken
+              JointObjective:
+                'on':
+                  JOINT_OBJECTIVE_COMPLETE: TruceAudit
+                  TRUCE_BROKEN: Broken
+              TruceAudit:
+                entry:
+                - award_alliance_bonus_if_kept
+                'on':
+                  TRUCE_EXPIRED: Expired
+                  TRUCE_BROKEN: Broken
+              Broken:
+                entry:
+                - publish.TRUCE_BROKEN
+                - queue_infamy_penalties
+                - restore_friendly_fire
+                always: '#ceremony_events.ConsequenceResolution'
+              Expired:
+                entry:
+                - queue_peace_rewards
+                - restore_baseline_rules
+                - publish.EVENT_COMPLETED
+                always: '#ceremony_events.ConsequenceResolution'
+              Collapsed:
+                entry:
+                - minor_relation_loss
+                always: '#ceremony_events.ConsequenceResolution'
+          Banquet:
+            initial: Seating
+            states:
+              Seating:
+                entry:
+                - pause_battle_flow_if_between_matches
+                - open_negotiation_ui
+                'on':
+                  BANQUET_READY: TermsOpen
+              TermsOpen:
+                'on':
+                  BANQUET_TERM_PROPOSED: BluffReveal
+                  NEGOTIATION_CANCELLED: Collapsed
+              BluffReveal:
+                entry:
+                - roll_limited_information_check
+                - evaluate_counterparty_need
+                'on':
+                  ACCEPT_TERMS: TreatySigned
+                  REJECT_TERMS: Collapsed
+              TreatySigned:
+                entry:
+                - publish.BANQUET_TREATY_SIGNED
+                - queue_diplomatic_rewards
+                always: '#ceremony_events.ConsequenceResolution'
+              Collapsed:
+                entry:
+                - queue_diplomatic_penalty
+                always: '#ceremony_events.ConsequenceResolution'
+      ConsequenceResolution:
+        entry:
+        - publish.EVENT_COMPLETED
+        - clear_temporary_rules_if_safe
+        - post_event_summary
+        'on':
+          EVENT_CONSEQUENCES_RECORDED: Cooldown
+      Cooldown:
+        entry:
+        - start_event_cooldown_timer
+        'on':
+          EVENT_COOLDOWN_DONE: Dormant
+  player_actor:
+    id: player_actor
+    type: parallel
+    scope: one instance per controllable rider entity
+    regions:
+      mobility:
+        initial: Spawning
+        states:
+          Spawning:
+            'on':
+              PLAYER_RESPAWNED: Perched
+          Perched:
+            'on':
+              RIDER_LAUNCHED: Launching
+              SUPPLY_PICKED_UP:
+                target: Perched
+                actions:
+                - restore_ammo_and_mount_health
+          Launching:
+            entry:
+            - apply_launch_impulse
+            'on':
+              AIRBORNE_CONFIRMED: Airborne.Cruise
+          Airborne:
+            initial: Cruise
+            states:
+              Cruise:
+                'on':
+                  FLAP_IMPULSE: Climb
+                  DIVE_STARTED: Dive
+                  STALL_STARTED: Stall
+                  WIND_POCKET_ENTERED: WindPocket
+              Climb:
+                'on':
+                  DIVE_STARTED: Dive
+                  FLAP_DECAYED: Cruise
+                  STALL_STARTED: Stall
+              Dive:
+                entry:
+                - increase_speed_from_gravity
+                - arm_altitude_advantage_query
+                'on':
+                  DIVE_RELEASED: Cruise
+                  TERRAIN_COLLISION: Crashed
+              Stall:
+                entry:
+                - reduce_control_authority
+                'on':
+                  SPEED_RECOVERED: Cruise
+                  TERRAIN_COLLISION: Crashed
+              WindPocket:
+                entry:
+                - apply_wind_vector
+                'on':
+                  WIND_POCKET_EXITED: Cruise
+            'on':
+              LAND_PRESSED: Landing
+              PLAYER_KO: '#player_actor.mobility.Spawning'
+          Landing:
+            'on':
+              RIDER_LANDED: Perched
+              LANDING_ABORTED: Airborne.Cruise
+          Crashed:
+            entry:
+            - emit.PLAYER_KO
+            - spawn_crash_particles
+            always: Spawning
+      lance:
+        initial: Idle
+        states:
+          Idle:
+            'on':
+              BRACE_PRESSED: Bracing
+              LANCE_BROKEN: Broken
+          Bracing:
+            entry:
+            - start_brace_window
+            - emit.LANCE_BRACED
+            'on':
+              JOUST_CONTACT: ContactCheck
+              BRACE_WINDOW_EXPIRED: Recovery
+          ContactCheck:
+            entry:
+            - compute_joust_engagement
+            - emit.JOUST_OUTCOME
+            always:
+            - target: Broken
+              guard: joust.outcome == 'shatter_self'
+            - target: Recovery
+              guard: joust.outcome != 'shatter_self'
+          Recovery:
+            entry:
+            - start_lance_cooldown
+            'on':
+              LANCE_COOLDOWN_DONE: Idle
+          Broken:
+            entry:
+            - mark_lance_broken
+            'on':
+              RESUPPLY_COMPLETE: Idle
+      ordnance:
+        initial: Ready
+        states:
+          Ready:
+            'on':
+              BOLT_PRESSED:
+              - target: BoltCooldown
+                guard: match.can_spawn_ordnance
+                actions:
+                - spawn_bolt
+                - emit.BOLT_FIRED
+              BOMB_PRESSED:
+              - target: BombReleased
+                guard: match.can_spawn_ordnance
+                actions:
+                - spawn_bomb
+                - emit.BOMB_DROPPED
+              EVENT_RULES_APPLIED:
+              - target: Disabled
+                guard: match.joust_only
+          BoltCooldown:
+            'on':
+              BOLT_COOLDOWN_DONE: Ready
+              OUT_OF_AMMO: ResupplyNeeded
+          BombReleased:
+            'on':
+              BOMB_SLOT_READY: Ready
+              OUT_OF_AMMO: ResupplyNeeded
+          ResupplyNeeded:
+            'on':
+              RESUPPLY_COMPLETE: Ready
+          Disabled:
+            'on':
+              EVENT_COMPLETED: Ready
+      interaction:
+        initial: None
+        states:
+          None:
+            'on':
+              INTERACT_PRESSED:
+              - target: CaptureChannel
+                guard: near_capturable_outpost
+              - target: ResupplyChannel
+                guard: near_friendly_resupply
+              - target: ShrineChannel
+                guard: near_claimable_shrine
+              - target: HostageChannel
+                guard: near_hostage_cage
+          CaptureChannel:
+            entry:
+            - start_capture_timer
+            'on':
+              CAPTURE_TICK:
+                target: CaptureChannel
+                actions:
+                - emit.OUTPOST_CAPTURE_TICK
+              CAPTURE_COMPLETE:
+                target: Complete
+                actions:
+                - emit.OUTPOST_CAPTURED
+              INTERRUPTED: Interrupted
+          ResupplyChannel:
+            entry:
+            - start_resupply_timer
+            'on':
+              RESUPPLY_COMPLETE:
+                target: Complete
+                actions:
+                - restore_loadout
+              INTERRUPTED: Interrupted
+          ShrineChannel:
+            entry:
+            - start_shrine_claim_timer
+            'on':
+              SHRINE_CLAIMED: Complete
+              INTERRUPTED: Interrupted
+          HostageChannel:
+            entry:
+            - start_hostage_action
+            'on':
+              HOSTAGE_RELEASED: Complete
+              HOSTAGE_DELIVERED: Complete
+              INTERRUPTED: Interrupted
+          Interrupted:
+            entry:
+            - refund_partial_progress_if_rules_allow
+            always: None
+          Complete:
+            entry:
+            - emit.SCORE_EVENT_ACCEPTED
+            always: None
+      recovery:
+        initial: Alive
+        states:
+          Alive:
+            'on':
+              JOUST_OUTCOME:
+              - target: Stunned
+                guard: outcome == 'knockback'
+              - target: Unhorsed
+                guard: outcome == 'unhorse'
+              - target: Dead
+                guard: outcome in ['clean_kill','mount_destroyed']
+          Stunned:
+            entry:
+            - disable_inputs_for_stun
+            'on':
+              STUN_DONE: Alive
+          Unhorsed:
+            entry:
+            - spawn_falling_rider
+            - disable_mount_control
+            'on':
+              RECOVERY_MOUNT_REACHED: Alive
+              GROUND_IMPACT: Dead
+          Dead:
+            entry:
+            - emit.PLAYER_KO
+            - start_respawn_timer
+            'on':
+              RESPAWN_TIMER_DONE: Respawning
+          Respawning:
+            entry:
+            - choose_safe_spawn_corridor
+            'on':
+              PLAYER_RESPAWNED: Alive
+  objectives:
+    id: objectives
+    type: parallel
+    regions:
+      keeps:
+        initial: Intact
+        states:
+          Intact:
+            'on':
+              STRUCTURE_DAMAGED:
+              - target: OuterWorksDamaged
+                guard: keep.integrity < outer_threshold
+          OuterWorksDamaged:
+            'on':
+              STRUCTURE_DAMAGED:
+              - target: CoreExposed
+                guard: keep.outer_works_destroyed
+          CoreExposed:
+            entry:
+            - increase_keep_score_value
+            - show_breach_warning
+            'on':
+              KEEP_BREACHED: Breached
+          Breached:
+            entry:
+            - emit.VICTORY_PROGRESS_CHANGED
+      outposts:
+        initial: Neutral
+        states:
+          Neutral:
+            'on':
+              OUTPOST_CAPTURE_TICK: Contested
+          Contested:
+            'on':
+              OUTPOST_CAPTURE_TICK: Capturing
+              CAPTURE_RESET: Neutral
+          Capturing:
+            'on':
+              OUTPOST_CAPTURED: Controlled
+              INTERRUPTED: Contested
+          Controlled:
+            entry:
+            - grant_ammo_income
+            - spawn_patrol_if_rules_allow
+            'on':
+              ENEMY_CAPTURE_TICK: Contested
+      shrines:
+        initial: Dormant
+        states:
+          Dormant:
+            'on':
+              SHRINE_TIMER_READY: Claimable
+          Claimable:
+            'on':
+              SHRINE_CLAIMED: Claimed
+          Claimed:
+            entry:
+            - apply_shrine_buff
+            - emit.SCORE_EVENT_ACCEPTED
+            'on':
+              SHRINE_BUFF_EXPIRED: Cooldown
+          Cooldown:
+            'on':
+              SHRINE_COOLDOWN_DONE: Dormant
+      supply_routes:
+        initial: Secure
+        states:
+          Secure:
+            'on':
+              SUPPLY_ROUTE_CONTESTED: Contested
+              SUPPLY_ROUTE_BLOCKED: Blocked
+          Contested:
+            'on':
+              ROUTE_DEFENDED: Secure
+              SUPPLY_ROUTE_BLOCKED: Blocked
+          Blocked:
+            entry:
+            - reduce_coin_income
+            - reduce_resupply_rate
+            'on':
+              ROUTE_REPAIRED: Secure
+      hostages:
+        initial: Caged
+        states:
+          Caged:
+            'on':
+              HOSTAGE_RELEASED: Released
+          Released:
+            'on':
+              HOSTAGE_CARRIED: Carried
+              HOSTAGE_RECAPTURED: Caged
+          Carried:
+            'on':
+              HOSTAGE_DELIVERED: Delivered
+              CARRIER_KO: Released
+          Delivered:
+            entry:
+            - emit.SCORE_EVENT_ACCEPTED
+            - queue_influence_reward
+  scoring:
+    id: scoring
+    type: hierarchical
+    initial: Closed
+    states:
+      Closed:
+        'on':
+          MATCH_STARTED:
+            target: Listening
+            actions:
+            - clear_score_ledger
+            - open_score_ledger
+      Listening:
+        'on':
+          SCORE_EVENT_ACCEPTED: BatchGameplayEvents
+          FINAL_SCORE_SNAPSHOT: FinalSnapshot
+      BatchGameplayEvents:
+        entry:
+        - collect_events_for_tick
+        - stable_sort_by_tick_and_entity
+        always: Classify
+      Classify:
+        entry:
+        - map_gameplay_events_to_score_atoms
+        always: ApplyRuleModifiers
+      ApplyRuleModifiers:
+        entry:
+        - query.MatchRules
+        - query.CeremonyState
+        - apply_event_multipliers
+        - apply_dishonour_penalties
+        always: UpdateLedgers
+      UpdateLedgers:
+        entry:
+        - add_score_delta
+        - add_glory_delta
+        - add_morale_delta
+        - publish.SCORE_DELTA_POSTED
+        always: CheckVictory
+      CheckVictory:
+        entry:
+        - query.objective.keep_breached
+        - query.objective.morale_collapsed
+        - query.objective.glory_threshold_met
+        always:
+        - target: PublishVictory
+          guard: any_victory_condition_met
+        - target: Listening
+          guard: '!any_victory_condition_met'
+      PublishVictory:
+        entry:
+        - publish.VICTORY_CONDITION_MET
+        always: Listening
+      FinalSnapshot:
+        entry:
+        - freeze_score_ledger
+        - publish.REWARD_LEDGER_OPENED
+        'on':
+          RESET_MATCH_GRAPH: Closed
+  rewards:
+    id: rewards
+    type: hierarchical
+    initial: Dormant
+    states:
+      Dormant:
+        'on':
+          REWARD_LEDGER_OPENED:
+            target: LedgerOpen
+            actions:
+            - clear_reward_deltas
+      LedgerOpen:
+        entry:
+        - bind_score_snapshot
+        - bind_warfront_context
+        always: TallyBase
+      TallyBase:
+        entry:
+        - award_participation
+        - award_winner_bonus
+        - award_objective_bonus
+        always: ApplyPerformanceRewards
+      ApplyPerformanceRewards:
+        entry:
+        - award_joust_glory
+        - award_assist_glory
+        - award_mvp_bonus
+        always: ApplyEventRewards
+      ApplyEventRewards:
+        entry:
+        - query.CeremonyState.event_rewards
+        - grant_laurels
+        - grant_champion_items
+        - apply_duel_buff_or_penalty
+        always: ApplyWarfrontRewards
+      ApplyWarfrontRewards:
+        entry:
+        - grant_region_coin
+        - grant_supply_income
+        - grant_influence_from_diplomacy
+        always: ResolvePenalties
+      ResolvePenalties:
+        entry:
+        - apply_infamy
+        - apply_truce_break_embargo
+        - apply_dishonour_tax
+        always: Commit
+      Commit:
+        entry:
+        - persist_campaign_state
+        - persist_unlocks
+        - publish.REWARDS_COMMITTED
+        'on':
+          REWARDS_COMMITTED: ReadyToSpend
+      ReadyToSpend:
+        'on':
+          OPEN_UPGRADE_MENU: Spending
+          RETURN_TO_MENU: Dormant
+          NEXT_WARFRONT_TURN: Dormant
+      Spending:
+        'on':
+          BUY_UPGRADE:
+            target: Spending
+            actions:
+            - spend_currency
+            - unlock_kit_or_mount_part
+          CLOSE_UPGRADE_MENU: ReadyToSpend
+event_routes:
+- source: player_actor.lance.ContactCheck
+  emits: JOUST_OUTCOME
+  consumed_by:
+  - scoring
+  - ceremony_events.Duel
+  - player_actor.recovery
+  - match_lifecycle
+  notes: Primary arcade-skill event; contains winner, loser, outcome, angle, speed, altitude, brace_quality.
+- source: player_actor.ordnance.BombReleased
+  emits: BOMB_DROPPED
+  consumed_by:
+  - terrain
+  - audio
+  - scoring
+- source: terrain.deform
+  emits: TERRAIN_DEFORMED
+  consumed_by:
+  - objectives.keeps
+  - collision_cache
+  - render_dirty_chunks
+  - scoring
+- source: player_actor.interaction.CaptureChannel
+  emits: OUTPOST_CAPTURED
+  consumed_by:
+  - scoring
+  - rewards
+  - warfront
+- source: ceremony_events.Active.Tournament.ChampionDeclared
+  emits: LAURELS_GRANTED
+  consumed_by:
+  - scoring
+  - rewards
+- source: ceremony_events.Active.Duel.HonourViolation
+  emits: HONOUR_VIOLATION
+  consumed_by:
+  - scoring
+  - rewards
+  - warfront
+- source: ceremony_events.Active.WeddingAlliance.Broken
+  emits: TRUCE_BROKEN
+  consumed_by:
+  - MatchRules
+  - scoring
+  - rewards
+  - warfront
+- source: scoring.PublishVictory
+  emits: VICTORY_CONDITION_MET
+  consumed_by:
+  - match_lifecycle.Active
+- source: match_lifecycle.RoundOver
+  emits: FINAL_SCORE_SNAPSHOT
+  consumed_by:
+  - scoring.Listening
+- source: scoring.FinalSnapshot
+  emits: REWARD_LEDGER_OPENED
+  consumed_by:
+  - rewards
+- source: match_lifecycle.ResultsExported
+  emits: MATCH_RESULT_POSTED
+  consumed_by:
+  - warfront.AwaitingBattleResult
+- source: rewards.Commit
+  emits: REWARDS_COMMITTED
+  consumed_by:
+  - app_runtime
+  - warfront
+scoring_rules:
+  score_atoms:
+    JOUST_UNHORSE:
+      score: 150
+      glory: 20
+      morale_delta_target: -3
+      tags:
+      - joust
+      - skill
+    JOUST_KNOCKBACK:
+      score: 80
+      glory: 10
+      morale_delta_target: -1
+      tags:
+      - joust
+      - control
+    JOUST_SHATTER:
+      score: 220
+      glory: 30
+      morale_delta_target: -4
+      tags:
+      - joust
+      - decisive
+    JOUST_CLEAN_KILL:
+      score: 350
+      glory: 45
+      morale_delta_target: -7
+      tags:
+      - joust
+      - rare
+      - decisive
+    BOLT_HIT:
+      score: 20
+      glory: 2
+      morale_delta_target: 0
+      tags:
+      - ranged
+    BOMB_STRUCTURE_DAMAGE:
+      score_per_integrity: 1
+      coin_denial: 0
+      tags:
+      - siege
+      - terrain
+    OUTPOST_CAPTURE:
+      score: 200
+      coin: 25
+      morale_delta_team: 2
+      tags:
+      - objective
+    SHRINE_CLAIM:
+      score: 120
+      influence: 5
+      morale_delta_team: 1
+      tags:
+      - objective
+      - buff
+    SUPPLY_ROUTE_BLOCK:
+      score: 160
+      coin_denial: 35
+      morale_delta_target: -2
+      tags:
+      - economy
+      - territory
+    HOSTAGE_DELIVER:
+      score: 250
+      influence: 20
+      morale_delta_team: 3
+      tags:
+      - event
+      - objective
+    KEEP_BREACH:
+      score: 1000
+      glory: 100
+      morale_delta_target: -999
+      tags:
+      - victory
+      - siege
+  modifiers:
+    tournament:
+      applies_when: CeremonyState.active_event.kind == 'Tournament'
+      score_multiplier_tags:
+        joust: 1.5
+        ranged: 0.25
+        objective: 0.5
+      extra_outputs:
+      - laurels
+    duel:
+      applies_when: CeremonyState.active_event.kind == 'Duel'
+      score_multiplier_tags:
+        joust: 1.25
+        ranged: 0.0
+      dishonour_penalty_score: -500
+      blocks_non_duelist_scoring: true
+    wedding_truce:
+      applies_when: event.truce_active_between_teams
+      friendly_fire_score_penalty: -250
+      shared_objective_multiplier: 1.25
+    banquet_treaty:
+      applies_when: CampaignState.active_treaty != null
+      influence_multiplier: 1.15
+      coin_multiplier: 1.1
+  victory_conditions:
+    keep_breach: objective.keep_breached
+    morale_collapse: objective.morale_collapsed
+    glory_threshold: objective.glory_threshold_met
+    timeout_decision: highest_team_score_then_morale_then_territory
+reward_rules:
+  currencies:
+  - glory
+  - coin
+  - influence
+  - laurels
+  currency_scope:
+    laurels:
+      definition: event-only reward ledger currency
+      earned_from:
+      - tournament placements
+      - special event rewards
+      not_transferable_to:
+      - glory
+      - coin
+      - influence
+      validation: grant only after tournament or event completion
+  post_match_pipeline_order:
+  - participation
+  - win_loss
+  - performance
+  - objectives
+  - ceremony_events
+  - territory_income
+  - penalties
+  - persistence
+  base_rewards:
+    participation:
+      glory: 20
+      coin: 10
+    win:
+      glory: 60
+      coin: 40
+      influence: 10
+    loss:
+      glory: 15
+      coin: 15
+    mvp:
+      glory: 35
+      influence: 5
+    clean_duel_win:
+      glory: 50
+      influence: 25
+      temporary_region_buff: duel_champion
+    tournament_champion:
+      laurels: 3
+      glory: 100
+      item_unlock: champion_lance_skin
+    kept_truce:
+      influence: 60
+      coin: 50
+      temporary_region_buff: alliance_support
+    broken_truce:
+      influence: -50
+      coin: -30
+      temporary_region_debuff: infamy_trade_embargo
+  unlock_thresholds:
+    laurels:
+      '3': champion_lance_skin
+      '6': aurelian_plume_cosmetic
+      '10': skybreaker_weapon_skin
+    glory:
+      '500': advanced_lance_kit
+      '1200': elite_rider_pose_set
+    influence:
+      '300': diplomatic_upgrade_slot
+      '800': event_forecast_plus
+parallel_query_contracts:
+- consumer: match_lifecycle
+  reads:
+  - scoring.victory_pending
+  - CeremonyState.temporary_rules
+  - warfront.battle_context
+  must_not_write:
+  - ScoreLedger
+  - CampaignState
+  writes_via_events:
+  - MATCH_ENDED
+  - MATCH_RESULT_POSTED
+  - FINAL_SCORE_SNAPSHOT
+- consumer: ceremony_events
+  reads:
+  - CampaignState.house_relations
+  - MatchState.phase
+  - ScoreLedger.per_player
+  - player_actor.entity_states
+  must_not_write:
+  - ScoreLedger
+  writes_via_events:
+  - EVENT_RULES_APPLIED
+  - HONOUR_VIOLATION
+  - EVENT_COMPLETED
+- consumer: scoring
+  reads:
+  - MatchRules
+  - CeremonyState
+  - ObjectiveState
+  - gameplay_event_buffer
+  must_not_write:
+  - CampaignState
+  - TerrainWorld
+  writes_via_events:
+  - SCORE_DELTA_POSTED
+  - VICTORY_CONDITION_MET
+- consumer: rewards
+  reads:
+  - ScoreLedger.final_snapshot
+  - CeremonyState.event_rewards
+  - CampaignState.region_result
+  must_not_write:
+  - MatchState
+  - PlayerActor components
+  writes_via_events:
+  - REWARDS_COMMITTED
+  - ITEM_UNLOCKED
+  - PENALTY_APPLIED
+- consumer: player_actor
+  reads:
+  - InputState
+  - MatchRules
+  - ObjectiveState.nearby_interactables
+  must_not_write:
+  - ScoreLedger
+  - CampaignState
+  writes_via_events:
+  - JOUST_OUTCOME
+  - BOMB_DROPPED
+  - OUTPOST_CAPTURE_TICK
+  - SUPPLY_PICKED_UP
+- consumer: warfront
+  reads:
+  - MatchResult
+  - RewardLedger.committed
+  - CampaignState
+  must_not_write:
+  - MatchState
+  writes_via_events:
+  - START_BATTLE_MATCH
+  - EVENT_ROLL_REQUESTED

@@ -1,0 +1,9 @@
+---
+source: crates/skyjoust_stateright_validator/tests/trace_snapshots.rs
+expression: result.failure
+---
+{
+  "step_index": 2,
+  "action": "CommitRewards",
+  "reason": "action was not legal from the current state"
+}
