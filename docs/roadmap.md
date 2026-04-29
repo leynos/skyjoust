@@ -12,9 +12,9 @@ stays attached to the delivery task it proves.
 The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
 `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`, and the
-reference images in `ref/`. No RFCs or ADRs exist yet; early roadmap tasks
-create narrow Architecture Decision Records (ADRs) where the design still names
-unresolved choices.
+reference images in `ref/`. Five Architecture Decision Records (ADRs) already
+exist in `docs/adr/`; early roadmap tasks create further narrow ADRs where the
+design still names unresolved choices.
 
 ## 1. Foundational contracts and playable spine
 
