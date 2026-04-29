@@ -247,8 +247,9 @@ visual-effects timing. See `docs/skyjoust-product-requirements.md` §8.2 and
 ### 2.3. Close the skirmish score and reward loop
 
 This step answers whether the simplest match can start, score, end, export a
-final snapshot, and commit rewards without violating the validator contract. See
- `docs/skyjoust-state-graphs.yaml` `match_lifecycle`, `scoring`, and `rewards`.
+final snapshot, and commit rewards without violating the validator contract.
+See `docs/skyjoust-state-graphs.yaml` `match_lifecycle`, `scoring`, and
+`rewards`.
 
 - [ ] 2.3.1. Map joust outcomes into score atoms and morale deltas.
   - Requires 2.2.4 and 1.3.2.
@@ -507,8 +508,8 @@ skill, award laurels, and return safely to normal match flow. See
 ### 5.2. Deliver duel as a constrained champion challenge
 
 This step answers whether a duel can lock participants, block interference,
-resolve a decisive joust, and award consequences without corrupting scoring. See
- `docs/skyjoust-product-requirements.md` §10.2 and
+resolve a decisive joust, and award consequences without corrupting scoring.
+See `docs/skyjoust-product-requirements.md` §10.2 and
 `docs/skyjoust-state-graphs.yaml` `ceremony_events.Duel`.
 
 - [ ] 5.2.1. Implement duel issue, accept, and refuse states.
