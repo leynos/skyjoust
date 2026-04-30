@@ -90,10 +90,33 @@ cargo doc --no-deps --workspace
 Run Markdown checks after documentation changes:
 
 ```sh
+make fmt
 make markdownlint
 make nixie
 git diff --check
 ```
+
+### 5.1. Markdown lint configuration
+
+Markdown validation uses two configuration files that must stay aligned:
+
+- `.markdownlint-cli2.jsonc` configures `make markdownlint`, which runs
+  `markdownlint-cli2` across repository Markdown.
+- `.markdownlint.json` configures the `markdownlint --fix` step invoked by
+  `mdformat-all` during `make fmt`.
+
+Both files enforce the same rule choices:
+
+- `MD004` requires dash bullets, matching the documentation style guide.
+- `MD010` permits hard tabs inside code blocks while still checking prose.
+- `MD013` wraps prose at 80 columns, allows code blocks up to 120 columns, and
+  ignores table and heading widths.
+- `MD029` requires ordered lists to use increasing numeric markers.
+
+Keeping these files synchronized prevents `make fmt` from applying one Markdown
+policy while `make markdownlint` checks another. When a Markdown lint rule
+changes, update both files in the same commit and rerun `make fmt` and
+`make markdownlint`.
 
 The Stateright Explorer can help diagnose counterexamples:
 
