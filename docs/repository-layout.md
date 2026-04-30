@@ -45,7 +45,7 @@ _Figure 1: Simplified repository tree for contributor orientation._
 - `README.md`: minimal top-level project entry point. Keep it short and put
   deeper operational or design material under `docs/`.
 - `src/`: root `skyjoust` package source. This is currently a small binary
-  surface while the validator crate carries most implementation detail.
+  surface, while the validator crate carries most implementation detail.
 - `crates/skyjoust_stateright_validator/`: high-level Stateright validator
   crate for the Skyjoust interaction contract. Treat it as the executable
   specification for match lifecycle, ceremonies, scoring, rewards, Warfront
@@ -96,8 +96,15 @@ make check-state-graphs
 ```
 
 Graphviz `.dot` files under `docs/` are source files for the checked-in `.svg`
-diagrams. Keep the source and rendered diagram together, and run `make nixie`
-when documentation diagrams change.
+diagrams. Keep each source file next to its rendered output, and regenerate the
+SVG with the Graphviz command-line interface (CLI) when the source changes:
+
+```sh
+dot -Tsvg docs/input.dot -o docs/output.svg
+```
+
+`make nixie` validates Mermaid diagrams embedded in Markdown. It does not
+validate or regenerate Graphviz `.dot` files.
 
 Snapshot files under `crates/skyjoust_stateright_validator/tests/snapshots/`
 are regression fixtures. Update them only when the new output is the intended
@@ -111,8 +118,10 @@ validator behaviour.
 
 - Rust source, workspace metadata, or validator contract behaviour:
   `make check-fmt`, `make lint`, and `make test`.
-- Markdown documentation: `make fmt`, `make markdownlint`, and `make nixie`.
+- Markdown documentation: `make fmt` and `make markdownlint`.
+- Mermaid diagrams in Markdown documentation: `make nixie`.
+- Graphviz `.dot` and `.svg` pairs: regenerate the SVG from the `.dot` source
+  with `dot -Tsvg docs/input.dot -o docs/output.svg`.
 - State graph YAML: `make generate-state-graphs`,
   `make check-state-graphs`, and `make test`.
-- Graphviz diagrams or documentation diagrams: `make nixie`.
 - Makefile targets: `mbake validate Makefile` and the affected `make` target.
