@@ -124,4 +124,4 @@ validator behaviour.
   with `dot -Tsvg docs/input.dot -o docs/output.svg`.
 - State graph YAML: `make generate-state-graphs`,
   `make check-state-graphs`, and `make test`.
-- Makefile targets: `make validate Makefile` and the affected `make` target.
+- Makefile targets: `mbake validate Makefile` and the affected `make` target.
