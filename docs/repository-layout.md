@@ -10,7 +10,7 @@ The tree below is a simplified orientation sketch. See the path responsibility
 notes for the conventions that govern each path.
 
 Update this sketch when new top-level directories or major crates are added, so
-the contributor orientation stays synchronized with the repository layout.
+the contributor orientation stays synchronised with the repository layout.
 
 ```plaintext
 .
