@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: READY TO COMMIT
+Status: COMPLETE
 
 Approval gate: this plan must be explicitly approved before implementation
 starts. The draft PR that carries this document is not approval to edit the
@@ -122,7 +122,8 @@ tolerance boundary in this plan and ask for explicit direction.
   `/tmp/markdownlint-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/nixie-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/diff-check-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`.
-- [ ] Commit the approved implementation change.
+- [x] (2026-05-02) Committed the approved implementation change as
+  `a123463` ("Accept ADR 002 for the initial runtime crate split").
 
 ## Surprises & discoveries
 
