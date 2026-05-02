@@ -351,9 +351,10 @@ Goal: start the game with a fixed virtual resolution and placeholder panels.
 
 Tasks:
 
-- Decide the initial crate split. A single crate plus
-  `skyjoust_stateright_validator` is acceptable for the first vertical slice if
-  module boundaries match the technical design.
+- Follow the initial crate split accepted in
+  [ADR 002](adr/002-crate-layout-and-public-api.md): one runtime crate with
+  strict internal modules beside `skyjoust_stateright_validator`. Module
+  boundaries match the technical design's runtime ownership table.
 - Add runtime dependencies behind explicit feature choices.
 - Implement a `winit` runner.
 - Initialize `pixels` with fixed virtual resolution.
@@ -600,8 +601,6 @@ pipeline before combat complexity arrives.
 ## 17. Open decisions
 
 - Initial virtual resolution: `480x270`, `512x288`, or `640x360`.
-- Whether the first runtime crate split is modular crates or one crate with
-  strict modules.
 - Fixed-point scale and numeric type.
 - Palette size and final colour ramps.
 - Whether atlas metadata is TOML, RON, or JSON.
