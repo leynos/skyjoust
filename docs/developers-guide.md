@@ -13,7 +13,38 @@ The validator must stay synchronized with these source documents:
 - [Validator contract](../crates/skyjoust_stateright_validator/spec/validator_contract.yaml)
 - [Architecture decision records](adr/)
 
-## 2. Validator module structure
+## 2. Runtime crate and module boundary
+
+[ADR 002](adr/002-crate-layout-and-public-api.md) is the source of truth for
+the workspace shape. The accepted decision is one runtime crate with strict
+internal modules, beside the separate `skyjoust_stateright_validator` crate.
+Maintainers should add new runtime functionality as a module inside the runtime
+crate, not as a new crate.
+
+The runtime modules and their responsibilities follow the technical design's
+runtime ownership table: `game_app`, `core`, `sim`, `terrain`, `stategraphs`,
+`render`, `audio`, `ui`, and `assets`. The dependency direction is one-way:
+
+```plaintext
+game_app -> subsystem modules -> core
+```
+
+Lower-level modules must not call higher-level orchestration or adapters.
+Domain code must not depend on adapters, renderer code, audio backends, process
+setup, or window lifecycle glue.
+
+A module may be promoted to its own crate only when at least one of these
+conditions holds:
+
+- an API is reused across the runtime, developer tooling, or the validator
+  crate;
+- a boundary is stable enough to test and release independently of the
+  runtime crate.
+
+Record any such extraction in a follow-up ADR before changing `Cargo.toml`
+workspace members.
+
+## 3. Validator module structure
 
 The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
 
@@ -35,7 +66,7 @@ The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
 The binary `src/bin/validate_trace.rs` is process glue. The Explorer example in
 `examples/serve_explorer.rs` is diagnostic glue.
 
-## 3. Public application programming interface
+## 4. Public application programming interface
 
 The crate root re-exports the public surface used by tests, tools, and future
 runtime integration:
@@ -54,7 +85,7 @@ runtime integration:
 Serde support is intentionally isolated in `serde_impls.rs`; domain modules do
 not derive serialization traits directly.
 
-## 4. Extending the model
+## 5. Extending the model
 
 Model changes should be made in this order:
 
@@ -75,7 +106,7 @@ Model changes should be made in this order:
 Guard helpers should stay pure and side-effect free. Transition helpers may
 mutate only the cloned destination state supplied by the caller.
 
-## 5. Local validation
+## 6. Local validation
 
 Run the full Rust gates before committing code:
 
@@ -96,7 +127,7 @@ make nixie
 git diff --check
 ```
 
-### 5.1. Markdown lint configuration
+### 6.1. Markdown lint configuration
 
 Markdown validation uses two configuration files that must stay aligned:
 

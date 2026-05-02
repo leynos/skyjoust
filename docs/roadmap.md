@@ -33,7 +33,7 @@ outcome informs crate layout, fixed-point math, asset metadata, and renderer
 setup. See `docs/skyjoust-technical-design.md` §§15-16 and
 `docs/development-plan.md` §17.
 
-- [ ] 1.1.1. Record the initial runtime crate split as an ADR.
+- [x] 1.1.1. Record the initial runtime crate split as an ADR.
   - Decide whether the first implementation uses multiple runtime crates or
     one crate with strict modules beside `skyjoust_stateright_validator`.
   - See `docs/skyjoust-technical-design.md` §4 and

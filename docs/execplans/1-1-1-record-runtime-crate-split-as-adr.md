@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: READY TO COMMIT
 
 Approval gate: this plan must be explicitly approved before implementation
 starts. The draft PR that carries this document is not approval to edit the
@@ -104,9 +104,24 @@ tolerance boundary in this plan and ask for explicit direction.
 - [x] (2026-05-01 17:05Z) Confirmed the existing branch was not `main` and
   renamed it locally to `1-1-1-record-runtime-crate-split-as-adr`.
 - [x] (2026-05-01 17:05Z) Drafted this ExecPlan for approval.
-- [ ] Receive explicit approval to implement this plan.
-- [ ] Implement the ADR and documentation reconciliation.
-- [ ] Run the sequential validation gates and record evidence.
+- [x] (2026-05-02) Received explicit approval to implement this plan.
+- [x] (2026-05-02) Ran the pre-edit documentation gates: `make fmt`,
+  `make markdownlint`, `make nixie`, and `git diff --check`. All passed. Logs
+  at `/tmp/fmt-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `/tmp/markdownlint-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `/tmp/nixie-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `/tmp/diff-check-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`.
+- [x] (2026-05-02) Implemented the ADR and documentation reconciliation.
+  Edited six tracked files: `docs/adr/002-crate-layout-and-public-api.md`,
+  `docs/skyjoust-technical-design.md`, `docs/development-plan.md`,
+  `docs/developers-guide.md`, `docs/roadmap.md`, and this ExecPlan. Net diff:
+  110 added lines across the six files (well inside the 250-line tolerance).
+- [x] (2026-05-02) Ran the sequential post-edit validation gates: `make fmt`,
+  `make markdownlint`, `make nixie`, and `git diff --check`. All passed. Logs
+  at `/tmp/fmt-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `/tmp/markdownlint-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `/tmp/nixie-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `/tmp/diff-check-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`.
 - [ ] Commit the approved implementation change.
 
 ## Surprises & discoveries
@@ -139,11 +154,55 @@ tolerance boundary in this plan and ask for explicit direction.
   deferred until the runtime boundaries have been proven. Date/Author:
   2026-05-01 17:05Z, planning agent.
 
+- Decision: `docs/users-guide.md` is left unchanged. Rationale: the operator
+  guide describes validator tools (`cargo test`, the Stateright Explorer, and
+  `validate_trace`); the runtime crate boundary does not change any of those
+  workflows. Date/Author: 2026-05-02, implementation agent.
+
+- Decision: enumerate the runtime crate's internal modules inside ADR 002 and
+  the developer guide rather than only referring back to the technical design.
+  Rationale: the ADR must stand alone as the maintainer-facing decision, and
+  the developer guide is where contributors look first when adding code.
+  Repeating the module list once in each document avoids future drift if the
+  technical design refactors its presentation. Date/Author: 2026-05-02,
+  implementation agent.
+
+- Decision: renumber `docs/developers-guide.md` sections to insert a new §2
+  "Runtime crate and module boundary" before the existing validator-focused
+  sections. Rationale: the maintainer note on the runtime boundary belongs
+  alongside the normative references, ahead of the validator's internal
+  structure. Renumbering keeps the section index consistent. Date/Author:
+  2026-05-02, implementation agent.
+
 ## Outcomes & retrospective
 
-This section is intentionally empty while the plan is in DRAFT. During
-implementation, record whether ADR 002 was accepted as planned, which documents
-were reconciled, which gates passed, and whether any follow-up work remains.
+- ADR 002 was accepted as planned. The decision now states explicitly that the
+  first implementation uses one runtime crate with strict internal modules
+  beside `skyjoust_stateright_validator`, lists the modules, fixes the
+  dependency direction (`game_app -> subsystem modules -> core`), and gates
+  future module extraction on reuse across runtime/tooling/validator code or on
+  independent test/release maturity.
+- Documents reconciled in the same change set:
+  - `docs/skyjoust-technical-design.md`: §4 now points at ADR 002, §15 lists
+    the crate-split decision, §16 no longer carries the entry as deferred.
+  - `docs/development-plan.md`: §6 follows the accepted split, §17 no longer
+    lists it as open.
+  - `docs/developers-guide.md`: a new §2 "Runtime crate and module boundary"
+    captures the maintainer-facing rule; later sections renumbered.
+  - `docs/roadmap.md`: task `1.1.1` is now marked complete.
+  - `docs/users-guide.md`: unchanged; no operator behaviour shifted.
+- Gates passed: pre-edit and post-edit `make fmt`, `make markdownlint`,
+  `make nixie`, and `git diff --check`.
+- Follow-up work: none required for `1.1.1`. The next dependent roadmap items
+  (`1.1.2`–`1.1.4`) can now reference ADR 002 as a settled assumption.
+- Lessons recorded for future ExecPlans:
+  - The `mdformat-all` helper used by `make fmt` lives in `~/.local/bin`,
+    which is not on the default `PATH`; the gate command must run with
+    `PATH="$HOME/.local/bin:$PATH"` until the environment is fixed.
+  - Stage 5's recommended `cargo doc --no-deps --workspace` was skipped
+    because no Rust source changed and the plan explicitly limits gates to
+    the documentation set in that case. If a future implementation revisits
+    this branch with code edits, the Rust gates must run.
 
 ## Context and orientation
 
