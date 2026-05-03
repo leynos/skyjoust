@@ -119,9 +119,12 @@ Table 2: Runtime ownership.
 | `ui`          | Bitmap UI composition and menus drawn from state resources               | Direct mutation of scoring or rewards            |
 | `assets`      | Manifests, source images, derived atlases, palettes, fonts, audio        | Runtime state decisions                          |
 
-The crate split may start smaller while the project is young. The dependency
+[ADR 002](adr/002-crate-layout-and-public-api.md) records the accepted initial
+crate split: one runtime crate containing these layers as internal modules,
+beside the separate `skyjoust_stateright_validator` crate. The dependency
 direction still applies: orchestration depends on subsystems; subsystems depend
-on `core`; lower layers do not call higher layers.
+on `core`; lower layers do not call higher layers. Module extraction into
+additional crates is gated on the migration path described in the ADR.
 
 ## 5. Fixed tick and presentation loop
 
@@ -440,19 +443,18 @@ documents are part of the graph/design set.
 
 Table 4: Current decisions.
 
-| Decision                                                      | Rationale                                                                                                                                                             |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Use Bevy ECS without Bevy rendering for MVP                   | The state graph and simulation need ECS scheduling. The visual target needs a fixed pixel framebuffer with direct control over scaling and blitting.                  |
-| Use fixed 120 Hz simulation                                   | The Product Requirements Document (PRD) requires consistent collision feel and low-latency input. A fixed tick also supports replay and later rollback work.          |
-| Treat Stateright as the lifecycle contract                    | The validator already proves the high-level scoring, reward, ceremony, and Warfront handoffs. Runtime tests should align with it instead of inventing parallel rules. |
-| Draw gameplay text at runtime                                 | Generated text is not reliable enough for counters, timers, prompts, and state-dependent values. Runtime text keeps UI correct and localizable later.                 |
-| Use imagegen outputs as production sources, not final atlases | Generated sheets need human review, slicing, palette normalization, transparency validation, and manifests before deterministic runtime use.                          |
+| Decision                                                      | Rationale                                                                                                                                                                                                        |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Use Bevy ECS without Bevy rendering for MVP                   | The state graph and simulation need ECS scheduling. The visual target needs a fixed pixel framebuffer with direct control over scaling and blitting.                                                             |
+| Use fixed 120 Hz simulation                                   | The Product Requirements Document (PRD) requires consistent collision feel and low-latency input. A fixed tick also supports replay and later rollback work.                                                     |
+| Treat Stateright as the lifecycle contract                    | The validator already proves the high-level scoring, reward, ceremony, and Warfront handoffs. Runtime tests should align with it instead of inventing parallel rules.                                            |
+| Draw gameplay text at runtime                                 | Generated text is not reliable enough for counters, timers, prompts, and state-dependent values. Runtime text keeps UI correct and localizable later.                                                            |
+| Use imagegen outputs as production sources, not final atlases | Generated sheets need human review, slicing, palette normalization, transparency validation, and manifests before deterministic runtime use.                                                                     |
+| Use one runtime crate with strict modules for the first slice | [ADR 002](adr/002-crate-layout-and-public-api.md) accepts a single runtime crate beside `skyjoust_stateright_validator`, with module extraction deferred until a boundary is reused or independently releasable. |
 
 ## 16. Deferred decisions
 
 - Final virtual resolution after HUD legibility tests.
-- Exact crate split for the first implementation pass is tracked in
-  [ADR 002](adr/002-crate-layout-and-public-api.md).
 - Fixed-point type and scale after movement prototype benchmarks is tracked in
   [ADR 003](adr/003-fixed-point-type-and-scale.md).
 - Atlas packing format and manifest schema version is tracked in

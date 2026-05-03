@@ -59,6 +59,11 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 - [ADR 005: Defer Warfront renderer map-art strategy](adr/005-warfront-renderer-map-art-strategy.md)
   - deferred rendering art strategy decision for Warfront maps.
 
+## Execution plans
+
+- [Record the initial runtime crate split as an ADR](execplans/1-1-1-record-runtime-crate-split-as-adr.md)
+  - approval-gated plan for roadmap task `1.1.1`.
+
 ## State graph references and artefacts
 
 - [Project Skyjoust state graph bundle](skyjoust-state-graphs-README.md) -
