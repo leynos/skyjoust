@@ -249,9 +249,14 @@ project:
 - Prefer `mockall` for ad hoc mocks/stubs.
 - For testing of functionality depending upon environment variables, dependency
   injection and the `mockable` crate are the preferred option.
-- If mockable cannot be used, env mutations in tests MUST be wrapped in shared
-  guards and mutexes placed in a shared `test_utils` or `test_helpers` crate.
-  Direct environment mutation is FORBIDDEN in tests.
+- Tests MUST NOT mutate the environment of a shared test process. Prefer
+  injecting configuration, `mockable` or setting variables on a child process
+  with `Command::env`.
+- If in-process mutation is unavoidable, the test MUST run under an explicitly
+  required process-per-test harness, perform the mutation before starting any
+  additional threads, and document the relevant safety assumptions. A mutex or
+  `--test-threads=1` may prevent cooperating tests from interfering, but
+  neither generally makes environment mutation safe on Unix.
 
 ### Dependency management
 
