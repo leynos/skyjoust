@@ -154,7 +154,7 @@ project:
   - `make typecheck` executes:
 
     ```sh
-    cargo check --workspace --all-targets --all-features
+    RUSTFLAGS="-D warnings " cargo check --workspace --all-targets --all-features
     ```
 
     type-checking every target with all features enabled while treating
