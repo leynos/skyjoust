@@ -100,8 +100,12 @@ Model changes should be made in this order:
    `docs/skyjoust-state-graphs.json`.
 6. Update
    `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`.
-7. Add a focused unit test and, when the JSON output contract changes, an
-   `insta` snapshot test.
+7. Add a focused unit test and, when structured output, user-interface output,
+   diagnostics, or JSON contracts change, an `insta` snapshot test with
+   meaningful, stable assertions.
+8. Add `trybuild` coverage when the change introduces compile-time behaviour,
+   such as macro expansion, trait bounds, feature-gated APIs, or compile-pass
+   and compile-fail contracts.
 
 Guard helpers should stay pure and side-effect free. Transition helpers may
 mutate only the cloned destination state supplied by the caller.
@@ -114,9 +118,13 @@ Run the full Rust gates before committing code:
 make check-fmt
 make check-state-graphs
 make lint
+make typecheck
 make test
 cargo doc --no-deps --workspace
 ```
+
+`make typecheck` runs `cargo check --workspace --all-targets --all-features`
+with `RUSTFLAGS="-D warnings "`, so warnings fail the gate.
 
 Run Markdown checks after documentation changes:
 
