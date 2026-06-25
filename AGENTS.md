@@ -133,9 +133,9 @@ This repository is written in Rust and uses Cargo for building and dependency
 management. Contributors should follow these best practices when working on the
 project:
 
-- Run `make check-fmt`, `make lint`, and `make test` before committing. These
-  targets wrap the following commands, so contributors understand the exact
-  behaviour and policy enforced:
+- Run `make check-fmt`, `make lint`, `make typecheck`, and `make test` before
+  committing. These targets wrap the following commands, so contributors
+  understand the exact behaviour and policy enforced:
   - `make check-fmt` executes:
 
     ```sh
@@ -151,6 +151,14 @@ project:
 
     linting every target with all features enabled and denying all Clippy
     warnings.
+  - `make typecheck` executes:
+
+    ```sh
+    cargo check --workspace --all-targets --all-features
+    ```
+
+    type-checking every target with all features enabled while treating
+    warnings as errors.
   - `make test` executes:
 
     ```sh
@@ -167,8 +175,9 @@ project:
   adhering to separation of concerns and CQRS.
 - Where a function has too many parameters, group related parameters in
   meaningfully named structs.
-- Where a function is returning a large error, consider using `Arc` to reduce
-  the amount of data returned.
+- Keep returned error types semantically focused and small. If a necessary
+  payload makes an error variant large, place that payload behind `Box`; use
+  `Arc` only when shared ownership or cheap cloning is required.
 - Ensure that new features are validated with unit tests using `rstest` and
   behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
   unhappy paths, and relevant edge cases.
@@ -277,6 +286,9 @@ project:
   outside `#[cfg(test)]` or `#[test]`; avoid `expect` in such fixtures.
 - Use `anyhow`/`eyre` with `.context(...)` to **preserve backtraces** and
   provide clear, typed failure paths.
+- Include stable operation identifiers in error context at boundaries where
+  failures are retried, correlated across spans, or mapped into user-facing
+  diagnostics.
 - Update helpers (e.g., `set_dir`) to **return errors** rather than panicking.
 - Consume fallible fixtures in `rstest` by **making the test return `Result`**
   and applying `?` to the fixture.
@@ -292,10 +304,14 @@ project:
   command execution, retries, background jobs, and other meaningful units of
   work. Do not hold `Span::enter()` guards across `.await`; use
   `Instrument::instrument` or scoped synchronous spans instead.
+- Add structured spans or events at key decision points so behaviour can be
+  explained from telemetry without parsing prose messages.
 - Use the `metrics` crate for metric emission where usage, uptake, failure,
   or mitigation metrics are required. Prefer `counter!` for cumulative events,
   `gauge!` for values that rise and fall, and `histogram!` for distributions
   such as latency or payload size.
+- Emit depth, duration, and failure metrics for operations where those values
+  reveal queueing, recursion, retry, traversal, or workflow health.
 - Describe emitted metrics with `describe_counter!`, `describe_gauge!`, or
   `describe_histogram!` where the unit or purpose is not obvious from the
   metric name. Keep metric names stable and labels low-cardinality; do not put
