@@ -1,9 +1,8 @@
 # Record the initial runtime crate split as an ADR
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -106,8 +105,8 @@ tolerance boundary in this plan and ask for explicit direction.
 - [x] (2026-05-01 17:05Z) Drafted this ExecPlan for approval.
 - [x] (2026-05-02) Received explicit approval to implement this plan.
 - [x] (2026-05-02) Ran the pre-edit documentation gates: `make fmt`,
-  `make markdownlint`, `make nixie`, and `git diff --check`. All passed. Logs
-  at `/tmp/fmt-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `make markdownlint`, `make nixie`, and `git diff --check`. All passed. Logs at
+  `/tmp/fmt-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/markdownlint-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/nixie-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/diff-check-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`.
@@ -117,8 +116,8 @@ tolerance boundary in this plan and ask for explicit direction.
   `docs/developers-guide.md`, `docs/roadmap.md`, and this ExecPlan. Net diff:
   110 added lines across the six files (well inside the 250-line tolerance).
 - [x] (2026-05-02) Ran the sequential post-edit validation gates: `make fmt`,
-  `make markdownlint`, `make nixie`, and `git diff --check`. All passed. Logs
-  at `/tmp/fmt-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
+  `make markdownlint`, `make nixie`, and `git diff --check`. All passed. Logs at
+  `/tmp/fmt-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/markdownlint-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/nixie-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/diff-check-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`.

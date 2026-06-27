@@ -191,8 +191,8 @@ Rules:
 - Use built-in `imagegen` by default.
 - Do not use command-line interface (CLI) fallback unless explicitly requested
   or confirmed for true native transparency.
-- Label every input image by role, for example `style reference`, `layout
-  reference`, `subject reference`, or `edit target`.
+- Label every input image by role, for example `style reference`,
+  `layout reference`, `subject reference`, or `edit target`.
 - Keep gameplay-critical text out of generated images.
 - Put unavoidable decorative text in `Text (verbatim)` and require no duplicate
   text.

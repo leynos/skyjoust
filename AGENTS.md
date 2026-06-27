@@ -1,6 +1,6 @@
-# Assistant Instructions
+# Assistant instructions
 
-## Code Style and Structure
+## Code style and structure
 
 - **Code is for humans.** Write code with clarity and empathy—assume a
   tired teammate will need to debug it at 3 a.m.
@@ -33,22 +33,31 @@
   feature and constituents colocated with targets. Large blocks of test data
   should be moved to external data files.
 
-## Documentation Maintenance
+## Documentation maintenance
 
 - **Reference:** Use the markdown files within the `docs/` directory as a
   knowledge base and source of truth for project requirements, dependency
-  choices, and architectural decisions.
+  choices, and architectural decisions. Start with
+  [documentation contents](docs/contents.md) and
+  [repository layout](docs/repository-layout.md) when orienting within the
+  project.
 - **Update:** When new decisions are made, requirements change, libraries are
   added/removed, or architectural patterns evolve, **proactively update** the
-  relevant file(s) in the `docs/` directory to reflect the latest state.
-  **Ensure the documentation remains accurate and current.**
-- Documentation must use en-GB-oxendict ("-ize" / "-yse" / "-our") spelling
-  and grammar. (EXCEPTION: the LICENSE filename is left unchanged for community
-  consistency.)
-- A documentation style guide is provided at
-  `docs/documentation-style-guide.md`.
+  relevant file(s) in the `docs/` directory to reflect the latest state. Ensure
+  the documentation remains accurate and current.
+- **Design decisions:** Record design decisions in the relevant design
+  document. When a decision is substantive, capture it in an Architectural
+  Decision Record (ADR) following the documentation style guide, and reference
+  that ADR from the design document.
+- **User-facing behaviour:** Update [users' guide](docs/users-guide.md) for
+  behaviour or user-interface changes that users should know about.
+- **Internal interfaces:** Document internally facing interfaces in the
+  relevant component architecture document. Document internally facing
+  conventions and practices in [developers' guide](docs/developers-guide.md).
+- **Style:** All documentation must adhere to the
+  [documentation style guide](docs/documentation-style-guide.md).
 
-## Change Quality & Committing
+## Change quality & committing
 
 - **Atomicity:** Aim for small, focused, atomic changes. Each change (and
   subsequent commit) should represent a single logical unit of work.
@@ -78,7 +87,7 @@
       code snippets) within the commit message body.
   - Do not commit changes that fail any of the quality gates.
 
-## Refactoring Heuristics & Workflow
+## Refactoring heuristics & workflow
 
 - **Recognizing Refactoring Needs:** Regularly assess the codebase for potential
   refactoring opportunities. Perform refactoring when observing:
@@ -99,6 +108,15 @@
     class/object than their own.
   - **Shotgun Surgery:** A single change requiring small modifications in many
     different classes or functions.
+- **Abstraction / port / helper policy:** Before implementing an abstraction,
+  port, or extracted helper, the agent must:
+  1. Sweep the repository to confirm there is no existing equivalent helper,
+     port, or abstraction.
+  2. Document the new abstraction's intended scope and re-use policy
+     (ownership boundaries, permitted call-sites, and composition rules).
+  3. Record the decision in the appropriate architecture, design, or
+     developers-guide document using `docs/contents.md` as the index to select
+     the correct location.
 - **Post-Commit Review:** After committing a functional change or bug fix (that
   meets all quality gates), review the changed code and surrounding areas using
   the heuristics above.
@@ -109,15 +127,15 @@
     pass before and after, unit tests added for new units).
   - Ensure the refactoring commit itself passes all quality gates.
 
-## Rust Specific Guidance
+## Rust specific guidance
 
 This repository is written in Rust and uses Cargo for building and dependency
 management. Contributors should follow these best practices when working on the
 project:
 
-- Run `make check-fmt`, `make lint`, and `make test` before committing. These
-  targets wrap the following commands, so contributors understand the exact
-  behaviour and policy enforced:
+- Run `make check-fmt`, `make lint`, `make typecheck`, and `make test` before
+  committing. These targets wrap the following commands, so contributors
+  understand the exact behaviour and policy enforced:
   - `make check-fmt` executes:
 
     ```sh
@@ -133,6 +151,14 @@ project:
 
     linting every target with all features enabled and denying all Clippy
     warnings.
+  - `make typecheck` executes:
+
+    ```sh
+    cargo check --workspace --all-targets --all-features -- -D warnings
+    ```
+
+    type-checking every target with all features enabled while treating
+    warnings as errors.
   - `make test` executes:
 
     ```sh
@@ -149,10 +175,30 @@ project:
   adhering to separation of concerns and CQRS.
 - Where a function has too many parameters, group related parameters in
   meaningfully named structs.
-- Where a function is returning a large error, consider using `Arc` to reduce
-  the amount of data returned.
-- Write unit and behavioural tests for new functionality. Run both before and
-  after making any change.
+- Keep returned error types semantically focused and small. If a necessary
+  payload makes an error variant large, place that payload behind `Box`; use
+  `Arc` only when shared ownership or cheap cloning is required.
+- Ensure that new features are validated with unit tests using `rstest` and
+  behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
+  unhappy paths, and relevant edge cases.
+- Add snapshot tests using `insta` where structured output, user-interface
+  output, diagnostics, or other multivariant output formats need meaningful,
+  stable assertions.
+- Add compile-time behaviour tests using `trybuild` where macro expansion,
+  trait bounds, feature-gated APIs, or other compile-fail and compile-pass
+  contracts are relevant to the requirements.
+- Add end-to-end tests where a change affects externally observable workflows,
+  integration contracts, persistence, command-line behaviour, network
+  boundaries, UI flows, or other system-level behaviour.
+- Use property tests with `proptest` or a bounded model checker with `kani`
+  when a change introduces an invariant over a range of inputs, states,
+  orderings, or transitions. Use judgement to choose the appropriate level of
+  rigour.
+- Use an exhaustive proof with `verus` for introduced lemmas or contractual
+  business logic. Proofs must be substantive, rigorous, and well-founded, not
+  merely a restatement of the assumed property.
+- Run relevant unit, behavioural, property, model-checking, proof, and
+  end-to-end suites before and after making any change.
 - Every module **must** begin with a module level (`//!`) comment explaining the
   module's purpose and utility.
 - Document public APIs using Rustdoc comments (`///`) so documentation can be
@@ -197,7 +243,7 @@ project:
   `newt-hype` for the common case, tuple structs for outliers, and
   `the-newtype` to unify behaviour when owning the trait definitions.
 - Use `cap_std` and `cap_std::fs_utf8` / `camino` in place of `std::fs` and
-  `std::path` for enhanced cross platform support and capabilities oriented
+  `std::path` for enhanced cross-platform support and capabilities oriented
   filesystem access.
 
 ### Testing
@@ -207,25 +253,30 @@ project:
 - Prefer `mockall` for ad hoc mocks/stubs.
 - For testing of functionality depending upon environment variables, dependency
   injection and the `mockable` crate are the preferred option.
-- If mockable cannot be used, env mutations in tests MUST be wrapped in shared
-  guards and mutexes placed in a shared `test_utils` or `test_helpers` crate.
-  Direct environment mutation is FORBIDDEN in tests.
+- Tests MUST NOT mutate the environment of a shared test process. Prefer
+  injecting configuration, `mockable` or setting variables on a child process
+  with `Command::env`.
+- If in-process mutation is unavoidable, the test MUST run under an explicitly
+  required process-per-test harness, perform the mutation before starting any
+  additional threads, and document the relevant safety assumptions. A mutex or
+  `--test-threads=1` may prevent cooperating tests from interfering, but
+  neither generally makes environment mutation safe on Unix.
 
-### Dependency Management
+### Dependency management
 
 - **Mandate caret requirements for all dependencies.** All crate versions
-  specified in `Cargo.toml` must use SemVer-compatible caret requirements
-  (e.g., `some-crate = "1.2.3"`). This is Cargo's default and allows for safe,
-  non-breaking updates to minor and patch versions while preventing breaking
-  changes from new major versions. This approach is critical for ensuring build
-  stability and reproducibility.
+  specified in `Cargo.toml` must use SemVer-compatible caret requirements (e.g.,
+  `some-crate = "1.2.3"` (equivalent to `^1.2.3`). This is Cargo's default and
+  allows for safe, non-breaking updates to minor and patch versions while
+  preventing breaking changes from new major versions. This approach is
+  critical for ensuring build stability and reproducibility.
 - **Prohibit unstable version specifiers.** The use of wildcard (`*`) or
-  open-ended inequality (`>=`) version requirements is strictly forbidden as
-  they introduce unacceptable risk and unpredictability. Tilde requirements
-  (`~`) should only be used where a dependency must be locked to patch-level
+  open-ended inequality (`>=`) version requirements is strictly forbidden, as
+  they introduce unacceptable risk and unpredictability. Tilde requirements (
+  `~`) should only be used where a dependency must be locked to patch-level
   updates for a specific, documented reason.
 
-### Error Handling
+### Error handling
 
 - **Prefer semantic error enums**. Derive `std::error::Error` (via the
   `thiserror` crate) for any condition the caller might inspect, retry, or map
@@ -240,15 +291,46 @@ project:
 - In production code and shared fixtures, avoid `.expect()` entirely: return
   `Result` and use `?` to propagate errors instead of panicking.
 - Keep `expect_used` **strict**; do not suppress the lint.
-- Recognise that `allow-expect-in-tests = true` **doesn’t cover** helpers
+- Recognize that `allow-expect-in-tests = true` **doesn’t cover** helpers
   outside `#[cfg(test)]` or `#[test]`; avoid `expect` in such fixtures.
 - Use `anyhow`/`eyre` with `.context(...)` to **preserve backtraces** and
   provide clear, typed failure paths.
+- Include stable operation identifiers in error context at boundaries where
+  failures are retried, correlated across spans, or mapped into user-facing
+  diagnostics.
 - Update helpers (e.g., `set_dir`) to **return errors** rather than panicking.
 - Consume fallible fixtures in `rstest` by **making the test return `Result`**
   and applying `?` to the fixture.
 
-## Markdown Guidance
+### Observability
+
+- Use `tracing` for logging and diagnostics. Prefer structured
+  `tracing::{trace, debug, info, warn, error}` events and spans over `println!`,
+  `eprintln!`, or direct `log` macros. Add fields for identifiers, state, and
+  error context so downstream subscribers can filter and correlate events
+  without parsing message text.
+- Use `#[tracing::instrument]` or explicit spans around request handling,
+  command execution, retries, background jobs, and other meaningful units of
+  work. Do not hold `Span::enter()` guards across `.await`; use
+  `Instrument::instrument` or scoped synchronous spans instead.
+- Add structured spans or events at key decision points so behaviour can be
+  explained from telemetry without parsing prose messages.
+- Use the `metrics` crate for metric emission where usage, uptake, failure,
+  or mitigation metrics are required. Prefer `counter!` for cumulative events,
+  `gauge!` for values that rise and fall, and `histogram!` for distributions
+  such as latency or payload size.
+- Emit depth, duration, and failure metrics for operations where those values
+  reveal queueing, recursion, retry, traversal, or workflow health.
+- Describe emitted metrics with `describe_counter!`, `describe_gauge!`, or
+  `describe_histogram!` where the unit or purpose is not obvious from the
+  metric name. Keep metric names stable and labels low-cardinality; do not put
+  user input, request IDs, paths with unbounded parameters, or raw error
+  strings into labels.
+- Libraries may emit `metrics` and `tracing` instrumentation, but must not
+  install global recorders or subscribers. Applications should initialize
+  exporters/subscribers once, as early as practical in startup.
+
+## Markdown guidance
 
 - Validate Markdown files using `make markdownlint`.
 - Run `make fmt` after any documentation changes to format all Markdown
@@ -260,6 +342,17 @@ project:
 - Use dashes (`-`) for list bullets.
 - Use GitHub-flavoured Markdown footnotes (`[^1]`) for references and
   footnotes.
+
+## Project documentation
+
+Record design decisions in the design document. Where a decision is
+substantive, record it in an ADR document following the documentation style
+guide, then reference that ADR from the design document.
+
+Update `docs/users-guide.md` for any change to application behaviour or user
+interface that a user should know about. Document internally facing interfaces
+or practices in the relevant component architecture document. Document
+internally facing conventions or practices in `docs/developers-guide.md`.
 
 ## Additional tooling
 
@@ -300,7 +393,7 @@ The following tooling is available in this environment:
 - `difft` **(Difftastic)** — Semantic diff tool that compares code structure
   rather than just text differences.
 
-## Key Takeaway
+## Key takeaway
 
 These practices help maintain a high-quality codebase and facilitate
 collaboration.
