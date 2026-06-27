@@ -11,10 +11,77 @@ stays attached to the delivery task it proves.
 
 The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
+`docs/rstest-bdd-harness-bevy-design.md`,
 `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`, and the
 reference images in `ref/`. Five Architecture Decision Records (ADRs) already
 exist in `docs/adr/`; early roadmap tasks create further narrow ADRs where the
 design still names unresolved choices.
+
+## 0.5. Bevy behaviour-driven development harness spike
+
+Idea: if Skyjoust proves a headless Bevy `rstest-bdd` harness before runtime
+resources harden, behavioural tests can drive fixed-tick entity-component
+system (ECS) work without coupling the reusable harness crate to Skyjoust
+gameplay modules.
+
+This phase introduces `rstest-bdd-harness-bevy` as an in-tree workspace crate
+with a public API that remains extractable. It validates harness behaviour with
+toy Bevy resources first, then leaves the Skyjoust profile hook ready for the
+first runtime resources.
+
+### 0.5.1. Prove the reusable headless Bevy scenario boundary
+
+This step answers whether a Bevy `App` wrapper gives scenario steps enough
+power to configure plugins, inspect resources, run schedules, and clean up
+after panics while preserving the `rstest-bdd` harness contract. Its outcome
+informs later runtime testing in Phase 1. See
+`docs/rstest-bdd-harness-bevy-design.md` §§4-10 and
+`docs/skyjoust-technical-design.md` §§4, 5, and 14.
+
+- [ ] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
+  - Keep the crate free of Skyjoust and Lille dependencies.
+  - Use Bevy `0.17.3` with `default-features = false`.
+  - Use git `rstest-bdd` dependencies against `main` until v0.6.0-beta3 is
+    published.
+  - See `docs/rstest-bdd-harness-bevy-design.md` §§3 and 9.
+  - Success: the crate can later move to its own repository without deleting
+    game-specific code.
+- [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
+  - Requires 0.5.1.1.
+  - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,
+    `MinimalBevyProfile`, and `BevyAttributePolicy`.
+  - Make `BevyScenario` wrap a Bevy `App`, not a raw `World`, and expose
+    `with_app`, `with_world`, `update`, and `update_times`.
+  - See `docs/rstest-bdd-harness-bevy-design.md` §§4-7.
+  - Success: generated scenarios can instantiate the harness through
+    `<Harness as Default>::default()` and receive the wrapper through
+    `rstest_bdd_harness_context`.
+- [ ] 0.5.1.3. Validate harness behaviour with unit, behavioural, panic, and
+  macro-shape coverage.
+  - Requires 0.5.1.2.
+  - Cover metadata retention, profile configure and cleanup hooks, Bevy
+    `Update` ticks, cleanup after panic, and a `trybuild` compile-pass fixture
+    for a harness type alias.
+  - See `docs/rstest-bdd-harness-bevy-design.md` §§6, 7, and 10.
+  - Success: the tests prove the reusable harness without depending on
+    Skyjoust runtime modules.
+- [ ] 0.5.1.4. Add the Skyjoust smoke profile once runtime resources exist.
+  - Requires 0.5.1.3 and 1.3.1.
+  - Define `SkyjoustBevyProfile` outside the reusable harness crate.
+  - Assert state graph resources and validator trace capture through
+    `#[from(rstest_bdd_harness_context)] scenario: &BevyScenario`.
+  - See `docs/rstest-bdd-harness-bevy-design.md` §§8 and 10.
+  - Success: one headless scenario advances the app explicitly and exports a
+    validator-observable trace without pulling Skyjoust code into the harness
+    crate.
+- [ ] 0.5.1.5. Document adoption, validation, and extraction rules.
+  - Requires 0.5.1.2.
+  - Document the reserved fixture key, third-party attribute-policy limitation,
+    normal Skyjoust gates, and extraction path.
+  - Keep all Skyjoust-specific setup in downstream profile code.
+  - See `docs/rstest-bdd-harness-bevy-design.md` §§7-13.
+  - Success: extraction is a directory move plus dependency rewiring after
+    Skyjoust and Lille each prove one headless scenario.
 
 ## 1. Foundational contracts and playable spine
 

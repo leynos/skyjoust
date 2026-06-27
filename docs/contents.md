@@ -20,6 +20,9 @@
   plan and implementation sequencing for the current design.
 - [Project Skyjoust roadmap](roadmap.md) - milestone-oriented work breakdown
   and outstanding implementation tasks.
+- [`rstest-bdd-harness-bevy` design](rstest-bdd-harness-bevy-design.md) -
+  proposed Bevy behavioural-test harness API, Skyjoust adoption path, and
+  extraction plan.
 
 ## Maintainer guides and standards
 
