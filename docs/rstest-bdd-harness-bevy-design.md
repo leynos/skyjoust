@@ -170,6 +170,42 @@ path, cleanup errors become `tracing::error!` records with the same scenario
 metadata, and the original augmented panic resumes. This preserves scenario
 failure identity for `cargo test`, `cargo nextest`, and log subscribers.
 
+```mermaid
+sequenceDiagram
+    participant Test as ScenarioTest
+    participant Harness as BevyHarness
+    participant Profile as BevyProfile
+    participant Runner as ScenarioRunner
+    participant Scenario as BevyScenario
+
+    Test->>Harness: run(request)
+    activate Harness
+    Harness->>Profile: configure(app, metadata)
+    Profile-->>Harness: HarnessResult
+    Harness->>Runner: run(Scenario)
+    activate Runner
+
+    alt [step runs normally]
+        Runner-->>Harness: HarnessResult::Ok
+        Harness->>Profile: cleanup(Scenario, metadata)
+        Profile-->>Harness: HarnessResult
+        Harness-->>Test: HarnessResult::Ok
+    else [step panics]
+        Runner--xHarness: panic
+        Harness->>Profile: cleanup(Scenario, metadata)
+        Profile-->>Harness: HarnessResult
+        Harness--xTest: panic (augmented with metadata)
+    end
+
+    deactivate Runner
+    deactivate Harness
+```
+
+_Figure 1: Bevy harness scenario lifecycle. The test calls `BevyHarness` with a
+scenario request, the harness configures the Bevy app through `BevyProfile`,
+runs the `ScenarioRunner` with a `BevyScenario`, and then calls profile cleanup
+before returning success or resuming a metadata-augmented panic._
+
 ## 7. Macro and attribute policy constraints
 
 Generated scenario tests instantiate the harness with
