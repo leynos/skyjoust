@@ -9,8 +9,11 @@ updates:
       - "github-actions"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
 
-  # Enable version updates for Cargo
+  # Enable version updates for Cargo (workspace root covers member crates)
   - package-ecosystem: "cargo"
     directory: "/"
     open-pull-requests-limit: 5
@@ -19,4 +22,6 @@ updates:
       - "cargo"
     schedule:
       interval: "daily"
-      
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
