@@ -587,7 +587,7 @@ resolve a decisive joust, and apply consequences without corrupting scoring. See
   - Requires 5.2.1.
   - See `docs/skyjoust-state-graphs.yaml` selectors `event.duel_locked` and
     `player.lance_contact_valid`.
-  - Success: non-duelist scoring is blocked while duel lock is active.
+  - Success: non-duellist scoring is blocked while duel lock is active.
 - [ ] 5.2.3. Implement duel resolution, interference, and honour violation
   outcomes.
   - Requires 5.2.2.

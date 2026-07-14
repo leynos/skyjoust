@@ -420,7 +420,7 @@ out only the accidental edits or request approval if those changes are required
 to complete the task. Never reset or check out user changes without explicit
 permission.
 
-## Artifacts and notes
+## Artefacts and notes
 
 The Wyvern planning brief identified these source anchors:
 
