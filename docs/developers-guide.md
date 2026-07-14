@@ -157,6 +157,19 @@ policy while `make markdownlint` checks another. When a Markdown lint rule
 changes, update both files in the same commit and rerun `make fmt` and
 `make markdownlint`.
 
+### 6.2. Spelling policy
+
+Run `make spelling` to enforce en-GB-oxendict spelling in tracked Markdown
+prose. The generated and tracked `typos.toml` starts from the shared estate
+dictionary. The shared `typos-config-builder` CLI refreshes an untracked local
+cache only when the authoritative copy is newer, so a valid tracked
+configuration remains usable in a network-restricted checkout.
+
+Keep repository-specific identifiers and deliberate quotations in
+`typos.local.toml`. Run `make spelling-config-write` to regenerate the tracked
+configuration and `make spelling-config` to verify it. Never edit generated
+entries by hand.
+
 The Stateright Explorer can help diagnose counterexamples:
 
 ```sh

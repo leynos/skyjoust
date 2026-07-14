@@ -513,7 +513,7 @@ Duel tasks:
 
 - Add challenge, accept, arena lock, active duel, honour violation, and
   resolve-duel states.
-- Lock duelists and block non-duelist scoring.
+- Lock duellists and block non-duellist scoring.
 - Emit dishonour penalties for interference.
 - Award duel rewards only after resolved duel.
 - Render duel prompt, rule summary, and consequence panels.

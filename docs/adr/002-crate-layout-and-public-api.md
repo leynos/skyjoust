@@ -27,7 +27,7 @@ internal modules, beside the separate `skyjoust_stateright_validator` crate.
 The validator crate remains separate because it is a tooling-facing
 verification surface, not a runtime boundary.
 
-The runtime crate organises responsibilities as internal modules, not as
+The runtime crate organizes responsibilities as internal modules, not as
 separate crates, for the first playable slice:
 
 - `game_app`: window lifecycle, event loop, schedule orchestration, and
