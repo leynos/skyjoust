@@ -85,6 +85,8 @@ _Figure 1: Simplified repository tree for contributor orientation._
 - `scripts/typos_rollout_check.py`: enforces shared exact-phrase spelling
   corrections in tracked text.
 - `scripts/tests/`: focused tests for the spelling-policy consumer.
+- `.typos-oxendict-base.toml`: untracked cache of the shared Oxford dictionary
+  consumed by the config builder and phrase checker.
 - `typos.local.toml`: narrow repository-specific spelling policy.
 - `typos.toml`: generated en-GB-oxendict policy consumed by the pinned gate.
 - `.github/`: continuous integration and dependency automation configuration.
