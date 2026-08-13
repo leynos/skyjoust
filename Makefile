@@ -76,7 +76,7 @@ target/%/$(TARGET): ## Build binary in debug or release mode
 lint: ## Run Clippy and the Whitaker Dylint suite with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" doc $(DOC_FLAGS)
 	$(CARGO) --config "$(DEV_FAST_CONFIG)" clippy $(CLIPPY_FLAGS)
-	RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS) --config "$(DEV_FAST_CONFIG)"
+	RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
 
 typecheck: ## Type-check without building
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" check $(CARGO_FLAGS)
