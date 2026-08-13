@@ -275,6 +275,8 @@ fn push_committed_reward_actions(state: &SkyState, actions: &mut Vec<SkyAction>)
 mod tests {
     //! Tests for action generation guards.
 
+    use rstest::{fixture, rstest};
+
     use super::*;
 
     fn live_state(lance: LanceState) -> SkyState {
@@ -287,6 +289,13 @@ mod tests {
             },
             ..SkyState::default()
         }
+    }
+
+    #[fixture]
+    fn bracing_actions() -> Vec<SkyAction> {
+        let mut actions = Vec::new();
+        push_active_match_actions(&live_state(LanceState::Bracing), &mut actions);
+        actions
     }
 
     #[test]
@@ -302,20 +311,14 @@ mod tests {
         );
     }
 
-    #[test]
-    fn bracing_actions_offer_every_joust_outcome() {
-        let mut bracing_actions = Vec::new();
-        push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
-
+    #[rstest]
+    fn bracing_actions_offer_every_joust_outcome(bracing_actions: Vec<SkyAction>) {
         assert!(bracing_actions.contains(&SkyAction::BraceWindowExpired));
         assert_every_joust_outcome_offered(&bracing_actions);
     }
 
-    #[test]
-    fn bracing_actions_offer_every_objective() {
-        let mut bracing_actions = Vec::new();
-        push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
-
+    #[rstest]
+    fn bracing_actions_offer_every_objective(bracing_actions: Vec<SkyAction>) {
         assert_every_objective_offered(&bracing_actions);
     }
 
