@@ -5,6 +5,9 @@ edition = "2024"
 description = "Stateright model checker and trace validator for Project Skyjoust high-level engine interactions."
 license = "MIT OR Apache-2.0"
 
+[lints]
+workspace = true
+
 [dependencies]
 stateright = "0.31"
 serde = { version = "1", features = ["derive"] }
