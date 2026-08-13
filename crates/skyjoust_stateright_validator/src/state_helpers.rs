@@ -29,7 +29,8 @@ impl SkyState {
     /// };
     /// assert!(state.is_match_active());
     /// ```
-    pub fn is_match_active(&self) -> bool {
+    #[must_use]
+    pub const fn is_match_active(&self) -> bool {
         matches!(
             self.match_phase,
             MatchPhase::NormalPlay | MatchPhase::EventOverride | MatchPhase::SuddenDeath
@@ -47,7 +48,8 @@ impl SkyState {
     /// };
     /// assert!(state.is_in_match_or_building_match());
     /// ```
-    pub fn is_in_match_or_building_match(&self) -> bool {
+    #[must_use]
+    pub const fn is_in_match_or_building_match(&self) -> bool {
         matches!(
             self.match_phase,
             MatchPhase::Constructing
@@ -73,7 +75,8 @@ impl SkyState {
     /// };
     /// assert!(state.has_active_ceremony());
     /// ```
-    pub fn has_active_ceremony(&self) -> bool {
+    #[must_use]
+    pub const fn has_active_ceremony(&self) -> bool {
         matches!(
             self.ceremony,
             CeremonyState::Tournament(_)
@@ -90,8 +93,8 @@ impl SkyState {
     /// Return semantics: true means the match is active and no ceremony owns it.
     /// Preconditions: none.
     /// Side effects: none.
-    pub(crate) fn can_start_tournament(&self) -> bool {
-        self.is_match_active() && self.ceremony == CeremonyState::Dormant
+    pub(crate) const fn can_start_tournament(&self) -> bool {
+        self.is_match_active() && matches!(self.ceremony, CeremonyState::Dormant)
     }
 
     /// Return true when a duel challenge can be issued.
@@ -100,8 +103,8 @@ impl SkyState {
     /// Return semantics: true means active match play is ceremony-free.
     /// Preconditions: none.
     /// Side effects: none.
-    pub(crate) fn can_issue_duel(&self) -> bool {
-        self.is_match_active() && self.ceremony == CeremonyState::Dormant
+    pub(crate) const fn can_issue_duel(&self) -> bool {
+        self.is_match_active() && matches!(self.ceremony, CeremonyState::Dormant)
     }
 
     /// Return true when a wedding-truce ceremony can start.
@@ -110,8 +113,8 @@ impl SkyState {
     /// Return semantics: true means active match play is ceremony-free.
     /// Preconditions: none.
     /// Side effects: none.
-    pub(crate) fn can_start_wedding_truce(&self) -> bool {
-        self.is_match_active() && self.ceremony == CeremonyState::Dormant
+    pub(crate) const fn can_start_wedding_truce(&self) -> bool {
+        self.is_match_active() && matches!(self.ceremony, CeremonyState::Dormant)
     }
 
     /// Return true when the selected Warfront battle can be locked.
@@ -120,8 +123,9 @@ impl SkyState {
     /// Return semantics: true means Warfront is running from battle preview.
     /// Preconditions: none.
     /// Side effects: none.
-    pub(crate) fn can_start_warfront_battle(&self) -> bool {
-        self.app == AppState::WarfrontRunning && self.warfront == WarfrontState::BattlePreview
+    pub(crate) const fn can_start_warfront_battle(&self) -> bool {
+        matches!(self.app, AppState::WarfrontRunning)
+            && matches!(self.warfront, WarfrontState::BattlePreview)
     }
 
     /// Return true when a wedding ceremony currently enforces a truce.
@@ -130,7 +134,7 @@ impl SkyState {
     /// Return semantics: true means `truce_active` and wedding state agree.
     /// Preconditions: none.
     /// Side effects: none.
-    pub(crate) fn in_wedding_truce(&self) -> bool {
+    pub(crate) const fn in_wedding_truce(&self) -> bool {
         self.truce_active && matches!(self.ceremony, CeremonyState::Wedding(_))
     }
 
@@ -140,7 +144,7 @@ impl SkyState {
     /// Return semantics: no return value.
     /// Preconditions: callers have accepted a tournament-start transition.
     /// Side effects: disables ordnance and forces joust-only player rules.
-    pub(crate) fn enter_tournament_mode(&mut self) {
+    pub(crate) const fn enter_tournament_mode(&mut self) {
         self.rules.ordnance = OrdnancePolicy::Disabled;
         self.rules.joust_only = true;
         self.player_ordnance = PlayerOrdnance::Disabled;
@@ -153,7 +157,7 @@ impl SkyState {
     /// Preconditions: callers have accepted a duel-start transition.
     /// Side effects: enables duel lock, disables ordnance, and forces
     /// joust-only player rules.
-    pub(crate) fn enter_duel_mode(&mut self) {
+    pub(crate) const fn enter_duel_mode(&mut self) {
         self.rules.duel_lock = true;
         self.rules.ordnance = OrdnancePolicy::Disabled;
         self.rules.joust_only = true;
@@ -166,7 +170,7 @@ impl SkyState {
     /// Return semantics: no return value.
     /// Preconditions: callers have accepted a wedding-truce transition.
     /// Side effects: activates truce state and disables friendly fire.
-    pub(crate) fn enter_wedding_truce_mode(&mut self) {
+    pub(crate) const fn enter_wedding_truce_mode(&mut self) {
         self.truce_active = true;
         self.rules.friendly_fire = false;
     }

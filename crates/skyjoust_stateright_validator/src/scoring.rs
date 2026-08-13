@@ -50,7 +50,7 @@ struct ScoreDelta {
 /// Side effects:
 /// - Opens the score ledger, increments accepted events, adjusts morale, and may mark victory
 ///   pending. If the score was finalized, records a rejected post-final write instead.
-pub(crate) fn apply_joust_score(s: &mut SkyState, winner: Team, outcome: JoustOutcome) {
+pub(crate) const fn apply_joust_score(s: &mut SkyState, winner: Team, outcome: JoustOutcome) {
     if reject_finalized_score_write(s) {
         return;
     }
@@ -95,7 +95,7 @@ pub(crate) fn apply_joust_score(s: &mut SkyState, winner: Team, outcome: JoustOu
 /// Side effects:
 /// - Mutates score, glory, morale, event count, and possible victory state. If the score was
 ///   finalized, records a rejected post-final write instead.
-pub(crate) fn apply_objective_score(s: &mut SkyState, winner: Team, atom: ScoreAtom) {
+pub(crate) const fn apply_objective_score(s: &mut SkyState, winner: Team, atom: ScoreAtom) {
     if reject_finalized_score_write(s) {
         return;
     }
@@ -144,7 +144,7 @@ pub(crate) fn apply_objective_score(s: &mut SkyState, winner: Team, atom: ScoreA
 /// Side effects:
 /// - Increments infamy and reward penalties, deducts points from the offender, and marks the score
 ///   ledger as having a pending delta.
-pub(crate) fn apply_dishonour_penalty(s: &mut SkyState, offender: Team) {
+pub(crate) const fn apply_dishonour_penalty(s: &mut SkyState, offender: Team) {
     s.infamy += 10;
     s.rewards.penalties = s.rewards.penalties.saturating_add(1);
     match offender {
@@ -196,7 +196,7 @@ pub(crate) fn update_recovery_from_outcome(s: &mut SkyState, winner: Team, outco
 ///
 /// Side effects:
 /// - None.
-pub(crate) fn decide_winner(score: &ScoreLedger) -> Winner {
+pub(crate) const fn decide_winner(score: &ScoreLedger) -> Winner {
     match compare_scores(score) {
         ScoreComparison::RedLeads => Winner::Red,
         ScoreComparison::BlueLeads => Winner::Blue,
@@ -218,7 +218,7 @@ pub(crate) fn decide_winner(score: &ScoreLedger) -> Winner {
 /// Side effects:
 /// - Moves rewards to `Tallied`, leaves the match inactive, and applies victory, tournament, duel,
 ///   treaty, and truce-break reward modifiers.
-pub(crate) fn tally_rewards(s: &mut SkyState) {
+pub(crate) const fn tally_rewards(s: &mut SkyState) {
     s.rewards.phase = RewardPhase::Tallied;
     s.rewards.pending_delta = true;
     s.match_phase = crate::state::MatchPhase::Inactive;
@@ -263,7 +263,7 @@ pub(crate) fn tally_rewards(s: &mut SkyState) {
     }
 }
 
-fn reject_finalized_score_write(s: &mut SkyState) -> bool {
+const fn reject_finalized_score_write(s: &mut SkyState) -> bool {
     if s.score.finalized {
         s.post_final_score_write = true;
         true
@@ -272,7 +272,7 @@ fn reject_finalized_score_write(s: &mut SkyState) -> bool {
     }
 }
 
-fn apply_score_delta(s: &mut SkyState, winner: Team, delta: ScoreDelta) {
+const fn apply_score_delta(s: &mut SkyState, winner: Team, delta: ScoreDelta) {
     s.score.open = true;
     s.score.pending_delta = true;
     s.score.events_accepted = s.score.events_accepted.saturating_add(1);
@@ -282,12 +282,12 @@ fn apply_score_delta(s: &mut SkyState, winner: Team, delta: ScoreDelta) {
     }
 }
 
-fn apply_red_score_delta(s: &mut SkyState, delta: ScoreDelta) {
+const fn apply_red_score_delta(s: &mut SkyState, delta: ScoreDelta) {
     s.score.red_score += delta.score;
     s.score.red_glory += delta.glory;
     match delta.morale_effect {
-        MoraleEffect::ScoringTeam(delta) => s.score.red_morale += delta,
-        MoraleEffect::Opponent(delta) => s.score.blue_morale += delta,
+        MoraleEffect::ScoringTeam(morale_delta) => s.score.red_morale += morale_delta,
+        MoraleEffect::Opponent(morale_delta) => s.score.blue_morale += morale_delta,
     }
     if s.score.blue_morale <= 0 {
         s.score.victory_pending = true;
@@ -295,12 +295,12 @@ fn apply_red_score_delta(s: &mut SkyState, delta: ScoreDelta) {
     }
 }
 
-fn apply_blue_score_delta(s: &mut SkyState, delta: ScoreDelta) {
+const fn apply_blue_score_delta(s: &mut SkyState, delta: ScoreDelta) {
     s.score.blue_score += delta.score;
     s.score.blue_glory += delta.glory;
     match delta.morale_effect {
-        MoraleEffect::ScoringTeam(delta) => s.score.blue_morale += delta,
-        MoraleEffect::Opponent(delta) => s.score.red_morale += delta,
+        MoraleEffect::ScoringTeam(morale_delta) => s.score.blue_morale += morale_delta,
+        MoraleEffect::Opponent(morale_delta) => s.score.red_morale += morale_delta,
     }
     if s.score.red_morale <= 0 {
         s.score.victory_pending = true;
@@ -308,11 +308,15 @@ fn apply_blue_score_delta(s: &mut SkyState, delta: ScoreDelta) {
     }
 }
 
-fn compare_scores(score: &ScoreLedger) -> ScoreComparison {
-    match score.red_score.cmp(&score.blue_score) {
-        std::cmp::Ordering::Greater => ScoreComparison::RedLeads,
-        std::cmp::Ordering::Less => ScoreComparison::BlueLeads,
-        std::cmp::Ordering::Equal => ScoreComparison::Tied,
+const fn compare_scores(score: &ScoreLedger) -> ScoreComparison {
+    // `Ord::cmp` is not yet usable in a const fn on this toolchain, so this
+    // compares directly with the primitive `<`/`>` operators instead.
+    if score.red_score > score.blue_score {
+        ScoreComparison::RedLeads
+    } else if score.red_score < score.blue_score {
+        ScoreComparison::BlueLeads
+    } else {
+        ScoreComparison::Tied
     }
 }
 

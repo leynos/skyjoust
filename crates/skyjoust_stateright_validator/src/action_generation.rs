@@ -149,19 +149,19 @@ fn push_ordnance_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
     }
 }
 
-fn can_spawn_ordnance(state: &SkyState) -> bool {
+const fn can_spawn_ordnance(state: &SkyState) -> bool {
     is_match_ordnance_enabled(state) && is_player_ordnance_ready(state)
 }
 
-fn is_match_ordnance_enabled(state: &SkyState) -> bool {
+const fn is_match_ordnance_enabled(state: &SkyState) -> bool {
     matches!(
         state.rules.ordnance,
         OrdnancePolicy::Full | OrdnancePolicy::Limited
     ) && !state.rules.joust_only
 }
 
-fn is_player_ordnance_ready(state: &SkyState) -> bool {
-    state.player_ordnance == PlayerOrdnance::Ready
+const fn is_player_ordnance_ready(state: &SkyState) -> bool {
+    matches!(state.player_ordnance, PlayerOrdnance::Ready)
 }
 
 fn push_ceremony_start_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
@@ -174,10 +174,10 @@ fn push_ceremony_start_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
 
 fn push_ceremony_continuation_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
     match state.ceremony {
-        CeremonyState::Tournament(state) => push_tournament_actions(state, actions),
-        CeremonyState::Duel(state) => push_duel_actions(state, actions),
-        CeremonyState::Wedding(state) => push_wedding_actions(state, actions),
-        CeremonyState::Banquet(state) => push_banquet_actions(state, actions),
+        CeremonyState::Tournament(tournament) => push_tournament_actions(tournament, actions),
+        CeremonyState::Duel(duel) => push_duel_actions(duel, actions),
+        CeremonyState::Wedding(wedding) => push_wedding_actions(wedding, actions),
+        CeremonyState::Banquet(banquet) => push_banquet_actions(banquet, actions),
         CeremonyState::ConsequenceResolution => actions.push(SkyAction::EventConsequencesRecorded),
         CeremonyState::Cooldown => actions.push(SkyAction::EventCooldownDone),
         CeremonyState::Dormant | CeremonyState::Queued(_) | CeremonyState::Prompt(_) => {}
@@ -264,10 +264,10 @@ fn push_reward_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
 }
 
 fn push_committed_reward_actions(state: &SkyState, actions: &mut Vec<SkyAction>) {
-    if state.warfront != WarfrontState::Inactive {
-        actions.push(SkyAction::NextWarfrontTurn);
-    } else {
+    if matches!(state.warfront, WarfrontState::Inactive) {
         actions.push(SkyAction::ReturnToTitle);
+    } else {
+        actions.push(SkyAction::NextWarfrontTurn);
     }
 }
 
@@ -293,16 +293,34 @@ mod tests {
     fn active_match_actions_follow_lance_lifecycle() {
         let mut idle_actions = Vec::new();
         push_active_match_actions(&live_state(LanceState::Idle), &mut idle_actions);
+
         assert!(idle_actions.contains(&SkyAction::BracePressed));
         assert!(
             !idle_actions
                 .iter()
                 .any(|action| matches!(action, SkyAction::Joust { .. }))
         );
+    }
 
+    #[test]
+    fn bracing_actions_offer_every_joust_outcome() {
         let mut bracing_actions = Vec::new();
         push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
+
         assert!(bracing_actions.contains(&SkyAction::BraceWindowExpired));
+        assert_every_joust_outcome_offered(&bracing_actions);
+    }
+
+    #[test]
+    fn bracing_actions_offer_every_objective() {
+        let mut bracing_actions = Vec::new();
+        push_active_match_actions(&live_state(LanceState::Bracing), &mut bracing_actions);
+
+        assert_every_objective_offered(&bracing_actions);
+    }
+
+    /// Assert `actions` contains a joust action for every team and outcome pairing.
+    fn assert_every_joust_outcome_offered(actions: &[SkyAction]) {
         for winner in [Team::Red, Team::Blue] {
             for outcome in [
                 JoustOutcome::Knockback,
@@ -310,16 +328,19 @@ mod tests {
                 JoustOutcome::Shatter,
                 JoustOutcome::CleanKill,
             ] {
-                assert!(bracing_actions.contains(&SkyAction::Joust { winner, outcome }));
+                assert!(actions.contains(&SkyAction::Joust { winner, outcome }));
             }
         }
+    }
 
+    /// Assert `actions` contains an objective action for every team.
+    fn assert_every_objective_offered(actions: &[SkyAction]) {
         for team in [Team::Red, Team::Blue] {
-            assert!(bracing_actions.contains(&SkyAction::CaptureOutpost { team }));
-            assert!(bracing_actions.contains(&SkyAction::ClaimShrine { team }));
-            assert!(bracing_actions.contains(&SkyAction::BlockSupplyRoute { team }));
-            assert!(bracing_actions.contains(&SkyAction::DeliverHostage { team }));
-            assert!(bracing_actions.contains(&SkyAction::BombKeepBreach { team }));
+            assert!(actions.contains(&SkyAction::CaptureOutpost { team }));
+            assert!(actions.contains(&SkyAction::ClaimShrine { team }));
+            assert!(actions.contains(&SkyAction::BlockSupplyRoute { team }));
+            assert!(actions.contains(&SkyAction::DeliverHostage { team }));
+            assert!(actions.contains(&SkyAction::BombKeepBreach { team }));
         }
     }
 

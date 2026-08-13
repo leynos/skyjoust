@@ -25,6 +25,10 @@ use crate::state::{
 };
 
 #[derive(Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the domain struct's independently toggled flags for serde round-tripping"
+)]
 struct SkyStateDto {
     depth: u16,
     app: AppState,
@@ -130,6 +134,10 @@ impl<'de> Deserialize<'de> for SkyState {
 }
 
 #[derive(Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the domain struct's independently toggled flags for serde round-tripping"
+)]
 struct RulesDto {
     ordnance: OrdnancePolicy,
     friendly_fire: bool,
@@ -174,6 +182,10 @@ impl<'de> Deserialize<'de> for Rules {
 }
 
 #[derive(Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the domain struct's independently toggled flags for serde round-tripping"
+)]
 struct ObjectiveSnapshotDto {
     keep_breached: bool,
     outpost_controlled: bool,

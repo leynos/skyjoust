@@ -21,7 +21,9 @@ impl Default for SkyjoustInteractionModel {
 
 impl SkyjoustInteractionModel {
     /// Return whether replay or exploration has exhausted the configured depth.
-    pub(crate) fn depth_exhausted(&self, state: &SkyState) -> bool { state.depth >= self.max_depth }
+    pub(crate) const fn depth_exhausted(&self, state: &SkyState) -> bool {
+        state.depth >= self.max_depth
+    }
 }
 
 #[cfg(test)]

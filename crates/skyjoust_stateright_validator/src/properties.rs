@@ -14,6 +14,7 @@ use crate::{
     },
 };
 
+/// Named invariants that must hold in every reachable state.
 pub const ALWAYS_PROPERTIES: &[(&str, AlwaysProperty)] = &[
     (
         "rewards_commit_requires_final_score",
@@ -67,6 +68,7 @@ pub const ALWAYS_PROPERTIES: &[(&str, AlwaysProperty)] = &[
     ),
 ];
 
+/// Named reachability properties that must be witnessed at least once.
 pub const SOMETIMES_PROPERTIES: &[(&str, AlwaysProperty)] = &[
     (
         "can_breach_keep_and_commit_rewards",
@@ -90,59 +92,77 @@ pub const SOMETIMES_PROPERTIES: &[(&str, AlwaysProperty)] = &[
     ),
 ];
 
-fn prop_rewards_commit_requires_final_score(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_rewards_commit_requires_final_score(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     !s.rewards.committed || s.score.finalized
 }
 
-fn prop_rewards_open_requires_final_score(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_rewards_open_requires_final_score(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     !s.rewards.phase.is_open() || s.score.finalized
 }
 
-fn prop_score_closed_after_final_snapshot(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_score_closed_after_final_snapshot(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     !s.score.finalized || !s.score.open
 }
 
-fn prop_no_score_write_after_final_snapshot(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_no_score_write_after_final_snapshot(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     !s.post_final_score_write
 }
 
-fn prop_committed_rewards_leave_active_match(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
-    !s.rewards.committed || (!s.is_match_active() && s.match_phase != MatchPhase::Paused)
+const fn prop_committed_rewards_leave_active_match(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
+    !s.rewards.committed || (!s.is_match_active() && !matches!(s.match_phase, MatchPhase::Paused))
 }
 
-fn prop_duel_lock_only_during_duel(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_duel_lock_only_during_duel(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
     !s.rules.duel_lock
         || matches!(
             s.ceremony,
-            CeremonyState::Duel(DuelState::ArenaLock)
-                | CeremonyState::Duel(DuelState::DuelActive)
-                | CeremonyState::Duel(DuelState::ResolveDuel)
+            CeremonyState::Duel(
+                DuelState::ArenaLock | DuelState::DuelActive | DuelState::ResolveDuel
+            )
         )
-        || (s.ceremony == CeremonyState::ConsequenceResolution && s.duel_consequence_active)
+        || (matches!(s.ceremony, CeremonyState::ConsequenceResolution) && s.duel_consequence_active)
 }
 
-fn prop_joust_only_disables_ordnance(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_joust_only_disables_ordnance(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
     !s.rules.joust_only
-        || (s.rules.ordnance == OrdnancePolicy::Disabled
-            && s.player_ordnance == PlayerOrdnance::Disabled)
+        || (matches!(s.rules.ordnance, OrdnancePolicy::Disabled)
+            && matches!(s.player_ordnance, PlayerOrdnance::Disabled))
 }
 
-fn prop_truce_disables_friendly_fire(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_truce_disables_friendly_fire(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
     !s.truce_active || !s.rules.friendly_fire
 }
 
-fn prop_truce_break_is_penalized(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_truce_break_is_penalized(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
     !s.truce_broken || (s.infamy > 0 && s.rewards.penalties > 0)
 }
 
-fn prop_laurels_only_after_tournament_completion(
+const fn prop_laurels_only_after_tournament_completion(
     _: &SkyjoustInteractionModel,
     s: &SkyState,
 ) -> bool {
     (s.rewards.laurels == 0 && !s.rewards.tournament_bonus_granted) || s.tournament_completed
 }
 
-fn prop_duel_reward_only_after_resolved_duel(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_duel_reward_only_after_resolved_duel(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     !s.rewards.duel_bonus_granted || s.duel_resolved
 }
 
@@ -154,37 +174,49 @@ fn prop_temporary_rules_cleared_after_cooldown(_: &SkyjoustInteractionModel, s: 
     }
 }
 
-fn prop_round_over_has_winner(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_round_over_has_winner(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
     !matches!(
         s.match_phase,
         MatchPhase::RoundOver | MatchPhase::ResultsExported
-    ) || s.winner != Winner::None
+    ) || !matches!(s.winner, Winner::None)
 }
 
-fn prop_warfront_not_mutated_during_match(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn prop_warfront_not_mutated_during_match(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     !s.warfront_mutated_during_match
 }
 
-fn sometimes_breach_keep_and_commit_rewards(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn sometimes_breach_keep_and_commit_rewards(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     s.objectives.keep_breached && s.rewards.committed && s.score.finalized
 }
 
-fn sometimes_complete_tournament_and_get_laurels(
+const fn sometimes_complete_tournament_and_get_laurels(
     _: &SkyjoustInteractionModel,
     s: &SkyState,
 ) -> bool {
     s.tournament_completed && s.rewards.committed && s.rewards.laurels >= 3
 }
 
-fn sometimes_resolve_duel_and_get_rewards(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn sometimes_resolve_duel_and_get_rewards(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     s.duel_resolved && s.rewards.committed && s.rewards.influence >= 25
 }
 
-fn sometimes_break_truce_and_receive_infamy(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn sometimes_break_truce_and_receive_infamy(
+    _: &SkyjoustInteractionModel,
+    s: &SkyState,
+) -> bool {
     s.truce_broken && s.rewards.committed && s.infamy > 0 && s.rewards.penalties > 0
 }
 
-fn sometimes_score_nonlethal_objective(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
+const fn sometimes_score_nonlethal_objective(_: &SkyjoustInteractionModel, s: &SkyState) -> bool {
     s.objectives.outpost_controlled && s.score.red_score >= 200 && !s.objectives.keep_breached
 }
 

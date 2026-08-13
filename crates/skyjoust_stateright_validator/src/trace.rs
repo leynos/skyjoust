@@ -63,16 +63,13 @@ where
     let mut state = SkyState::default();
 
     for (step_index, action) in trace.into_iter().enumerate() {
-        let next = match model.next_state(&state, action.clone()) {
-            Some(next) => next,
-            None => {
-                let reason = if model.depth_exhausted(&state) {
-                    "max depth reached / depth bound exhausted"
-                } else {
-                    "action was not legal from the current state"
-                };
-                return invalid_trace(state, step_index, action, reason);
-            }
+        let Some(next) = model.next_state(&state, action.clone()) else {
+            let reason = if model.depth_exhausted(&state) {
+                "max depth reached / depth bound exhausted"
+            } else {
+                "action was not legal from the current state"
+            };
+            return invalid_trace(state, step_index, action, reason);
         };
 
         if let Some(name) = violated_invariant(model, &next) {
@@ -112,7 +109,7 @@ fn invalid_trace(
         failure: Some(TraceFailure {
             step_index,
             action,
-            reason: reason.to_string(),
+            reason: reason.to_owned(),
         }),
     }
 }
@@ -167,6 +164,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "assert! gives a clearer failure message than manually building an Err here"
+    )]
     fn longer_trace_validates_when_depth_is_raised() -> serde_json::Result<()> {
         let model = SkyjoustInteractionModel { max_depth: 40 };
         let result = validate_trace(&model, long_legal_trace()?);
@@ -177,6 +178,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "assert! gives a clearer failure message than manually building an Err here"
+    )]
     fn longer_trace_fails_with_default_depth() -> serde_json::Result<()> {
         let model = SkyjoustInteractionModel::default();
         let result = validate_trace(&model, long_legal_trace()?);

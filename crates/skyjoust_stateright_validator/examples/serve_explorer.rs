@@ -9,6 +9,11 @@ use stateright::Model;
 const EXPLORER_HOST: &str = "localhost:3000";
 const EXPLORER_URL: &str = "http://localhost:3000/";
 
+#[expect(
+    clippy::print_stderr,
+    clippy::print_stdout,
+    reason = "this example's sole purpose is to report its own status to the developer running it"
+)]
 fn main() {
     eprintln!("attempting to serve Stateright Explorer at {EXPLORER_HOST}");
     let _checker = SkyjoustInteractionModel { max_depth: 18 }

@@ -30,6 +30,14 @@ struct WinnerDto {
 }
 
 impl Serialize for SkyAction {
+    // One arm per `SkyAction` variant is the clearest way to express this
+    // dispatch; splitting it further would trade a single obvious match for
+    // several small functions that all need to be read together anyway.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one exhaustive match arm per SkyAction variant is clearer than an artificial \
+                  split"
+    )]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -120,6 +128,13 @@ impl Serialize for SkyAction {
 }
 
 impl<'de> Deserialize<'de> for SkyAction {
+    // Mirrors the exhaustive match in `Serialize for SkyAction`: one arm per
+    // tagged variant name is the clearest way to express this dispatch.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one exhaustive match arm per tagged SkyAction variant is clearer than an \
+                  artificial split"
+    )]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -289,6 +304,16 @@ fn unit_action_name(action: &SkyAction) -> &'static str {
         SkyAction::CommitRewards => "CommitRewards",
         SkyAction::NextWarfrontTurn => "NextWarfrontTurn",
         SkyAction::ReturnToTitle => "ReturnToTitle",
+        // `Serialize for SkyAction` dispatches every tagged variant to
+        // `serialize_tagged`/`serialize_team_action` before it ever reaches
+        // `unit_action_name`, so this function is never called with one of
+        // them; the panic documents that invariant instead of silently
+        // mismatching a payload-carrying variant to a bare unit-name string.
+        #[expect(
+            clippy::unreachable,
+            reason = "tagged action variants are serialized before unit names; this documents \
+                      that invariant"
+        )]
         SkyAction::DuelDecisiveJoust { .. }
         | SkyAction::DuelInterference { .. }
         | SkyAction::Joust { .. }
