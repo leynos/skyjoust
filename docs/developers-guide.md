@@ -284,3 +284,40 @@ additional components beyond these three, such as an opt-in Cranelift codegen
 backend for `tools/dev-fast/config.toml`). `cargo fmt` and `cargo clippy` both
 run under the pinned nightly automatically; rustup resolves the toolchain from
 `rust-toolchain.toml` without an explicit `+nightly-...` argument.
+
+## 8. Fast development builds
+
+`make dev-build` and `make dev-test` offer an opt-in, faster iteration loop
+for local debug work: `dev-build` compiles debug binaries and `dev-test`
+runs the test suite, both using the Cranelift codegen backend and the
+`mold` linker configured in `tools/dev-fast/config.toml`.
+
+The `DEV_FAST_CONFIG` variable names that fragment, defaulting to
+`tools/dev-fast/config.toml`; both targets pass it to Cargo explicitly with
+`--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment —
+it takes effect only when a target invokes it directly.
+
+Using the fragment requires a nightly toolchain, since the Cranelift
+codegen backend is unstable. On Linux it also requires the `mold` linker
+on `PATH`; the fragment gates the `-fuse-ld=mold` flag behind a
+`target_os = "linux"` `cfg` table, so other platforms fall back to their
+default linker.
+
+Never copy the fragment's contents into `.cargo/config.toml`. Cargo
+auto-discovers that file and applies it to every invocation, which would
+silently degrade release, coverage, and verification builds to the faster
+but less optimizing backend. Keep the fast-build configuration isolated in
+`tools/dev-fast/config.toml` and reach it only through `make dev-build` and
+`make dev-test`, or through the standard targets described next.
+
+Skyjoust's own extra fact, beyond the general dev-fast contract above: per
+§7, the standard `build`, `test`, `lint`, and `typecheck` targets already
+pass `--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make.
+Dev-fast is therefore skyjoust's standard development path, not only an
+opt-in one; `make dev-build`/`make dev-test` remain useful for a
+build/test cycle that skips the other standard targets' formatting and
+lint checks. The one exception is `lint`'s Whitaker Dylint invocation:
+Whitaker runs its own dylint driver under a separately pinned toolchain,
+outside rustup's toolchain-file auto-install mechanism, so nothing
+guarantees that toolchain has the Cranelift component the fragment
+selects — the fragment is deliberately not passed there.
