@@ -70,12 +70,15 @@ The binary `src/bin/validate_trace.rs` is process glue. The Explorer example in
 
 `serde_impls/action_names.rs` owns the canonical JSON name tables and lookups
 for unit `SkyAction` variants: `UNIT_ACTION_NAMES`, `TAGGED_ACTION_NAMES`,
-`unit_action_name`, and `unit_action_from_name`. These exist to back the
-`SkyAction` serde adapter in `serde_impls/actions.rs`, the module's only
-permitted consumer — its `pub(super)` visibility enforces that at compile time.
-Domain modules and external callers must not depend on this private
-serialization detail; go through `Serialize`/`Deserialize` for `SkyAction`
-instead.
+`unit_action_name`, and `unit_action_from_name`. `unit_action_name` returns
+`Option<&'static str>`, `None` for a tagged variant, so the one call site in
+`serde_impls/actions.rs` can turn that into a `serde::ser::Error` rather than
+panicking; `unit_action_from_name` returns `Option<SkyAction>`, `None` for an
+unrecognized name. These exist to back the `SkyAction` serde adapter in
+`serde_impls/actions.rs`, the module's only permitted consumer — its
+`pub(super)` visibility enforces that at compile time. Domain modules and
+external callers must not depend on this private serialization detail; go
+through `Serialize`/`Deserialize` for `SkyAction` instead.
 
 Composition rule: when a `SkyAction` variant changes, update the
 serializer/deserializer dispatch in `serde_impls/actions.rs` and the name
