@@ -66,6 +66,26 @@ The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
 The binary `src/bin/validate_trace.rs` is process glue. The Explorer example in
 `examples/serve_explorer.rs` is diagnostic glue.
 
+### 3.1. `serde_impls/action_names.rs` boundary
+
+`serde_impls/action_names.rs` owns the canonical JSON name tables and lookups
+for unit `SkyAction` variants: `UNIT_ACTION_NAMES`, `TAGGED_ACTION_NAMES`,
+`unit_action_name`, and `unit_action_from_name`. These exist to back the
+`SkyAction` serde adapter in `serde_impls/actions.rs`, the module's only
+permitted consumer — its `pub(super)` visibility enforces that at compile time.
+Domain modules and external callers must not depend on this private
+serialization detail; go through `Serialize`/`Deserialize` for `SkyAction`
+instead.
+
+Composition rule: when a `SkyAction` variant changes, update the
+serializer/deserializer dispatch in `serde_impls/actions.rs` and the name
+tables or lookup functions in `action_names.rs` together — whether that is a
+name-table entry for a unit variant or a `serialize_tagged`/
+`serialize_team_action` call for a payload-carrying one. Reuse policy: this
+module is scoped to `SkyAction` serde name conversion only; give another wire
+format or domain type its own adapter-owned mapping rather than extending this
+one.
+
 ## 4. Public application programming interface
 
 The crate root re-exports the public surface used by tests, tools, and future
