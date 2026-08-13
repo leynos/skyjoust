@@ -87,10 +87,10 @@ fn mentions_dev_fast(text: &str) -> bool {
 }
 
 #[rstest::rstest]
-#[case::build("build")]
-#[case::test("test")]
-#[case::lint("lint")]
-#[case::typecheck("typecheck")]
+#[case::make_build("build")]
+#[case::make_test("test")]
+#[case::make_lint("lint")]
+#[case::make_typecheck("typecheck")]
 fn standard_target_recipe_wires_dev_fast_config(#[case] target: &str) {
     let standard_target = STANDARD_TARGETS
         .iter()
