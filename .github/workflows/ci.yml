@@ -51,6 +51,13 @@ jobs:
             fi
           fi
           whitaker-installer
+      - name: Install mold and clang
+        # The standard build/test/lint/typecheck targets now pass
+        # --config tools/dev-fast/config.toml, which selects the mold
+        # linker on Linux (and the Cranelift codegen backend, supplied by
+        # the pinned toolchain's own components list). Neither is
+        # provisioned by the Rust setup action above, so install them here.
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y mold clang
       - name: Lint
         run: make lint
       - name: Test and Measure Coverage

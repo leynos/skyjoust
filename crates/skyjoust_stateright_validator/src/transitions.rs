@@ -39,14 +39,22 @@ use crate::{
 ///
 /// Side effects:
 /// - Has no external side effects, but the returned state records accepted score, reward, ceremony,
-///   and Warfront mutations. In debug builds, setting `SKYJOUST_VALIDATOR_DEBUG` prints attempted
-///   actions to stderr.
+///   and Warfront mutations. In debug builds, setting `SKYJOUST_VALIDATOR_DEBUG` emits a
+///   `tracing::debug!` event for each attempted action.
 pub(crate) fn transition(last: &SkyState, action: &SkyAction) -> Option<SkyState> {
-    if cfg!(debug_assertions) && std::env::var("SKYJOUST_VALIDATOR_DEBUG").is_ok() {
-        eprintln!(
-            "skyjoust validator transition: depth={} action={action:?}",
-            last.depth
-        );
+    // Debug-only tracing gated behind an explicit opt-in environment variable.
+    // Reading it directly here (rather than through an injected reader) and
+    // writing to stderr are both scoped to this diagnostic-only branch, which
+    // never runs in release builds.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "debug-only trace toggle; not worth an injected environment reader for one \
+                  opt-in flag"
+    )]
+    let debug_trace_enabled =
+        cfg!(debug_assertions) && std::env::var("SKYJOUST_VALIDATOR_DEBUG").is_ok();
+    if debug_trace_enabled {
+        trace_transition_attempt(last.depth, action);
     }
 
     let mut state = last.clone();
@@ -63,6 +71,18 @@ pub(crate) fn transition(last: &SkyState, action: &SkyAction) -> Option<SkyState
     } else {
         None
     }
+}
+
+/// Emit a `tracing::debug!` event for an attempted transition.
+///
+/// Called only from the debug-only tracer in [`transition`], which gates it
+/// behind an explicit opt-in environment variable and `cfg!(debug_assertions)`.
+/// The event carries `depth` and `action` as structured fields; whether it is
+/// visible anywhere depends on the consuming binary installing a
+/// `tracing_subscriber` subscriber, since this library crate does not
+/// install one itself.
+fn trace_transition_attempt(depth: u16, action: &SkyAction) {
+    tracing::debug!(depth, action = ?action, "skyjoust validator transition attempted");
 }
 
 fn handle_app_flow(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
@@ -271,9 +291,11 @@ fn bomb_keep_breach(last: &SkyState, state: &mut SkyState, team: Team) -> Option
     Some(())
 }
 
-fn can_score_gameplay(state: &SkyState) -> bool { state.score.open && !state.rules.scoring_frozen }
+const fn can_score_gameplay(state: &SkyState) -> bool {
+    state.score.open && !state.rules.scoring_frozen
+}
 
-fn winner_from_team(team: Team) -> Winner {
+const fn winner_from_team(team: Team) -> Winner {
     match team {
         Team::Red => Winner::Red,
         Team::Blue => Winner::Blue,
@@ -320,7 +342,7 @@ fn mark_warfront_mutation_during_match(last: &SkyState, state: &mut SkyState) {
 ///
 /// ```
 /// fn only_even(value: u8) -> Option<u8> {
-///     fn guard(condition: bool) -> Option<()> { condition.then_some(()) }
+///     const fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
 ///
 ///     guard(value % 2 == 0)?;
 ///     Some(value)
@@ -329,7 +351,7 @@ fn mark_warfront_mutation_during_match(last: &SkyState, state: &mut SkyState) {
 /// assert_eq!(only_even(4), Some(4));
 /// assert_eq!(only_even(5), None);
 /// ```
-fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
+const fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
 
 #[cfg(test)]
 #[path = "transitions_tests.rs"]

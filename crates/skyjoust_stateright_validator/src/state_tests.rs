@@ -66,9 +66,9 @@ fn clear_temporary_rules_preserves_active_truce_override() {
     assert!(state.rules.allow_sudden_death);
 }
 
-#[test]
-fn reset_for_match_start_zeroes_match_scoped_fields() {
-    let mut state = SkyState {
+/// Build a state with every match-scoped field populated, ready to be reset.
+fn state_with_match_scoped_fields_populated() -> SkyState {
+    SkyState {
         match_phase: MatchPhase::ResultsExported,
         ceremony: CeremonyState::Duel(DuelState::DuelActive),
         truce_active: true,
@@ -90,21 +90,38 @@ fn reset_for_match_start_zeroes_match_scoped_fields() {
             ..ScoreLedger::default()
         },
         ..SkyState::default()
-    };
+    }
+}
 
-    state.reset_for_match_start();
-
+/// Assert that the match lifecycle, ceremony, and event-derived flags have
+/// returned to their construction-ready defaults.
+fn assert_lifecycle_fields_are_reset(state: &SkyState) {
     assert_eq!(state.match_phase, MatchPhase::Constructing);
     assert_eq!(state.ceremony, CeremonyState::Dormant);
-    assert!(!state.score.open);
-    assert_eq!(state.score.red_score, 0);
-    assert_eq!(state.rewards.phase, RewardPhase::Dormant);
     assert!(!state.truce_active);
     assert!(!state.truce_broken);
-    assert_eq!(state.tournament_rounds_won, 0);
     assert!(!state.tournament_completed);
     assert!(!state.duel_resolved);
     assert!(!state.duel_consequence_active);
-    assert!(!state.post_final_score_write);
     assert!(!state.warfront_mutated_during_match);
+}
+
+/// Assert that the score and reward counters have returned to their
+/// construction-ready defaults.
+fn assert_score_and_reward_fields_are_reset(state: &SkyState) {
+    assert!(!state.score.open);
+    assert_eq!(state.score.red_score, 0);
+    assert_eq!(state.rewards.phase, RewardPhase::Dormant);
+    assert_eq!(state.tournament_rounds_won, 0);
+    assert!(!state.post_final_score_write);
+}
+
+#[test]
+fn reset_for_match_start_zeroes_match_scoped_fields() {
+    let mut state = state_with_match_scoped_fields_populated();
+
+    state.reset_for_match_start();
+
+    assert_lifecycle_fields_are_reset(&state);
+    assert_score_and_reward_fields_are_reset(&state);
 }

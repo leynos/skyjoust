@@ -84,7 +84,7 @@ fn handle_duel(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Opt
             state.ceremony = CeremonyState::Duel(DuelState::DuelActive);
         }
         SkyAction::DuelDecisiveJoust { winner, outcome } => {
-            resolve_duel(last, state, *winner, *outcome)?
+            resolve_duel(last, state, *winner, *outcome)?;
         }
         SkyAction::DuelInterference { offender } => {
             guard(last.ceremony == CeremonyState::Duel(DuelState::DuelActive))?;
@@ -317,7 +317,7 @@ fn finish_event_cooldown(last: &SkyState, state: &mut SkyState) -> Option<()> {
 /// assert_eq!(only_even(4), Some(4));
 /// assert_eq!(only_even(5), None);
 /// ```
-fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
+const fn guard(condition: bool) -> Option<()> { if condition { Some(()) } else { None } }
 
 #[cfg(test)]
 #[path = "ceremonies_tests.rs"]

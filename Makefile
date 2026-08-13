@@ -17,6 +17,12 @@ DOC_FLAGS ?= --workspace --all-features --no-deps
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+# dev-fast is the standard development path: the build, test, lint, and
+# typecheck targets below pass this to every cargo invocation. Defined here
+# so those targets (which sit above the appended Wave 1 block) can see it;
+# the identical assignment in that block is a harmless no-op. Coverage,
+# release, verification, and audit targets must never receive this flag.
+DEV_FAST_CONFIG ?= tools/dev-fast/config.toml
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 WHITAKER ?= whitaker
@@ -48,10 +54,10 @@ clean: ## Remove build artefacts
 	$(CARGO) clean
 
 test: ## Run tests with warnings treated as errors
-	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 ifneq ($(TEST_CMD),test)
 	@doc_test_log="$$(mktemp)"; \
-	if RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features 2> "$$doc_test_log"; then \
+	if RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" test --doc --workspace --all-features 2> "$$doc_test_log"; then \
 		rm -f "$$doc_test_log"; \
 	elif grep -q "no library targets found" "$$doc_test_log"; then \
 		cat "$$doc_test_log"; \
@@ -65,15 +71,15 @@ ifneq ($(TEST_CMD),test)
 endif
 
 target/%/$(TARGET): ## Build binary in debug or release mode
-	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
+	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release,--config "$(DEV_FAST_CONFIG)") --bin $(TARGET)
 
 lint: ## Run Clippy and the Whitaker Dylint suite with warnings denied
-	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc $(DOC_FLAGS)
-	$(CARGO) clippy $(CLIPPY_FLAGS)
+	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" doc $(DOC_FLAGS)
+	$(CARGO) --config "$(DEV_FAST_CONFIG)" clippy $(CLIPPY_FLAGS)
 	RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
 
 typecheck: ## Type-check without building
-	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) check $(CARGO_FLAGS)
+	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" check $(CARGO_FLAGS)
 
 fmt: ## Format Rust and Markdown sources
 	$(CARGO) +nightly fmt --all
@@ -133,3 +139,14 @@ check-state-graphs: check-diagrams ## Verify JSON state graph bundle matches YAM
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
+
+# Opt-in accelerated debug builds (Cranelift + mold); requires a nightly
+# toolchain. See AGENTS.md and tools/dev-fast/config.toml.
+DEV_FAST_CONFIG ?= tools/dev-fast/config.toml
+
+.PHONY: dev-build dev-test
+dev-build: ## Build debug binaries with Cranelift and mold
+	$(CARGO) --config "$(DEV_FAST_CONFIG)" build
+
+dev-test: ## Run tests with Cranelift and mold
+	$(CARGO) --config "$(DEV_FAST_CONFIG)" test

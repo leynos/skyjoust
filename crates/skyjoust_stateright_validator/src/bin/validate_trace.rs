@@ -5,6 +5,15 @@
 //! `TraceValidation` result, and exits with code 2 when the trace is invalid.
 //! Passing `--verbose` prints replay diagnostics to stderr without changing the
 //! machine-readable output on stdout.
+//!
+//! `main` installs a `tracing_subscriber` that writes to stderr at `DEBUG`
+//! level or above, before doing anything else, so `SKYJOUST_VALIDATOR_DEBUG=1`
+//! (see `skyjoust_stateright_validator::transitions`) has somewhere to send
+//! its `tracing::debug!` events; without a subscriber configured for at least
+//! `DEBUG`, those events are silently dropped (a bare `fmt` subscriber only
+//! shows `INFO` and above by default). Writing to stderr, not the default
+//! stdout, keeps the pretty JSON result on stdout the sole machine-readable
+//! output.
 
 use std::{
     env,
@@ -15,6 +24,11 @@ use eyre::{Context, Report, bail};
 use skyjoust_stateright_validator::{SkyAction, SkyjoustInteractionModel, validate_trace};
 
 fn main() -> Result<(), Report> {
+    tracing_subscriber::fmt()
+        .with_writer(io::stderr)
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     let options = TraceCliOptions::parse(env::args().skip(1))?;
     let mut input = String::new();
     io::stdin()
@@ -26,32 +40,59 @@ fn main() -> Result<(), Report> {
     let model = options.model();
 
     if options.verbose {
-        for (step_index, action) in trace.iter().enumerate() {
-            eprintln!("trace step {step_index}: {action:?}");
-        }
+        trace_steps(&trace);
     }
 
     let result = validate_trace(&model, trace);
 
     if options.verbose {
-        eprintln!(
-            "trace final state: ok={} depth={} app={:?} match_phase={:?} rewards={:?}",
-            result.ok,
-            result.final_state.depth,
-            result.final_state.app,
-            result.final_state.match_phase,
-            result.final_state.rewards.phase
-        );
+        trace_final_state(&result);
     }
 
     let output = serde_json::to_string_pretty(&result)
         .wrap_err("failed to serialize trace validation result")?;
-    println!("{output}");
+    print_result(&output);
     if result.ok {
         Ok(())
     } else {
         std::process::exit(2)
     }
+}
+
+/// Write one `--verbose` diagnostic line per replayed action to stderr.
+#[expect(
+    clippy::print_stderr,
+    reason = "the --verbose flag's whole purpose is to print replay diagnostics to stderr"
+)]
+fn trace_steps(trace: &[SkyAction]) {
+    for (step_index, action) in trace.iter().enumerate() {
+        eprintln!("trace step {step_index}: {action:?}");
+    }
+}
+
+/// Write a `--verbose` summary of the final replayed state to stderr.
+#[expect(
+    clippy::print_stderr,
+    reason = "the --verbose flag's whole purpose is to print replay diagnostics to stderr"
+)]
+fn trace_final_state(result: &skyjoust_stateright_validator::TraceValidation) {
+    eprintln!(
+        "trace final state: ok={} depth={} app={:?} match_phase={:?} rewards={:?}",
+        result.ok,
+        result.final_state.depth,
+        result.final_state.app,
+        result.final_state.match_phase,
+        result.final_state.rewards.phase
+    );
+}
+
+/// Write the machine-readable `TraceValidation` JSON result to stdout.
+#[expect(
+    clippy::print_stdout,
+    reason = "the machine-readable TraceValidation result is this CLI's stdout contract"
+)]
+fn print_result(output: &str) {
+    println!("{output}");
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -66,13 +107,13 @@ impl TraceCliOptions {
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        let mut args = args.into_iter().map(Into::into);
+        let mut arg_values = args.into_iter().map(Into::into);
         let mut options = Self::default();
 
-        while let Some(arg) = args.next() {
+        while let Some(arg) = arg_values.next() {
             match arg.as_str() {
                 "--max-depth" => {
-                    let raw_depth = args
+                    let raw_depth = arg_values
                         .next()
                         .ok_or_else(|| eyre::eyre!("--max-depth requires a numeric value"))?;
                     options.max_depth = Some(
@@ -92,10 +133,10 @@ impl TraceCliOptions {
     }
 
     fn model(self) -> SkyjoustInteractionModel {
-        match self.max_depth {
-            Some(max_depth) => SkyjoustInteractionModel { max_depth },
-            None => SkyjoustInteractionModel::default(),
-        }
+        self.max_depth
+            .map_or_else(SkyjoustInteractionModel::default, |max_depth| {
+                SkyjoustInteractionModel { max_depth }
+            })
     }
 }
 
@@ -106,6 +147,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "assert_eq! gives a clearer failure message than manually building an Err here"
+    )]
     fn max_depth_overrides_default_model() -> Result<(), Report> {
         let options = TraceCliOptions::parse(["--max-depth", "40"])?;
 
@@ -114,6 +159,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "assert_eq! gives a clearer failure message than manually building an Err here"
+    )]
     fn omitted_max_depth_uses_default_model() -> Result<(), Report> {
         let options = TraceCliOptions::parse(std::iter::empty::<&str>())?;
 
@@ -125,6 +174,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "assert! gives a clearer failure message than manually building an Err here"
+    )]
     fn verbose_flag_is_recorded() -> Result<(), Report> {
         let options = TraceCliOptions::parse(["--verbose"])?;
 
@@ -133,26 +186,23 @@ mod tests {
     }
 
     #[test]
-    fn missing_max_depth_fails() -> Result<(), Report> {
+    fn missing_max_depth_fails() {
         let result = TraceCliOptions::parse(["--max-depth"]);
 
         assert!(result.is_err());
-        Ok(())
     }
 
     #[test]
-    fn invalid_max_depth_fails() -> Result<(), Report> {
+    fn invalid_max_depth_fails() {
         let result = TraceCliOptions::parse(["--max-depth", "foo"]);
 
         assert!(result.is_err());
-        Ok(())
     }
 
     #[test]
-    fn unrecognized_argument_fails() -> Result<(), Report> {
+    fn unrecognized_argument_fails() {
         let result = TraceCliOptions::parse(["--unknown"]);
 
         assert!(result.is_err());
-        Ok(())
     }
 }

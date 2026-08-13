@@ -57,7 +57,7 @@ The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
 | `model.rs`              | Core bounded model configuration.                                        |
 | `properties.rs`         | `always` invariants and `sometimes` reachability checks.                 |
 | `scoring.rs`            | Score atoms, morale changes, winner selection, and reward tallying.      |
-| `serde_impls.rs`        | Serialization adapter for domain types.                                  |
+| `serde_impls/`          | Serialization adapters for domain types, one module per adapter group.   |
 | `state.rs`              | Core state snapshot, state enums, and guard helpers.                     |
 | `stateright_adapter.rs` | Stateright `Model` implementation for the core model.                    |
 | `trace.rs`              | Concrete JSON trace replay and validation output types.                  |
@@ -65,6 +65,29 @@ The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
 
 The binary `src/bin/validate_trace.rs` is process glue. The Explorer example in
 `examples/serve_explorer.rs` is diagnostic glue.
+
+### 3.1. `serde_impls/action_names.rs` boundary
+
+`serde_impls/action_names.rs` owns the canonical JSON name tables and lookups
+for unit `SkyAction` variants: `UNIT_ACTION_NAMES`, `TAGGED_ACTION_NAMES`,
+`unit_action_name`, and `unit_action_from_name`. `unit_action_name` returns
+`Option<&'static str>`, `None` for a tagged variant, so the one call site in
+`serde_impls/actions.rs` can turn that into a `serde::ser::Error` rather than
+panicking; `unit_action_from_name` returns `Option<SkyAction>`, `None` for an
+unrecognized name. These exist to back the `SkyAction` serde adapter in
+`serde_impls/actions.rs`, the module's only permitted consumer — its
+`pub(super)` visibility enforces that at compile time. Domain modules and
+external callers must not depend on this private serialization detail; go
+through `Serialize`/`Deserialize` for `SkyAction` instead.
+
+Composition rule: when a `SkyAction` variant changes, update the
+serializer/deserializer dispatch in `serde_impls/actions.rs` and the name
+tables or lookup functions in `action_names.rs` together — whether that is a
+name-table entry for a unit variant or a `serialize_tagged`/
+`serialize_team_action` call for a payload-carrying one. Reuse policy: this
+module is scoped to `SkyAction` serde name conversion only; give another wire
+format or domain type its own adapter-owned mapping rather than extending this
+one.
 
 ## 4. Public application programming interface
 
@@ -82,8 +105,8 @@ runtime integration:
 | State enums                                    | Expose app, match, ceremony, Warfront, objective, and reward phases. |
 | `ALWAYS_PROPERTIES` and `SOMETIMES_PROPERTIES` | Expose property tables for diagnostics.                              |
 
-Serde support is intentionally isolated in `serde_impls.rs`; domain modules do
-not derive serialization traits directly.
+Serde support is intentionally isolated in the `serde_impls` module; domain
+modules do not derive serialization traits directly.
 
 ## 5. Extending the model
 
@@ -183,5 +206,118 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace \
   < crates/skyjoust_stateright_validator/traces/tournament_reward_commit.json
 ```
 
-Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to print transition
-attempts during depth-first search.
+Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to emit a
+`tracing::debug!` event for each transition attempt during depth-first
+search. `validate_trace` and the Explorer example both install a
+stderr-writing `tracing_subscriber`, so the events are visible when
+running either; a caller embedding the library elsewhere must install
+its own subscriber to observe them.
+
+## 7. Lint baseline
+
+Skyjoust follows the df12 estate's phase 2 Rust baseline for lint configuration.
+`Cargo.toml` is the source of truth for the exact lint set; this section
+explains where the tables live and how to work with them, not what every entry
+does.
+
+### 7.1. Table placement and inheritance
+
+The canonical clippy, rust, and rustdoc lint tables live under
+`[workspace.lints.clippy]`, `[workspace.lints.rust]`, and
+`[workspace.lints.rustdoc]` in the root `Cargo.toml`. Every workspace member,
+including the root `skyjoust` package, inherits them with:
+
+```toml
+[lints]
+workspace = true
+```
+
+Any new crate added to the workspace must carry that stanza. A crate without it
+silently opts out of the estate baseline instead of failing loudly, so review
+new `Cargo.toml` files for it during code review.
+
+### 7.2. What the tables enforce
+
+The tables summarize the estate's phase 2 baseline; read `Cargo.toml` for the
+authoritative, current list rather than relying on this summary. In brief:
+
+- Clippy denies panic-prone operations (`unwrap_used`, `expect_used`,
+  `indexing_slicing`, `unreachable`, and similar), debugging leftovers
+  (`dbg_macro`, `print_stdout`, `print_stderr`), numerical foot-guns such as
+  lossy casts, and direct environment access (`disallowed_methods`, see §7.4).
+  `clippy::pedantic` runs at `warn`.
+- The rust lint set forbids `unsafe_code` outright and denies `missing_docs`,
+  so every public item needs a doc comment.
+- The rustdoc set denies broken and private intra-doc links, bare URLs, and
+  malformed code blocks, alongside `missing_crate_level_docs`.
+
+### 7.3. Silencing a lint
+
+Fix the violation. When a fix is not worthwhile — the site is deliberately
+outside the mandate, or a rewrite would cost more clarity than it buys —
+annotate it with:
+
+```rust
+#[expect(clippy::some_lint, reason = "why this site is a sanctioned exception")]
+```
+
+Never use `#[allow(...)]` for this. `expect` only suppresses the lint while the
+violation still exists; once the site is fixed or refactored away, the
+unfulfilled expectation itself becomes a warning, so a stale annotation
+surfaces instead of rotting silently.
+
+### 7.4. `clippy.toml` thresholds and the environment-access mandate
+
+`clippy.toml` sets the code-health thresholds (cognitive complexity, argument
+count, function length, nesting depth) and lists the `std::env` functions
+clippy disallows: `var`, `var_os`, `vars`, `vars_os`, `set_var`, and
+`remove_var`. Inject an environment reader (or, in tests, a stub environment)
+instead of reading or mutating the process environment directly.
+`allow-expect-in-tests` permits `.expect(...)` inside `#[test]` functions, but
+not in shared, non-test helpers.
+
+### 7.5. Toolchain
+
+`rust-toolchain.toml` pins a dated nightly channel and requires it to supply the
+`rustfmt`, `clippy`, and `rust-analyzer` components (a repository may carry
+additional components beyond these three, such as an opt-in Cranelift codegen
+backend for `tools/dev-fast/config.toml`). `cargo fmt` and `cargo clippy` both
+run under the pinned nightly automatically; rustup resolves the toolchain from
+`rust-toolchain.toml` without an explicit `+nightly-...` argument.
+
+## 8. Fast development builds
+
+`make dev-build` and `make dev-test` offer an opt-in, faster iteration loop
+for local debug work: `dev-build` compiles debug binaries and `dev-test`
+runs the test suite, both using the Cranelift codegen backend and the
+`mold` linker configured in `tools/dev-fast/config.toml`.
+
+The `DEV_FAST_CONFIG` variable names that fragment, defaulting to
+`tools/dev-fast/config.toml`; both targets pass it to Cargo explicitly with
+`--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment —
+it takes effect only when a target invokes it directly.
+
+Using the fragment requires a nightly toolchain, since the Cranelift
+codegen backend is unstable. On Linux it also requires the `mold` linker
+on `PATH`; the fragment gates the `-fuse-ld=mold` flag behind a
+`target_os = "linux"` `cfg` table, so other platforms fall back to their
+default linker.
+
+Never copy the fragment's contents into `.cargo/config.toml`. Cargo
+auto-discovers that file and applies it to every invocation, which would
+silently degrade release, coverage, and verification builds to the faster
+but less optimizing backend. Keep the fast-build configuration isolated in
+`tools/dev-fast/config.toml` and reach it only through `make dev-build` and
+`make dev-test`, or through the standard targets described next.
+
+Skyjoust's own extra fact, beyond the general dev-fast contract above: per
+§7, the standard `build`, `test`, `lint`, and `typecheck` targets already
+pass `--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make.
+Dev-fast is therefore skyjoust's standard development path, not only an
+opt-in one; `make dev-build`/`make dev-test` remain useful for a
+build/test cycle that skips the other standard targets' formatting and
+lint checks. The one exception is `lint`'s Whitaker Dylint invocation:
+Whitaker runs its own dylint driver under a separately pinned toolchain,
+outside rustup's toolchain-file auto-install mechanism, so nothing
+guarantees that toolchain has the Cranelift component the fragment
+selects — the fragment is deliberately not passed there.
