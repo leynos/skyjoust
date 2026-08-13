@@ -57,7 +57,7 @@ The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
 | `model.rs`              | Core bounded model configuration.                                        |
 | `properties.rs`         | `always` invariants and `sometimes` reachability checks.                 |
 | `scoring.rs`            | Score atoms, morale changes, winner selection, and reward tallying.      |
-| `serde_impls.rs`        | Serialization adapter for domain types.                                  |
+| `serde_impls/`          | Serialization adapters for domain types, one module per adapter group.   |
 | `state.rs`              | Core state snapshot, state enums, and guard helpers.                     |
 | `stateright_adapter.rs` | Stateright `Model` implementation for the core model.                    |
 | `trace.rs`              | Concrete JSON trace replay and validation output types.                  |
@@ -82,8 +82,8 @@ runtime integration:
 | State enums                                    | Expose app, match, ceremony, Warfront, objective, and reward phases. |
 | `ALWAYS_PROPERTIES` and `SOMETIMES_PROPERTIES` | Expose property tables for diagnostics.                              |
 
-Serde support is intentionally isolated in `serde_impls.rs`; domain modules do
-not derive serialization traits directly.
+Serde support is intentionally isolated in the `serde_impls` module; domain
+modules do not derive serialization traits directly.
 
 ## 5. Extending the model
 
@@ -185,3 +185,75 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace \
 
 Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to print transition
 attempts during depth-first search.
+
+## 7. Lint baseline
+
+Skyjoust follows the df12 estate's phase 2 Rust baseline for lint configuration.
+`Cargo.toml` is the source of truth for the exact lint set; this section
+explains where the tables live and how to work with them, not what every entry
+does.
+
+### 7.1. Table placement and inheritance
+
+The canonical clippy, rust, and rustdoc lint tables live under
+`[workspace.lints.clippy]`, `[workspace.lints.rust]`, and
+`[workspace.lints.rustdoc]` in the root `Cargo.toml`. Every workspace member,
+including the root `skyjoust` package, inherits them with:
+
+```toml
+[lints]
+workspace = true
+```
+
+Any new crate added to the workspace must carry that stanza. A crate without it
+silently opts out of the estate baseline instead of failing loudly, so review
+new `Cargo.toml` files for it during code review.
+
+### 7.2. What the tables enforce
+
+The tables summarize the estate's phase 2 baseline; read `Cargo.toml` for the
+authoritative, current list rather than relying on this summary. In brief:
+
+- Clippy denies panic-prone operations (`unwrap_used`, `expect_used`,
+  `indexing_slicing`, `unreachable`, and similar), debugging leftovers
+  (`dbg_macro`, `print_stdout`, `print_stderr`), numerical foot-guns such as
+  lossy casts, and direct environment access (`disallowed_methods`, see §7.4).
+  `clippy::pedantic` runs at `warn`.
+- The rust lint set forbids `unsafe_code` outright and denies `missing_docs`,
+  so every public item needs a doc comment.
+- The rustdoc set denies broken and private intra-doc links, bare URLs, and
+  malformed code blocks, alongside `missing_crate_level_docs`.
+
+### 7.3. Silencing a lint
+
+Fix the violation. When a fix is not worthwhile — the site is deliberately
+outside the mandate, or a rewrite would cost more clarity than it buys —
+annotate it with:
+
+```rust
+#[expect(clippy::some_lint, reason = "why this site is a sanctioned exception")]
+```
+
+Never use `#[allow(...)]` for this. `expect` only suppresses the lint while the
+violation still exists; once the site is fixed or refactored away, the
+unfulfilled expectation itself becomes a warning, so a stale annotation
+surfaces instead of rotting silently.
+
+### 7.4. `clippy.toml` thresholds and the environment-access mandate
+
+`clippy.toml` sets the code-health thresholds (cognitive complexity, argument
+count, function length, nesting depth) and lists the `std::env` functions
+clippy disallows: `var`, `var_os`, `vars`, `vars_os`, `set_var`, and
+`remove_var`. Inject an environment reader (or, in tests, a stub environment)
+instead of reading or mutating the process environment directly.
+`allow-expect-in-tests` permits `.expect(...)` inside `#[test]` functions, but
+not in shared, non-test helpers.
+
+### 7.5. Toolchain
+
+`rust-toolchain.toml` pins a dated nightly channel and requires it to supply the
+`rustfmt`, `clippy`, and `rust-analyzer` components (a repository may carry
+additional components beyond these three, such as an opt-in Cranelift codegen
+backend for `tools/dev-fast/config.toml`). `cargo fmt` and `cargo clippy` both
+run under the pinned nightly automatically; rustup resolves the toolchain from
+`rust-toolchain.toml` without an explicit `+nightly-...` argument.
