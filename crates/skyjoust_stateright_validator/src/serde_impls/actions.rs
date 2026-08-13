@@ -1,6 +1,13 @@
 //! Serde adapter implementations for action domain types.
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
+use serde::{
+    Deserialize,
+    Deserializer,
+    Serialize,
+    Serializer,
+    de::Error as _,
+    ser::Error as SerError,
+};
 
 use super::action_names::{
     TAGGED_ACTION_NAMES,
@@ -128,7 +135,12 @@ impl Serialize for SkyAction {
             | Self::TallyRewards
             | Self::CommitRewards
             | Self::NextWarfrontTurn
-            | Self::ReturnToTitle => serializer.serialize_str(unit_action_name(self)),
+            | Self::ReturnToTitle => {
+                let name = unit_action_name(self).ok_or_else(|| {
+                    S::Error::custom("tagged action variant reached the unit-name serializer")
+                })?;
+                serializer.serialize_str(name)
+            }
         }
     }
 }
@@ -252,4 +264,48 @@ where
     let mut map = serializer.serialize_map(Some(1))?;
     map.serialize_entry(name, &payload)?;
     map.end()
+}
+
+#[cfg(test)]
+mod tests {
+    //! Round-trip tests for the `SkyAction` serde adapter.
+
+    use rstest::rstest;
+
+    use super::*;
+    use crate::actions::JoustOutcome;
+
+    #[rstest]
+    #[case::assets_loaded(SkyAction::AssetsLoaded, "\"AssetsLoaded\"")]
+    #[case::return_to_title(SkyAction::ReturnToTitle, "\"ReturnToTitle\"")]
+    fn unit_action_round_trips_through_json(#[case] action: SkyAction, #[case] json: &str) {
+        let serialized = serde_json::to_string(&action).expect("unit action should serialize");
+
+        assert_eq!(serialized, json);
+        assert_eq!(
+            serde_json::from_str::<SkyAction>(&serialized)
+                .expect("serialized unit action should deserialize"),
+            action
+        );
+    }
+
+    #[rstest]
+    #[case::team_action(
+        SkyAction::CaptureOutpost { team: Team::Red },
+        "{\"CaptureOutpost\":{\"team\":\"Red\"}}"
+    )]
+    #[case::joust(
+        SkyAction::Joust { winner: Team::Blue, outcome: JoustOutcome::CleanKill },
+        "{\"Joust\":{\"winner\":\"Blue\",\"outcome\":\"CleanKill\"}}"
+    )]
+    fn tagged_action_round_trips_through_json(#[case] action: SkyAction, #[case] json: &str) {
+        let serialized = serde_json::to_string(&action).expect("tagged action should serialize");
+
+        assert_eq!(serialized, json);
+        assert_eq!(
+            serde_json::from_str::<SkyAction>(&serialized)
+                .expect("serialized tagged action should deserialize"),
+            action
+        );
+    }
 }

@@ -54,8 +54,16 @@ pub(super) const TAGGED_ACTION_NAMES: &[&str] = &[
     "BombKeepBreach",
 ];
 
-pub(super) fn unit_action_name(action: &SkyAction) -> &'static str {
-    match action {
+/// Return the unit-name string for `action`, or `None` for a tagged variant.
+///
+/// `Serialize for SkyAction` dispatches every tagged variant to
+/// `serialize_tagged`/`serialize_team_action` before it ever reaches this
+/// function, so the `None` arm is not expected to run in practice. It
+/// returns `None` rather than panicking so a future caller — or a bug in
+/// that dispatch — gets a value to turn into a proper serialization error
+/// instead of an unconditional panic.
+pub(super) const fn unit_action_name(action: &SkyAction) -> Option<&'static str> {
+    Some(match action {
         SkyAction::AssetsLoaded => "AssetsLoaded",
         SkyAction::StartSkirmish => "StartSkirmish",
         SkyAction::StartWarfront => "StartWarfront",
@@ -92,16 +100,6 @@ pub(super) fn unit_action_name(action: &SkyAction) -> &'static str {
         SkyAction::CommitRewards => "CommitRewards",
         SkyAction::NextWarfrontTurn => "NextWarfrontTurn",
         SkyAction::ReturnToTitle => "ReturnToTitle",
-        // `Serialize for SkyAction` dispatches every tagged variant to
-        // `serialize_tagged`/`serialize_team_action` before it ever reaches
-        // `unit_action_name`, so this function is never called with one of
-        // them; the panic documents that invariant instead of silently
-        // mismatching a payload-carrying variant to a bare unit-name string.
-        #[expect(
-            clippy::unreachable,
-            reason = "tagged action variants are serialized before unit names; this documents \
-                      that invariant"
-        )]
         SkyAction::DuelDecisiveJoust { .. }
         | SkyAction::DuelInterference { .. }
         | SkyAction::Joust { .. }
@@ -111,10 +109,8 @@ pub(super) fn unit_action_name(action: &SkyAction) -> &'static str {
         | SkyAction::ClaimShrine { .. }
         | SkyAction::BlockSupplyRoute { .. }
         | SkyAction::DeliverHostage { .. }
-        | SkyAction::BombKeepBreach { .. } => {
-            unreachable!("tagged action variants are serialized before unit names")
-        }
-    }
+        | SkyAction::BombKeepBreach { .. } => return None,
+    })
 }
 
 pub(super) fn unit_action_from_name(name: &str) -> Option<SkyAction> {
