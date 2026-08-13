@@ -12,7 +12,11 @@
 //! This test reads the checked-in `Makefile` at a compile-time-known path
 //! and asserts on its literal recipe text, so an agent editing the
 //! Makefile without preserving the wiring fails this suite locally,
-//! before the estate audit (concordat's DF-004 rule) ever runs.
+//! before the estate audit (concordat's DF-004 rule) ever runs. Checks
+//! are per cargo-invoking line, not per recipe block: a target whose
+//! recipe has several `$(CARGO)` lines (nextest plus doc-tests, doc plus
+//! clippy) must not pass a whole-block substring match while one of
+//! those lines is unwired.
 
 /// The checked-in `Makefile`, embedded at compile time from the crate
 /// root (this test lives in the root `skyjoust` package, whose
@@ -59,10 +63,24 @@ const STANDARD_TARGETS: &[StandardTarget] = &[
     },
 ];
 
-/// Extract a Makefile rule's recipe block: the line beginning with
-/// `{rule}:`, followed by every subsequent line that starts with a tab.
-/// Returns `None` when the rule is not defined at all, matching this
-/// test's "where the target exists" scoping.
+/// Return `true` for a line that is part of a rule's body: a tab-indented
+/// recipe line, or a bare Make conditional directive (`ifeq`/`ifneq`/
+/// `ifdef`/`ifndef`/`else`/`endif`). The `test` target wraps its doc-test
+/// invocation in an `ifneq`/`endif` block whose directive lines sit at
+/// column zero, so a recipe extractor that only follows tab-indented
+/// lines would silently stop before reaching that cargo invocation.
+fn is_rule_body_line(line: &str) -> bool {
+    line.starts_with('\t')
+        || matches!(
+            line.split_whitespace().next(),
+            Some("ifeq" | "ifneq" | "ifdef" | "ifndef" | "else" | "endif")
+        )
+}
+
+/// Extract a Makefile rule's full body: the line beginning with
+/// `{rule}:`, followed by every subsequent [`is_rule_body_line`]. Returns
+/// `None` when the rule is not defined at all, matching this test's
+/// "where the target exists" scoping.
 fn recipe_block(makefile: &str, rule: &str) -> Option<String> {
     let marker = format!("{rule}:");
     let lines: Vec<&str> = makefile.lines().collect();
@@ -73,10 +91,22 @@ fn recipe_block(makefile: &str, rule: &str) -> Option<String> {
                 .iter()
                 .skip(start + 1)
                 .copied()
-                .take_while(|line| line.starts_with('\t')),
+                .take_while(|line| is_rule_body_line(line)),
         )
         .collect();
     Some(block.join("\n"))
+}
+
+/// Every line in `recipe` that invokes `$(CARGO)`. Lines that only wrap
+/// cargo indirectly — such as the `lint` target's Whitaker Dylint
+/// invocation, which runs under its own separately-pinned toolchain and
+/// is deliberately excluded from the dev-fast fragment — are not cargo
+/// lines by this definition and are correctly skipped.
+fn cargo_invoking_lines(recipe: &str) -> Vec<&str> {
+    recipe
+        .lines()
+        .filter(|line| line.contains("$(CARGO)"))
+        .collect()
 }
 
 /// Case-insensitively check `text` for a `dev-fast`/`dev_fast` mention,
@@ -91,7 +121,7 @@ fn mentions_dev_fast(text: &str) -> bool {
 #[case::make_test("test")]
 #[case::make_lint("lint")]
 #[case::make_typecheck("typecheck")]
-fn standard_target_recipe_wires_dev_fast_config(#[case] target: &str) {
+fn standard_target_cargo_lines_wire_dev_fast_config(#[case] target: &str) {
     let standard_target = STANDARD_TARGETS
         .iter()
         .find(|entry| entry.target == target)
@@ -106,20 +136,31 @@ fn standard_target_recipe_wires_dev_fast_config(#[case] target: &str) {
         )
     });
 
+    let cargo_lines = cargo_invoking_lines(&recipe);
     assert!(
-        recipe.contains("--config"),
-        "`make {target}`'s recipe (rule {:?}) must pass `--config` to every cargo invocation, per \
-         the dev-fast standard-path convention documented in AGENTS.md under \"Fast development \
-         builds\"; recipe was:\n{recipe}",
+        !cargo_lines.is_empty(),
+        "`make {target}`'s recipe (rule {:?}) has no `$(CARGO)` invocation to check; recipe \
+         was:\n{recipe}",
         standard_target.recipe_rule
     );
-    assert!(
-        mentions_dev_fast(&recipe),
-        "`make {target}`'s recipe (rule {:?}) must reference the dev-fast config fragment \
-         (matching `dev-fast`/`dev_fast`), per the convention documented in AGENTS.md under \
-         \"Fast development builds\"; recipe was:\n{recipe}",
-        standard_target.recipe_rule
-    );
+
+    for cargo_line in cargo_lines {
+        assert!(
+            cargo_line.contains("--config"),
+            "`make {target}`'s recipe (rule {:?}) has a `$(CARGO)` line that does not pass \
+             `--config`, per the dev-fast standard-path convention documented in AGENTS.md under \
+             \"Fast development builds\"; offending line was:\n{cargo_line}",
+            standard_target.recipe_rule
+        );
+        assert!(
+            mentions_dev_fast(cargo_line),
+            "`make {target}`'s recipe (rule {:?}) has a `$(CARGO)` line that does not reference \
+             the dev-fast config fragment (matching `dev-fast`/`dev_fast`), per the convention \
+             documented in AGENTS.md under \"Fast development builds\"; offending line \
+             was:\n{cargo_line}",
+            standard_target.recipe_rule
+        );
+    }
 }
 
 #[test]
@@ -152,5 +193,70 @@ fn dev_fast_config_fragment_exists() {
         "expected the dev-fast Cargo configuration fragment at {DEV_FAST_CONFIG_PATH}, referenced \
          by the standard build/test/lint/typecheck targets and documented in AGENTS.md under \
          \"Fast development builds\""
+    );
+}
+
+/// Find `needle` in `haystack` at or after byte offset `after`, returning
+/// an absolute offset. Uses `str::get` rather than the `[]` index
+/// operator so a byte offset that lands off a UTF-8 boundary yields
+/// `None` instead of panicking.
+fn find_after(haystack: &str, needle: &str, after: usize) -> Option<usize> {
+    haystack
+        .get(after..)?
+        .find(needle)
+        .map(|offset| after + offset)
+}
+
+#[rstest::rstest]
+#[case::make_dev_build("dev-build")]
+#[case::make_dev_test("dev-test")]
+fn dev_target_substitutes_cargo_via_dry_run(#[case] target: &str) {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let output = std::process::Command::new("make")
+        .args(["--dry-run", target, "CARGO=probe-cargo"])
+        .current_dir(manifest_dir)
+        .output()
+        .unwrap_or_else(|error| {
+            panic!("failed to run `make --dry-run {target} CARGO=probe-cargo`: {error}")
+        });
+
+    assert!(
+        output.status.success(),
+        "`make --dry-run {target} CARGO=probe-cargo` exited with {}; stderr was:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Each `find_after` call starts searching from the offset the previous
+    // one returned, so success alone proves the three tokens appear in
+    // order: the substituted cargo binary, then `--config`, then a
+    // dev-fast reference.
+    let cargo_index = stdout.find("probe-cargo").unwrap_or_else(|| {
+        panic!(
+            "`make --dry-run {target} CARGO=probe-cargo` did not substitute CARGO into the \
+             emitted command, so dev-fast wiring cannot be exercised without the pinned nightly \
+             toolchain or mold; emitted command was:\n{stdout}"
+        )
+    });
+    let config_index = find_after(&stdout, "--config", cargo_index).unwrap_or_else(|| {
+        panic!(
+            "`make --dry-run {target} CARGO=probe-cargo`'s emitted command has no `--config` \
+             after the substituted cargo binary; emitted command was:\n{stdout}"
+        )
+    });
+    let dev_fast_index = find_after(&stdout.to_lowercase(), "dev-fast", config_index)
+        .or_else(|| find_after(&stdout.to_lowercase(), "dev_fast", config_index))
+        .unwrap_or_else(|| {
+            panic!(
+                "`make --dry-run {target} CARGO=probe-cargo`'s emitted command has no dev-fast \
+                 reference after `--config`; emitted command was:\n{stdout}"
+            )
+        });
+    assert!(
+        cargo_index < config_index && config_index < dev_fast_index,
+        "expected probe-cargo, --config, and a dev-fast reference in that order in `make \
+         --dry-run {target} CARGO=probe-cargo`'s emitted command; emitted command was:\n{stdout}"
     );
 }
