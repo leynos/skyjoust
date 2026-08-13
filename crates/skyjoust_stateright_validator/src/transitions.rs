@@ -39,8 +39,8 @@ use crate::{
 ///
 /// Side effects:
 /// - Has no external side effects, but the returned state records accepted score, reward, ceremony,
-///   and Warfront mutations. In debug builds, setting `SKYJOUST_VALIDATOR_DEBUG` prints attempted
-///   actions to stderr.
+///   and Warfront mutations. In debug builds, setting `SKYJOUST_VALIDATOR_DEBUG` emits a
+///   `tracing::debug!` event for each attempted action.
 pub(crate) fn transition(last: &SkyState, action: &SkyAction) -> Option<SkyState> {
     // Debug-only tracing gated behind an explicit opt-in environment variable.
     // Reading it directly here (rather than through an injected reader) and
@@ -73,16 +73,16 @@ pub(crate) fn transition(last: &SkyState, action: &SkyAction) -> Option<SkyState
     }
 }
 
-/// Write a one-line trace of an attempted transition to stderr.
+/// Emit a `tracing::debug!` event for an attempted transition.
 ///
 /// Called only from the debug-only tracer in [`transition`], which gates it
 /// behind an explicit opt-in environment variable and `cfg!(debug_assertions)`.
-#[expect(
-    clippy::print_stderr,
-    reason = "intentional developer trace output for the debug-only transition tracer"
-)]
+/// The event carries `depth` and `action` as structured fields; whether it is
+/// visible anywhere depends on the consuming binary installing a
+/// `tracing_subscriber` subscriber, since this library crate does not
+/// install one itself.
 fn trace_transition_attempt(depth: u16, action: &SkyAction) {
-    eprintln!("skyjoust validator transition: depth={depth} action={action:?}");
+    tracing::debug!(depth, action = ?action, "skyjoust validator transition attempted");
 }
 
 fn handle_app_flow(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {

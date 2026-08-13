@@ -5,6 +5,15 @@
 //! `TraceValidation` result, and exits with code 2 when the trace is invalid.
 //! Passing `--verbose` prints replay diagnostics to stderr without changing the
 //! machine-readable output on stdout.
+//!
+//! `main` installs a `tracing_subscriber` that writes to stderr at `DEBUG`
+//! level or above, before doing anything else, so `SKYJOUST_VALIDATOR_DEBUG=1`
+//! (see `skyjoust_stateright_validator::transitions`) has somewhere to send
+//! its `tracing::debug!` events; without a subscriber configured for at least
+//! `DEBUG`, those events are silently dropped (a bare `fmt` subscriber only
+//! shows `INFO` and above by default). Writing to stderr, not the default
+//! stdout, keeps the pretty JSON result on stdout the sole machine-readable
+//! output.
 
 use std::{
     env,
@@ -15,6 +24,11 @@ use eyre::{Context, Report, bail};
 use skyjoust_stateright_validator::{SkyAction, SkyjoustInteractionModel, validate_trace};
 
 fn main() -> Result<(), Report> {
+    tracing_subscriber::fmt()
+        .with_writer(io::stderr)
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     let options = TraceCliOptions::parse(env::args().skip(1))?;
     let mut input = String::new();
     io::stdin()

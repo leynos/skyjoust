@@ -206,8 +206,12 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace \
   < crates/skyjoust_stateright_validator/traces/tournament_reward_commit.json
 ```
 
-Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to print transition
-attempts during depth-first search.
+Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to emit a
+`tracing::debug!` event for each transition attempt during depth-first
+search. `validate_trace` and the Explorer example both install a
+stderr-writing `tracing_subscriber`, so the events are visible when
+running either; a caller embedding the library elsewhere must install
+its own subscriber to observe them.
 
 ## 7. Lint baseline
 
