@@ -16,7 +16,8 @@ the contributor orientation stays synchronized with the repository layout.
 .
 |-- .github/
 |-- crates/
-|   `-- skyjoust_stateright_validator/
+|   |-- skyjoust_stateright_validator/
+|   `-- skyjoust_test_macros/
 |-- docs/
 |   `-- adr/
 |-- ref/
@@ -39,8 +40,8 @@ _Figure 1: Simplified repository tree for contributor orientation._
   and keep edited guidance tied to the relevant `make` target or project
   document.
 - `Cargo.toml`: workspace root and root package configuration. The workspace
-  currently includes `.` and `crates/skyjoust_stateright_validator`. Run the
-  Rust gates after workspace changes.
+  currently includes `.`, `crates/skyjoust_stateright_validator`, and
+  `crates/skyjoust_test_macros`. Run the Rust gates after workspace changes.
 - `Makefile`: canonical contributor command surface for build, formatting,
   linting, tests, Markdown checks, diagram validation, and state graph
   regeneration. Prefer these targets over direct tool invocations.
@@ -71,6 +72,11 @@ _Figure 1: Simplified repository tree for contributor orientation._
 - `crates/skyjoust_stateright_validator/traces/`: JSON trace fixtures used by
   CLI replay and regression tests. Keep them small, representative, and tied to
   concrete validator behaviour.
+- `crates/skyjoust_test_macros/`: test-only procedural macros that suppress
+  lints raised by macro expansion. It carries no runtime behaviour and is never
+  published. Add an attribute here only when a lint comes from an expansion
+  rather than from handwritten code; see
+  [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md).
 - `docs/`: source of truth for product requirements, technical design, guides,
   standards, state graph references, and generated diagrams. Update the
   relevant document when requirements, architecture, workflows, or generated

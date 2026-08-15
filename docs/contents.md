@@ -61,6 +61,9 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
   - deferred asset atlas and manifest schema decision.
 - [ADR 005: Defer Warfront renderer map-art strategy](adr/005-warfront-renderer-map-art-strategy.md)
   - deferred rendering art strategy decision for Warfront maps.
+- [ADR 006: Suppress macro-expansion lints through a test-macro crate](adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+  - accepted decision to hold fixture expansion lint suppression in a
+  test-only procedural-macro crate.
 
 ## Execution plans
 
