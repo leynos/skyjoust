@@ -84,7 +84,15 @@ one, stop and escalate rather than working around it.
 
 - The crate must not depend on `skyjoust`, `skyjoust-stateright-validator`, or
   any Lille crate, directly or transitively. This is the extraction contract
-  from [the harness design](../rstest-bdd-harness-bevy-design.md) §11.
+  from [the harness design](../rstest-bdd-harness-bevy-design.md) §11. The
+  contract is about *game* code: gameplay rules, runtime state resources, and
+  validator types must never reach this crate. Test-only tooling is a separate
+  category — `skyjoust-test-macros` is a permitted development dependency, on
+  the same footing as `rstest` or `googletest`, and is listed in the extraction
+  note so the eventual move rewires it deliberately. Note the trap this
+  creates: `skyjoust-test-macros` contains the substring `skyjoust`, so the
+  boundary guard must match dependency *names* exactly rather than by
+  substring, or it will reject a dependency the contract allows.
 - The crate's own manifest must declare Bevy with `default-features = false`
   and enable no feature beyond `std` (see `Decision log`). Cargo unifies
   features across workspace members built in one invocation, and `make test`
@@ -161,9 +169,14 @@ one, stop and escalate rather than working around it.
   straight back into the failing form. `make check-fmt` and `make lint` demand
   mutually exclusive formulations.
   Severity: high. Likelihood: certain (observed).
-  Mitigation: give the fixture a `let`-binding body, so it is a statement block
-  that neither lint nor rustfmt has anything to say about. The exact form is in
-  `Interfaces and dependencies`. Verified clean under both gates.
+  Mitigation: retired by the layer beneath this one in the stack, which adds
+  `crates/skyjoust_test_macros` and its `allow_fixture_expansion_lints`
+  attribute — the estate-mandated approach, mirroring `weaver-test-macros`.
+  Apply the attribute directly above `#[fixture]` and leave the fixture in its
+  natural single-expression form. See
+  [ADR 006](../adr/006-test-macro-crate-for-fixture-expansion-lints.md) and
+  [the developer's guide](../developers-guide.md) §7.3. Verified clean under
+  both gates.
 
 - Risk: omitting Bevy's `std` feature replaces `std::time::Instant` with
   `bevy_platform::time::fallback::Instant`, whose x86-64 getter reads
@@ -191,7 +204,7 @@ one, stop and escalate rather than working around it.
   scenario in the workspace.
   Severity: high. Likelihood: medium.
   Mitigation: exact `=0.6.0-beta3` requirements (subject to the approval gate),
-  plus a note in ADR 006 that `Cargo.lock` is load-bearing for the `rstest-bdd`
+  plus a note in ADR 007 that `Cargo.lock` is load-bearing for the `rstest-bdd`
   family until `0.6.0` is stable.
 
 - Risk: editing only a `.feature` file does not invalidate the build, so a
@@ -257,10 +270,10 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run; findings in `Surprises & discoveries` and `Artefacts and notes`.
 - [ ] Milestone 1: record the decision.
-  - [ ] Write the new ADR 006.
+  - [ ] Write the new ADR 007.
   - [ ] Amend the harness design document §§3, 9, 13 and its layout block.
   - [ ] Add a forward pointer from ADR 002.
-  - [ ] Index ADR 006 and this ExecPlan in `docs/contents.md`.
+  - [ ] Index ADR 007 and this ExecPlan in `docs/contents.md`.
   - [ ] Documentation gates green.
 - [ ] Milestone 2 (red): scaffold and failing tests.
   - [ ] Add the workspace member.
@@ -324,7 +337,7 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   feature set that `bevy_ecs` then gains `async_executor`, `backtrace`,
   `bevy_reflect`, `default`, and `std` but *not* `multi_threaded`, so the
   single-threaded executor is retained. This finding also demolishes the
-  determinism rationale the first draft was about to write into ADR 006.
+  determinism rationale the first draft was about to write into ADR 007.
 
 - Observation: `clippy.toml`'s `allow-expect-in-tests` setting does not exempt
   non-`#[test]` free functions inside `tests/*.rs`. A step function calling
@@ -341,8 +354,16 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   Evidence: `error: unnecessary braces around block return value` at the
   fixture, with `-D unused-braces implied by -D warnings`; a plain non-fixture
   function with the same shape does not fire.
-  Impact: the fixture uses a `let`-binding body. Verified clean under both
-  Clippy and `cargo fmt --check`.
+  Impact: this is a known `rstest` issue with an estate-mandated remedy, not a
+  problem for this plan to solve locally. The layer beneath this one in the
+  stack adds `crates/skyjoust_test_macros` and its
+  `allow_fixture_expansion_lints` attribute, mirroring `weaver-test-macros` in
+  `leynos/weaver`. An earlier draft of this plan proposed a local
+  `let`-binding workaround; that has been withdrawn, because it would have
+  spread a bespoke idiom across every fixture the project writes rather than
+  fixing the cause once. Verified clean under both Clippy and
+  `cargo fmt --check` with the attribute applied and the fixture left in its
+  natural form.
 
 - Observation: `googletest 0.14.3`'s `expect_that!` requires the `#[gtest]`
   attribute; without it every assertion panics reporting no test context.
@@ -499,7 +520,7 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   without a pointer ADR 002 keeps telling readers to expect two crates.
   Date/Author: 2026-08-15, planning pass.
 
-- Decision: ADR 006 must be accepted, not merely proposed, before the commit
+- Decision: ADR 007 must be accepted, not merely proposed, before the commit
   that changes workspace members lands.
   Rationale: the developer's guide rule is "before changing workspace members".
   Merging a membership change under a merely proposed ADR is what that rule
@@ -673,7 +694,7 @@ Completed during planning; evidence is in `Surprises & discoveries` and
 
 Documentation only.
 
-1. Create `docs/adr/006-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`,
+1. Create `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`,
    following the shape of `docs/adr/002-crate-layout-and-public-api.md`: a
    numbered title heading, plain status and date lines, then `## Context`,
    `## Decision`, `## Consequences`. It must state:
@@ -712,11 +733,11 @@ Documentation only.
      so `0.5.1.2` does not create a near-identical second scenario pair beside
      them.
    - §13: refresh the references, replacing the stale commit citation.
-   - Add a pointer to ADR 006.
-3. Add a forward pointer to ADR 006 in ADR 002's Consequences.
-4. Index ADR 006 and this ExecPlan in [the contents index](../contents.md).
+   - Add a pointer to ADR 007.
+3. Add a forward pointer to ADR 007 in ADR 002's Consequences.
+4. Index ADR 007 and this ExecPlan in [the contents index](../contents.md).
 
-Validation: the documentation gates (see `Concrete steps`). ADR 006 must be
+Validation: the documentation gates (see `Concrete steps`). ADR 007 must be
 accepted before Milestone 2's workspace-member change is committed.
 
 ### Stage C: red tests (Milestone 2)
@@ -794,16 +815,16 @@ Make no other change in this step.
    members.
 3. Update [the developer's guide](../developers-guide.md):
    - amend §2 so the "one runtime crate beside the validator crate" statement
-     acknowledges the third, tooling-facing harness crate and cites ADR 006;
+     acknowledges the third, tooling-facing harness crate and cites ADR 007;
    - add a section documenting the harness crate's boundary rule and the
      testing traps this task uncovered: that the expect-in-tests allowance does
-     not cover `rstest-bdd` step functions; that a single-expression fixture
-     body is caught between `unused_braces` and single-line formatting; that
-     feature-file-only edits do not invalidate the build without the
-     `include_str!` guard; that `expect_that!` needs `#[gtest]` while
-     `assert_that!` does not; and that `MinimalPlugins` includes
-     `ScheduleRunnerPlugin`, whose `run` method loops forever — scenarios must
-     call `update`.
+     not cover `rstest-bdd` step functions; that feature-file-only edits do not
+     invalidate the build without the `include_str!` guard; that
+     `expect_that!` needs `#[gtest]` while `assert_that!` does not; and that
+     `MinimalPlugins` includes `ScheduleRunnerPlugin`, whose `run` method loops
+     forever — scenarios must call `update`. The fixture expansion trap is
+     already documented in §7.3 by the layer beneath this one; cross-reference
+     it rather than restating it.
 4. Update [the roadmap](../roadmap.md): mark `0.5.1.1` as done, and replace the
    now-satisfied sub-bullet about git dependencies with the decision actually
    taken. Leaving the stale instruction would misdirect `0.5.1.2`.
@@ -873,9 +894,9 @@ Commit with a file-based message:
 ```bash
 COMMIT_MSG_DIR=$(mktemp -d)
 cat > "$COMMIT_MSG_DIR/msg" <<'EOF'
-Record the Bevy BDD harness crate decision as ADR 006
+Record the Bevy BDD harness crate decision as ADR 007
 
-Add ADR 006 covering in-tree incubation of
+Add ADR 007 covering in-tree incubation of
 `rstest-bdd-harness-bevy`, the extraction contract, and the
 dependency decisions taken for roadmap task 0.5.1.1.
 
@@ -979,8 +1000,9 @@ Expected additions to the run:
      Running tests/extraction_boundary.rs
 test guard_ignores_game_names_outwith_dependency_tables ... ok
 test guard_detects_a_directly_declared_game_crate ... ok
+test guard_permits_the_test_macro_crate ... ok
 test manifest_declares_no_game_crates ... ok
-test result: ok. 3 passed; 0 failed
+test result: ok. 4 passed; 0 failed
 
      Running tests/headless_scenario.rs
 test minimal_app_advances_one_tick ... ok
@@ -1125,11 +1147,14 @@ A reader who has never seen this repository can verify the change like this.
 
    ```bash
    cargo tree -p rstest-bdd-harness-bevy -e normal,dev --prefix none \
-     | sort -u | grep -Ei '^(skyjoust|lille)' || echo "clean"
+     | sort -u | grep -Ei '^(skyjoust|skyjoust-stateright-validator|lille) ' \
+     || echo "clean"
    ```
 
-   Expect `clean`. This, not the manifest-text test, is the authority for the
-   transitive half of the extraction constraint.
+   Expect `clean`. The trailing space in the pattern matters: `cargo tree`
+   prints `<name> v<version>`, so an unanchored `^skyjoust` would also match
+   the permitted `skyjoust-test-macros`. This, not the manifest-text test, is
+   the authority for the transitive half of the extraction constraint.
 
 3. Confirm the graph is headless. Run it against the crate in isolation,
    because that is what the extracted crate will experience, and again across
@@ -1155,12 +1180,12 @@ A reader who has never seen this repository can verify the change like this.
 
    Expect `minimal_app_advances_one_tick ... ok` among the results, with zero
    failures across the library tests, the three integration targets, and the
-   doctests — twelve tests in total.
+   doctests — thirteen tests in total.
 
 ### Quality criteria (what "done" means)
 
 - Tests: `make test` passes with no failures. The new crate contributes five
-  unit tests, one behavioural scenario, one property test, three
+  unit tests, one behavioural scenario, one property test, four
   extraction-boundary tests, and two doctests.
 - Lint and typecheck: `make check-fmt` and `make lint` pass with no
   diagnostics. `make lint` includes `cargo doc` with rustdoc warnings denied,
@@ -1241,8 +1266,9 @@ test result: ok. 5 passed; 0 failed
      Running tests/extraction_boundary.rs
 test guard_ignores_game_names_outwith_dependency_tables ... ok
 test guard_detects_a_directly_declared_game_crate ... ok
+test guard_permits_the_test_macro_crate ... ok
 test manifest_declares_no_game_crates ... ok
-test result: ok. 3 passed; 0 failed
+test result: ok. 4 passed; 0 failed
 
      Running tests/headless_scenario.rs
 test minimal_app_advances_one_tick ... ok
@@ -1293,9 +1319,13 @@ error: unnecessary braces around block return value
 ```
 
 The first was resolved by replacing a thread-local `Option` slot with an
-`rstest` fixture; the second by giving the fixture a `let`-binding body. A
-plain non-fixture function with the same single-line shape does not fire the
-second, so the cause is the fixture macro's expansion.
+`rstest` fixture. The second is resolved by the layer beneath this one in the
+stack: `#[allow_fixture_expansion_lints]` from `skyjoust-test-macros`, applied
+above `#[fixture]`, which lets the fixture keep its natural single-expression
+form. A plain non-fixture function with the same single-line shape does not
+fire the lint, so the cause is the fixture macro's expansion — which is
+precisely why the suppression belongs in a macro rather than at the call
+site.
 
 ### Evidence: Bevy feature selection and cost
 
@@ -1363,6 +1393,7 @@ proptest = "1"
 rstest = "0.26.1"
 rstest-bdd = "=0.6.0-beta3"
 rstest-bdd-macros = "=0.6.0-beta3"
+skyjoust-test-macros = { path = "../skyjoust_test_macros" }
 ```
 
 Notes on each entry:
@@ -1383,6 +1414,13 @@ Notes on each entry:
   crate's own behavioural tests use them, the library does not.
 - `rstest 0.26.1` matches what `rstest-bdd 0.6.0-beta3` expects, and is
   deliberately different from the root package's `rstest = "0.18"`.
+- `skyjoust-test-macros` supplies `allow_fixture_expansion_lints`, without
+  which the scenario fixture cannot satisfy `make lint` and `make check-fmt`
+  at the same time. It is a path dependency on the crate added by the layer
+  beneath this one in the stack, and is dev-only: the library never uses it.
+  It is the one dependency here that does *not* travel to the extracted
+  repository — see the extraction note in
+  [ADR 006](../adr/006-test-macro-crate-for-fixture-expansion-lints.md).
 - The publish and licence settings change at extraction, where the crate should
   adopt the sibling `0.6.0-beta` numbering so its version states which harness
   contract it targets.
@@ -1530,23 +1568,16 @@ use googletest::prelude::*;
 use rstest::fixture;
 use rstest_bdd_harness_bevy::minimal_app;
 use rstest_bdd_macros::{given, scenario, then, when};
+use skyjoust_test_macros::allow_fixture_expansion_lints;
 
 /// Gives `rustc` a rebuild dependency on the feature file; feature-file-only
 /// edits do not otherwise invalidate the build.
 const _: &str = include_str!("features/headless_scenario.feature");
 
 /// Scenario-scoped headless application shared by the steps below.
-///
-/// The body binds `app` with a `let` rather than returning the expression
-/// directly: the fixture macro's expansion re-wraps the body, so an expression
-/// body trips `unused_braces` under denied warnings, and the single-line
-/// formatting rule then reformats any multi-line repair straight back into the
-/// failing form.
+#[allow_fixture_expansion_lints]
 #[fixture]
-fn app() -> RefCell<App> {
-    let app = minimal_app();
-    RefCell::new(app)
-}
+fn app() -> RefCell<App> { RefCell::new(minimal_app()) }
 
 #[given("a minimal headless Bevy application")]
 fn given_minimal_app(app: &RefCell<App>) {
@@ -1612,17 +1643,29 @@ const FORBIDDEN_CRATES: [&str; 3] = ["skyjoust", "skyjoust-stateright-validator"
 fn forbidden_dependencies(manifest: &str) -> Vec<&'static str>;
 ```
 
-The `'static` lifetime is deliberate and correct: the returned names come from
-the fixed list, not from `manifest`. Scope the scan to the dependency,
-development-dependency, and build-dependency tables, not the whole file —
-otherwise a repository field naming the Skyjoust remote would false-positive.
+Three properties of the predicate are load-bearing, and each has a test.
 
-Three tests: `manifest_declares_no_game_crates`, against an `include_str!` of
+The `'static` lifetime is deliberate and correct: the returned names come from
+the fixed list, not from `manifest`.
+
+Scope the scan to the dependency, development-dependency, and build-dependency
+tables, not the whole file — otherwise a `repository` field naming the Skyjoust
+remote would false-positive.
+
+Match dependency **names exactly**, taking the key to the left of `=` on each
+entry line and comparing whole strings. A substring scan would reject
+`skyjoust-test-macros`, which is a permitted development dependency (see
+`Constraints`), and would equally be fooled by a comment. Exact matching keeps
+`skyjoust = { path = "../.." }` caught while letting the tooling crate through.
+
+Four tests: `manifest_declares_no_game_crates`, against an `include_str!` of
 the crate's own manifest; `guard_detects_a_directly_declared_game_crate`,
-against a synthetic manifest, which is what proves the guard can fail; and
-`guard_ignores_game_names_outwith_dependency_tables`, which proves the scoping.
-Use `pretty_assertions` for the vector comparison so a regression prints a
-readable diff.
+against a synthetic manifest, which is what proves the guard can fail;
+`guard_ignores_game_names_outwith_dependency_tables`, which proves the scoping;
+and `guard_permits_the_test_macro_crate`, which pins the exact-match behaviour
+so a later "tightening" to substring matching fails loudly instead of silently
+breaking the build. Use `pretty_assertions` for the vector comparisons so a
+regression prints a readable diff.
 
 Automating the transitive check would need `cargo_metadata` as a development
 dependency and a nested `cargo` invocation inside `make test`; both are
@@ -1636,10 +1679,11 @@ declined here as disproportionate, and the manual `cargo tree` step in
 | -------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `Cargo.toml`                                                                           | Add the workspace member.                                      |
 | `Cargo.lock`                                                                           | Regenerated; roughly 139 new entries.                          |
-| `docs/adr/006-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`                     | New ADR.                                                       |
-| `docs/adr/002-crate-layout-and-public-api.md`                                          | Add a forward pointer to ADR 006 in Consequences.              |
+| `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`                     | New ADR.                                                       |
+| `docs/adr/002-crate-layout-and-public-api.md`                                          | Add a forward pointer to ADR 007 in Consequences.              |
+| `crates/rstest-bdd-harness-bevy/Cargo.toml` (dev-dependency)                           | Path dependency on `skyjoust-test-macros`.                     |
 | `docs/rstest-bdd-harness-bevy-design.md`                                               | Amend sections 3, 9 (dependencies and layout), and 13.         |
-| `docs/contents.md`                                                                     | Index ADR 006 and this ExecPlan.                               |
+| `docs/contents.md`                                                                     | Index ADR 007 and this ExecPlan.                               |
 | `docs/repository-layout.md`                                                            | Tree sketch, path responsibilities, workspace membership note. |
 | `docs/developers-guide.md`                                                             | Amend section 2; add a harness-crate conventions section.      |
 | `docs/roadmap.md`                                                                      | Mark 0.5.1.1 done; correct the git-dependency sub-bullet.      |
@@ -1706,3 +1750,25 @@ What changed and why:
 - **Scope trigger** raised from 18 files to 22, because the first draft's
   tolerance was set to exactly the file count it specified, and Table 2 became
   the authoritative manifest it is measured against.
+
+Revision 3, 2026-08-15. Adopted the estate-mandated remedy for the fixture
+expansion lint, which now lands in the layer beneath this plan in the pull
+request stack rather than being worked around locally.
+
+- The `let`-binding workaround is withdrawn. The scenario fixture keeps its
+  natural single-expression form and carries
+  `#[allow_fixture_expansion_lints]` from `skyjoust-test-macros`, mirroring
+  `weaver-test-macros` in `leynos/weaver`. The workaround would have spread a
+  bespoke idiom across every fixture the project writes instead of fixing the
+  cause once.
+- The harness ADR is renumbered 006 to 007, because the lower layer takes 006
+  for the test-macro decision.
+- `skyjoust-test-macros` is added as a development dependency, and the
+  extraction contract in `Constraints` is restated to distinguish game code,
+  which is forbidden, from test-only tooling, which is not.
+- The boundary guard now matches dependency names exactly rather than by
+  substring, and the `cargo tree` acceptance pattern anchors on the trailing
+  space. Both changes exist for the same reason: `skyjoust-test-macros`
+  contains the substring `skyjoust`, so the guard as previously specified
+  would have rejected a dependency the contract allows. A fourth boundary test
+  pins that behaviour.
