@@ -6,12 +6,12 @@ under the estate lint baseline.
 
 ## Why it exists
 
-The workspace denies warnings, and `.rustfmt.toml` sets
-`fn_single_line = true`. `rstest`'s `#[fixture]` attribute re-wraps the
-annotated function body in a further block, so a single-expression fixture
-trips `unused_braces`. Splitting the body over several lines silences the lint,
-but `cargo fmt` then collapses it straight back. `make check-fmt` and
-`make lint` end up demanding mutually exclusive spellings of the same fixture.
+The workspace denies warnings, and `.rustfmt.toml` sets `fn_single_line = true`.
+`rstest`'s `#[fixture]` attribute re-wraps the annotated function body in a
+further block, so a single-expression fixture trips `unused_braces`. Splitting
+the body over several lines silences the lint, but `cargo fmt` then collapses
+it straight back. `make check-fmt` and `make lint` end up demanding mutually
+exclusive spellings of the same fixture.
 
 `allow_fixture_expansion_lints` breaks the deadlock, so fixtures stay in their
 natural form.
@@ -56,7 +56,7 @@ fixture, which is the case that rules out `#[expect]` in the expansion.
 Run it with:
 
 ```sh
-cargo test -p skyjoust-test-macros
+cargo --config tools/dev-fast/config.toml test -p skyjoust-test-macros
 ```
 
 ## Extending
