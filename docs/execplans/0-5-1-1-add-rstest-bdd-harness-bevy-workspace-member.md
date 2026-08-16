@@ -5,12 +5,13 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: DRAFT
+Status: IN EXECUTION
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
-itself authorize execution.
+itself authorize execution. The maintainer authorized execution on 2026-08-17
+by directing that the planned functionality be implemented.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -262,9 +263,14 @@ one, stop and escalate rather than working around it.
 
 ## Progress
 
-Next action: watch pull request #6 until automerge completes, rebase the stack
-onto `main`, repeat the Bevy compatibility probe against `0.19.1`, and then
-obtain explicit approval to execute the plan.
+Next action: Milestone 1 — record the decision as ADR 007 after the stack
+rebase. The Milestone 0 follow-up that blocks Milestone 2 is complete: pull
+request #6 automerged on 2026-08-16, the branch stack is rebased onto `main`,
+and the merged root `rstest` requirement is confirmed. The Bevy `0.19.1`
+compile, feature, clock, Cranelift, and cost evidence is collected by the
+Milestone 2/3 build rather than by a separate probe, because the crate itself
+is the `0.19.1` test vehicle; the results are recorded in `Surprises &
+discoveries` as they surface.
 
 Last green gate: `make markdownlint` and `make nixie` — documentation only,
 run on 2026-08-17 for Revision 4.
@@ -272,14 +278,25 @@ run on 2026-08-17 for Revision 4.
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
       `Artefacts and notes` are retained as historical evidence.
-- [ ] Milestone 0 follow-up: align the stack and validate the chosen baseline.
-  - [ ] Watch pull request #6 until automerge completes.
-  - [ ] Rebase the branch stack onto `main`.
-  - [ ] Confirm the merged root `rstest` requirement and reconcile the new
-        crate's development requirement with it.
+- [x] (2026-08-17) Milestone 0 follow-up: align the stack and validate the
+      chosen baseline.
+  - [x] Watch pull request #6 until automerge completes. Merged
+        2026-08-16T22:25:57Z (`5f5bc7c Bump rstest from 0.18.2 to 0.26.1 (#6)`).
+  - [x] Rebase the branch stack onto `main`. The four ExecPlan commits were
+        replayed onto `origin/main` without conflicts; the lower layer's
+        `skyjoust-test-macros` content is already merged as `4a895dc` (#53).
+  - [x] Confirm the merged root `rstest` requirement and reconcile the new
+        crate's development requirement with it. The merged root and validator
+        manifests both carry `rstest = "0.26"`. The new crate's dev requirement
+        in `Interfaces and dependencies` is reconciled to the same implicit
+        caret line (`0.26`), which remains compatible with `rstest-bdd
+        0.6.0-beta3` (which expects `rstest 0.26.1`).
   - [ ] Repeat the API, feature, headless-graph, Cranelift, test, lint, and cost
-        probes against Bevy `0.19.1`.
+        probes against Bevy `0.19.1`. Discharged by the Milestone 2/3 build;
+        evidence is appended to `Surprises & discoveries` and
+        `Artefacts and notes` as it surfaces.
   - [ ] Update all historical expectations in this plan with the new evidence.
+        Pending the `0.19.1` build evidence.
 - [ ] Milestone 1: record the decision.
   - [ ] Write the new ADR 007.
   - [ ] Amend the harness design document §§3, 9, 13 and its layout block.
@@ -1552,7 +1569,7 @@ tracing = "0.1"
 googletest = "0.14.3"
 pretty_assertions = "1"
 proptest = "1"
-rstest = "0.26.1"
+rstest = "0.26"
 rstest-bdd = "=0.6.0-beta3"
 rstest-bdd-macros = "=0.6.0-beta3"
 skyjoust-test-macros = { path = "../skyjoust_test_macros" }
@@ -1574,10 +1591,10 @@ Notes on each entry:
   does not control. `0.5.1.2` needs it for design §6's diagnostic path.
 - `rstest-bdd` and `rstest-bdd-macros` are development dependencies: the
   crate's own behavioural tests use them, the library does not.
-- `rstest 0.26.1` matches what `rstest-bdd 0.6.0-beta3` expects. Pull request
-  #6 should make it the root package's line as well; confirm that after the
-  required rebase and update this manifest example if the merged public version
-  differs.
+- `rstest 0.26` matches what `rstest-bdd 0.6.0-beta3` expects (which requires
+  `0.26.1` at minimum). After the rebase, the merged root and validator
+  manifests both carry `rstest = "0.26"`; this crate uses the same implicit
+  caret line so the workspace holds one `rstest` line.
 - `skyjoust-test-macros` supplies `allow_fixture_expansion_lints`, without
   which the scenario fixture cannot satisfy `make lint` and `make check-fmt` at
   the same time. It is a path dependency on the crate added by the layer
