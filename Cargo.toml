@@ -14,7 +14,7 @@ resolver = "3"
 [dependencies]
 
 [dev-dependencies]
-rstest = "0.18"
+rstest = "0.26"
 
 [lints]
 workspace = true
