@@ -1,15 +1,16 @@
 # Add `rstest-bdd-harness-bevy` as a workspace member
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
-`Decision log`, and `Outcomes & retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
+`Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
+be kept up to date as work proceeds.
 
 Status: DRAFT
 
 Approval gate: this plan must be approved before implementation begins. Do not
-treat silence as approval. Two decisions in `Open decisions requiring approval`
-need an explicit answer at that gate.
+treat silence as approval. The five choices in
+`Decisions resolved before approval` are settled, but settling them does not
+itself authorize execution.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -47,35 +48,31 @@ path to Skyjoust or Lille; `make check-fmt`, `make lint`, and `make test` all
 pass; and the crate's own tests demonstrate a headless Bevy tick driven by
 `rstest-bdd`.
 
-## Open decisions requiring approval
+## Decisions resolved before approval
 
-Two choices are recorded below with a default and a rationale, but both need an
-explicit answer before Milestone 2. Each was raised independently by more than
-one reviewer, and each is expensive to reverse later.
+The following choices were resolved by the maintainer on 2026-08-17. They are
+requirements for implementation, not defaults that an implementer may revisit
+without escalating.
 
-1. **Which Bevy version?** `0.17.3` appears in exactly one place in the
-   repository — `docs/roadmap.md` line 43. [The technical
-   design](../skyjoust-technical-design.md) never names a Bevy version. Bevy
-   `0.19.1` is the current release, and `0.18.1` is already present in this
-   machine's Cargo cache, so some part of the estate is past `0.17`. This is
-   not a local test-tooling choice: roadmap `1.2.2` brings Bevy into the
-   Skyjoust runtime, and `0.5.1.4` requires the harness to host a profile
-   driving that runtime's `App`. Bevy types do not cross a major, so if the two
-   diverge, `0.5.1.2` and `0.5.1.3` are wasted.
-   Default taken: `0.17.3`, following the roadmap literally, verified working.
-   The consequence, which must be accepted or rejected at the gate, is that the
-   harness becomes the constraint on the runtime — roadmap `1.2.2` must adopt
-   `0.17.3` too.
-
-2. **Caret or exact requirements for `rstest-bdd`?** `AGENTS.md` mandates caret
-   requirements. But `^0.6.0-beta3` admits `0.6.0-beta4`, which upstream has
-   already made source-breaking (`StepContext::borrow_mut` now takes `&self`),
-   and `.github/dependabot.yml` runs the Cargo ecosystem daily with automerge.
-   Default taken: exact pins, `=0.6.0-beta3`, as a recorded deviation limited
-   to pre-release requirements, reverting to `^0.6.0` when `0.6.0` final ships.
-   `AGENTS.md` forbids `*` and `>=` and constrains `~`; it is silent on `=`,
-   and the mandate's stated purpose — build stability and reproducibility — is
-   served rather than undermined by pinning a pre-release.
+1. Target Bevy `0.19.1`. The harness and the future Skyjoust runtime must use
+   the same release because Bevy types cross the harness boundary. The earlier
+   `0.17.3` probes remain historical evidence only; Milestone 0 must repeat the
+   compatibility and cost probes against `0.19.1` before implementation.
+2. Write ordinary stable dependency requirements using Cargo's implicit caret
+   syntax, for example `0.19.1`, never the redundant spelling `^0.19.1`.
+3. Pin every `rstest-bdd` family crate to `=0.6.0-beta3` for now. A later beta
+   or `0.6.0` final may break the pre-release API, so upgrading requires a
+   deliberate compatibility pass. If the next release is `0.6.0` final, move
+   back to implicit caret syntax only after that pass is green.
+4. `rstest-bdd` step functions are not `#[test]` functions, so the workspace's
+   test allowance does not permit `.expect()` in them. Propagate fallible work
+   through `Result` and `?`; where it stays clear, prefer functional
+   transformations over imperative unwrap-and-mutate sequences.
+5. [Pull request #6](https://github.com/leynos/skyjoust/pull/6) updates the root
+   package from `rstest 0.18` to the latest public release. Watch it until
+   automerge completes, then rebase this stack onto `main` before Milestone 2.
+   Reconcile the new crate's `rstest` requirement with the merged root
+   requirement after the rebase rather than planning around two versions.
 
 ## Constraints
 
@@ -89,20 +86,21 @@ one, stop and escalate rather than working around it.
   validator types must never reach this crate. Test-only tooling is a separate
   category — `skyjoust-test-macros` is a permitted development dependency, on
   the same footing as `rstest` or `googletest`, and is listed in the extraction
-  note so the eventual move rewires it deliberately. Note the trap this
-  creates: `skyjoust-test-macros` contains the substring `skyjoust`, so the
-  boundary guard must match dependency *names* exactly rather than by
-  substring, or it will reject a dependency the contract allows.
+  note so the eventual move rewires it deliberately. Note the trap this creates:
+  `skyjoust-test-macros` contains the substring `skyjoust`, so the boundary
+  guard must match dependency *names* exactly rather than by substring, or it
+  will reject a dependency the contract allows.
 - The crate's own manifest must declare Bevy with `default-features = false`
   and enable no feature beyond `std` (see `Decision log`). Cargo unifies
-  features across workspace members built in one invocation, and `make test`
-  and `make lint` both build `--workspace --all-features`. This constraint
+  features across workspace members built in one invocation, and `make test` and
+  `make lint` both build `--workspace --all-features`. This constraint
   therefore bounds what the crate *requests*, not what a workspace build
   resolves. Any other member that later adds `bevy` must also declare
   `default-features = false`, or the headless guarantee is lost for everyone.
-- The harness crate's Bevy major version is a workspace-wide coupling, not a
+- The harness crate's Bevy release version is a workspace-wide coupling, not a
   local choice. It must equal the version the Skyjoust runtime will use at
-  roadmap `1.2.2`. Changing it is an ADR-level decision.
+  roadmap `1.2.2`; this plan fixes that version at `0.19.1`. Changing it is an
+  ADR-level decision.
 - No Skyjoust gameplay profile, validator trace type, or runtime state resource
   may be checked into the harness crate. Downstream profiles live in the
   consuming crate (design §8).
@@ -167,108 +165,121 @@ one, stop and escalate rather than working around it.
   single-expression fixture body trips `unused_braces` under `-D warnings`;
   `.rustfmt.toml`'s `fn_single_line = true` then reformats any multi-line body
   straight back into the failing form. `make check-fmt` and `make lint` demand
-  mutually exclusive formulations.
-  Severity: high. Likelihood: certain (observed).
-  Mitigation: retired by the layer beneath this one in the stack, which adds
-  `crates/skyjoust_test_macros` and its `allow_fixture_expansion_lints`
-  attribute — the estate-mandated approach, mirroring `weaver-test-macros`.
-  Apply the attribute directly above `#[fixture]` and leave the fixture in its
-  natural single-expression form. See
-  [ADR 006](../adr/006-test-macro-crate-for-fixture-expansion-lints.md) and
-  [the developer's guide](../developers-guide.md) §7.3. Verified clean under
-  both gates.
+  mutually exclusive formulations. Severity: high. Likelihood: certain
+  (observed). Mitigation: retired by the layer beneath this one in the stack,
+  which adds `crates/skyjoust_test_macros` and its
+  `allow_fixture_expansion_lints` attribute — the estate-mandated approach,
+  mirroring `weaver-test-macros`. Apply the attribute directly above
+  `#[fixture]` and leave the fixture in its natural single-expression form. See
+  [ADR 006](../adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+  and [the developer's guide](../developers-guide.md) §7.3. Verified clean
+  under both gates.
 
-- Risk: omitting Bevy's `std` feature replaces `std::time::Instant` with
-  `bevy_platform::time::fallback::Instant`, whose x86-64 getter reads
-  `core::arch::x86_64::_rdtsc()` and passes the raw tick count to
-  `Duration::from_nanos`. `Time<Real>` then advances at roughly the timestamp
-  counter frequency rather than wall-clock, and `Time<Virtual>` and
-  `Time<Fixed>` derive from it.
-  Severity: high. Likelihood: certain without `std` (verified in source).
-  Mitigation: enable `features = ["std"]`. Verified from the resolved feature
-  set that this does *not* re-enable `multi_threaded`, so the single-threaded
-  executor is retained.
+- Risk: in the `0.17.3` probe, omitting Bevy's `std` feature replaced
+  `std::time::Instant` with `bevy_platform::time::fallback::Instant`, whose
+  x86-64 getter reads `core::arch::x86_64::_rdtsc()` and passes the raw tick
+  count to `Duration::from_nanos`. `Time<Real>` then advances at roughly the
+  timestamp counter frequency rather than wall-clock, and `Time<Virtual>` and
+  `Time<Fixed>` derive from it. Severity: high. Likelihood: not yet measured for
+  `0.19.1`. Mitigation: begin with `features = ["std"]`, then repeat the
+  clock-source and resolved-feature checks against `0.19.1`. The decision is
+  discharged only if real time remains correct without enabling rendering,
+  windowing, or the multi-threaded executor.
 
 - Risk: `clippy::expect_used` is denied estate-wide, and
   `allow-expect-in-tests = true` in `clippy.toml` does **not** cover free
   functions in `tests/*.rs` that are not `#[test]`-annotated. `rstest-bdd` step
   functions are exactly such functions, so `.expect()` inside a step fails
-  `make lint`.
-  Severity: medium. Likelihood: high (observed).
-  Mitigation: scenario state comes from an `rstest` fixture holding a
-  `RefCell<App>` directly, so no step unwraps an `Option`.
+  `make lint`. Severity: medium. Likelihood: high (observed). Mitigation:
+  scenario state comes from an `rstest` fixture holding a `RefCell<App>`
+  directly. Steps use `try_borrow` or `try_borrow_mut`, return a `StepResult`,
+  and propagate borrow failures instead of panicking. Prefer `map` and
+  `map_err` when that keeps the step linear and readable; use `?` when a
+  functional chain would obscure the assertion.
 
 - Risk: `^0.6.0-beta3` is not a pin. It admits `0.6.0-beta4` and `0.6.0`
   final, and `beta4` changes `StepContext::borrow_mut` to take `&self`. A bare
   `cargo update`, or Dependabot's daily run with automerge, would break every
-  scenario in the workspace.
-  Severity: high. Likelihood: medium.
-  Mitigation: exact `=0.6.0-beta3` requirements (subject to the approval gate),
-  plus a note in ADR 007 that `Cargo.lock` is load-bearing for the `rstest-bdd`
-  family until `0.6.0` is stable.
+  scenario in the workspace. Severity: high. Likelihood: medium. Mitigation:
+  exact `=0.6.0-beta3` requirements, approved as a temporary exception to the
+  workspace's implicit-caret policy, plus a note in ADR 007 that `Cargo.lock`
+  is load-bearing for the `rstest-bdd` family until an explicitly validated
+  stable upgrade.
 
 - Risk: editing only a `.feature` file does not invalidate the build, so a
   changed scenario can appear to pass while the compiled step table is stale.
-  Severity: medium. Likelihood: high.
-  Mitigation: the scenario binding carries an `include_str!` of the feature
-  file, the idiom used by `rstest-bdd`'s own fixtures. Milestone 4 proves the
-  guard is load-bearing with an A/B test rather than a single observation.
+  Severity: medium. Likelihood: high. Mitigation: the scenario binding carries
+  an `include_str!` of the feature file, the idiom used by `rstest-bdd`'s own
+  fixtures. Milestone 4 proves the guard is load-bearing with an A/B test
+  rather than a single observation.
 
-- Risk: the crate adds a large graph to every workspace build — 139 crates for
-  normal dependencies and 279 including development dependencies. `make lint`
-  compiles it three times (`cargo doc`, `cargo clippy`, and the Whitaker Dylint
-  driver, the last under its own toolchain with no Cranelift), and `make test`
-  a fourth. CI caches no Cargo artefacts beyond the two shared-action caches.
-  Severity: low, revised down after measurement. Likelihood: certain.
-  Mitigation: measured on six cores with a warm registry — cold Cranelift
-  `check --workspace --all-targets --all-features` 26 s, cold Cranelift test
-  build 30 s, cold LLVM Clippy 19 s. Record the equivalent figures for the real
-  workspace in `Outcomes & retrospective`.
+- Risk: the crate adds a large graph to every workspace build. The discarded
+  Bevy `0.17.3` baseline resolved 139 crates for normal dependencies and 279
+  including development dependencies; the `0.19.1` cost is not yet measured.
+  `make lint` compiles it three times (`cargo doc`, `cargo clippy`, and the
+  Whitaker Dylint driver, the last under its own toolchain with no Cranelift),
+  and `make test` a fourth. CI caches no Cargo artefacts beyond the two
+  shared-action caches. Severity: low, revised down after measurement.
+  Likelihood: certain. Mitigation: repeat the measurements against `0.19.1`
+  during the Milestone 0 follow-up and record the equivalent figures for the
+  real workspace in `Outcomes & retrospective`.
 
-- Risk: `target/` reaches 2.2 GB for this crate alone. Both CI caches — the
-  `setup-rust` debug-target cache and the coverage action's whole-target cache
-  — grow accordingly, against GitHub's 10 GB per-repository cap. Cache thrash
-  degrades every run to cold without turning anything red.
-  Severity: medium. Likelihood: medium.
-  Mitigation: record the measured target size in `Outcomes & retrospective`. If
-  the two caches together approach the cap, raise a follow-up to narrow the
-  coverage job's cached path.
+- Risk: under the discarded `0.17.3` baseline, `target/` reached 2.2 GB for
+  this crate alone. Both CI caches — the `setup-rust` debug-target cache and
+  the coverage action's whole-target cache — grow accordingly, against GitHub's
+  10 GB per-repository cap. Cache thrash degrades every run to cold without
+  turning anything red. Severity: medium. Likelihood: medium. Mitigation:
+  record the measured target size in `Outcomes & retrospective`. If the two
+  caches together approach the cap, raise a follow-up to narrow the coverage
+  job's cached path.
 
 - Risk: `make fmt` runs `cargo +nightly fmt` (the floating nightly) while
   `make check-fmt` runs `cargo fmt` (the toolchain-file-pinned nightly). With
   `unstable_features`, `wrap_comments`, `format_strings`, and
   `format_code_in_doc_comments` all enabled, the two can disagree — and this
   plan adds doc comments carrying worked examples, which is exactly what
-  `format_code_in_doc_comments` rewrites.
-  Severity: low. Likelihood: low.
+  `format_code_in_doc_comments` rewrites. Severity: low. Likelihood: low.
   Mitigation: in Milestone 5, run `mdformat-all` and `cargo fmt --all` (pinned)
   separately rather than `make fmt`, so the formatting that lands is the
   formatting `make check-fmt` will accept.
 
 - Risk: `googletest`'s `expect_that!` requires an active test context and
   panics with a no-test-context message when the test is not annotated
-  `#[gtest]`.
-  Severity: low. Likelihood: high (observed).
-  Mitigation: unit tests use `#[gtest]` above `#[rstest]`; step functions use
-  `assert_that!`, which panics directly and needs no context.
+  `#[gtest]`. Severity: low. Likelihood: high (observed). Mitigation: unit
+  tests use `#[gtest]` above `#[rstest]`; step functions use `assert_that!`,
+  which panics directly and needs no context.
 
-- Risk: the workspace root package pins `rstest = "0.18"` while `rstest-bdd`
-  `0.6.0-beta3` requires `rstest 0.26.1`.
-  Severity: low. Likelihood: certain.
-  Mitigation: accept both. They are semver-incompatible, so Cargo keeps them
-  side by side and no crate sees two versions at once. Do not bump the root
-  package's `rstest` as part of this task.
+- Risk: the current branch still sees the workspace root package at
+  `rstest = "0.18"`, while `rstest-bdd 0.6.0-beta3` requires `rstest 0.26.1`.
+  Pull request #6 is intended to remove that split, but implementing before it
+  automerges would bake a transient duplicate into this stack. Severity:
+  medium. Likelihood: certain until pull request #6 merges. Mitigation: watch
+  pull request #6, then rebase every branch in the stack onto `main` before
+  Milestone 2. After the rebase, verify the merged root requirement and use the
+  same implicit-caret requirement in this crate when it remains compatible with
+  `rstest-bdd 0.6.0-beta3`; otherwise stop and escalate instead of carrying two
+  versions deliberately.
 
 ## Progress
 
-Next action: obtain approval, including answers to the two items in
-`Open decisions requiring approval`.
+Next action: watch pull request #6 until automerge completes, rebase the stack
+onto `main`, repeat the Bevy compatibility probe against `0.19.1`, and then
+obtain explicit approval to execute the plan.
 
-Last green gate: `markdownlint` and `nixie` — documentation only, commit
-`69a903a`.
+Last green gate: `make markdownlint` and `make nixie` — documentation only,
+run on 2026-08-17 for Revision 4.
 
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
-      run; findings in `Surprises & discoveries` and `Artefacts and notes`.
+      run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
+      `Artefacts and notes` are retained as historical evidence.
+- [ ] Milestone 0 follow-up: align the stack and validate the chosen baseline.
+  - [ ] Watch pull request #6 until automerge completes.
+  - [ ] Rebase the branch stack onto `main`.
+  - [ ] Confirm the merged root `rstest` requirement and reconcile the new
+        crate's development requirement with it.
+  - [ ] Repeat the API, feature, headless-graph, Cranelift, test, lint, and cost
+        probes against Bevy `0.19.1`.
+  - [ ] Update all historical expectations in this plan with the new evidence.
 - [ ] Milestone 1: record the decision.
   - [ ] Write the new ADR 007.
   - [ ] Amend the harness design document §§3, 9, 13 and its layout block.
@@ -303,157 +314,173 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   2026-07-07, along with `rstest-bdd-harness`, `rstest-bdd-macros`,
   `rstest-bdd-harness-tokio`, and `rstest-bdd-harness-gpui` at the same
   version. The roadmap's instruction to use git dependencies against `main`
-  "until v0.6.0-beta3 is published" is therefore already satisfied.
-  Evidence: the crates.io versions endpoint lists `0.6.0-beta3` created at
+  "until v0.6.0-beta3 is published" is therefore already satisfied. Evidence:
+  the crates.io versions endpoint lists `0.6.0-beta3` created at
   `2026-07-07T23:13:10Z`; `rstest-bdd-harness 0.6.0-beta3` at
-  `2026-07-07T23:12:46Z`.
-  Impact: this plan uses published requirements, not git dependencies. The
-  roadmap sub-bullet and design §9 are amended accordingly.
+  `2026-07-07T23:12:46Z`. Impact: this plan uses published requirements, not
+  git dependencies. The roadmap sub-bullet and design §9 are amended
+  accordingly.
 
 - Observation: `rstest-bdd`'s `main` branch has moved to an unpublished
   `0.6.0-beta4` (head commit `12b9357`, 2026-08-14), well past the commit
   `21b67a4` cited in the design document. That version adds a
   `policy_conformance` module, a `testing` feature exposing `FailingHarness`,
   and guard-based fixture borrowing. It also changes the generated panic text
-  from `initialise` to `initialize`.
-  Evidence: `main`'s harness crate root exports `policy_conformance` and a
-  feature-gated `FailingHarness`; the extracted `beta3` archive exports neither
-  and has no features table at all.
+  from `initialise` to `initialize`. Evidence: `main`'s harness crate root
+  exports `policy_conformance` and a feature-gated `FailingHarness`; the
+  extracted `beta3` archive exports neither and has no features table at all.
   Impact: under `beta3`, requesting the `testing` feature will not resolve, and
   the policy-conformance helper is unavailable. Neither is needed here;
   `0.5.1.3` must plan around them. Recorded in the design document with an
   explicit migration trigger.
 
-- Observation: `default-features = false` alone silently degrades timekeeping.
+- Observation: in the earlier Bevy `0.17.3` probe,
+  `default-features = false` alone silently degraded timekeeping.
   `bevy_platform`'s time module selects `std::time` only when its `std`
   configuration predicate holds; otherwise it uses a fallback whose x86-64
   getter passes `_rdtsc()` straight to `Duration::from_nanos` — raw timestamp
   counter ticks reinterpreted as nanoseconds. `TimePlugin` calls the clock
-  unconditionally.
-  Evidence: `bevy_platform-0.17.3/src/time/mod.rs` selects the fallback module
-  in the non-`std`, non-web branch; `src/time/fallback.rs` contains the
-  `_rdtsc()` arm.
-  Impact: the plan enables `features = ["std"]`. Confirmed from the resolved
-  feature set that `bevy_ecs` then gains `async_executor`, `backtrace`,
-  `bevy_reflect`, `default`, and `std` but *not* `multi_threaded`, so the
-  single-threaded executor is retained. This finding also demolishes the
-  determinism rationale the first draft was about to write into ADR 007.
+  unconditionally. Evidence: `bevy_platform-0.17.3/src/time/mod.rs` selects the
+  fallback module in the non-`std`, non-web branch; `src/time/fallback.rs`
+  contains the `_rdtsc()` arm. Impact: the plan retains `features = ["std"]`,
+  but the evidence cannot be projected onto the newly selected `0.19.1`
+  release. Repeat the source and resolved-feature checks in Milestone 0;
+  escalate if `0.19.1` needs a different feature declaration to preserve real
+  time without enabling a renderer or window.
 
 - Observation: `clippy.toml`'s `allow-expect-in-tests` setting does not exempt
   non-`#[test]` free functions inside `tests/*.rs`. A step function calling
-  `.expect()` fails Clippy with warnings denied.
-  Evidence: a probe using a thread-local `Option` slot and `.expect()` in a
-  `#[when]` step produced two `expect_used` errors.
-  Impact: the behavioural test uses an `rstest` fixture holding the application
-  directly. The same trap will recur in `0.5.1.2`; it is documented in the
+  `.expect()` fails Clippy with warnings denied. Evidence: a probe using a
+  thread-local `Option` slot and `.expect()` in a `#[when]` step produced two
+  `expect_used` errors. Impact: the behavioural test uses an `rstest` fixture
+  holding the application directly. Its steps return `StepResult` and propagate
+  `RefCell` borrow failures. Published `rstest-bdd 0.6.0-beta3` supports
+  `Result`-returning steps, so this is the normal error path rather than a
+  workaround. The same trap will recur in `0.5.1.2`; it is documented in the
   developer's guide.
 
 - Observation: a single-expression `#[fixture]` body trips `unused_braces`
   under denied warnings, and `fn_single_line` reformats the multi-line repair
-  straight back to the failing form.
-  Evidence: `error: unnecessary braces around block return value` at the
-  fixture, with `-D unused-braces implied by -D warnings`; a plain non-fixture
-  function with the same shape does not fire.
-  Impact: this is a known `rstest` issue with an estate-mandated remedy, not a
-  problem for this plan to solve locally. The layer beneath this one in the
-  stack adds `crates/skyjoust_test_macros` and its
+  straight back to the failing form. Evidence:
+  `error: unnecessary braces around block return value` at the fixture, with
+  `-D unused-braces implied by -D warnings`; a plain non-fixture function with
+  the same shape does not fire. Impact: this is a known `rstest` issue with an
+  estate-mandated remedy, not a problem for this plan to solve locally. The
+  layer beneath this one in the stack adds `crates/skyjoust_test_macros` and its
   `allow_fixture_expansion_lints` attribute, mirroring `weaver-test-macros` in
-  `leynos/weaver`. An earlier draft of this plan proposed a local
-  `let`-binding workaround; that has been withdrawn, because it would have
-  spread a bespoke idiom across every fixture the project writes rather than
-  fixing the cause once. Verified clean under both Clippy and
-  `cargo fmt --check` with the attribute applied and the fixture left in its
-  natural form.
+  `leynos/weaver`. An earlier draft of this plan proposed a local `let`-binding
+  workaround; that has been withdrawn, because it would have spread a bespoke
+  idiom across every fixture the project writes rather than fixing the cause
+  once. Verified clean under both Clippy and `cargo fmt --check` with the
+  attribute applied and the fixture left in its natural form.
 
 - Observation: `googletest 0.14.3`'s `expect_that!` requires the `#[gtest]`
   attribute; without it every assertion panics reporting no test context.
   Evidence: four unit tests annotated only `#[rstest]` failed that way; adding
-  `#[gtest]` above `#[rstest]` made all four pass.
-  Impact: unit tests use `#[gtest]` plus `#[rstest]`; step functions use
-  `assert_that!`.
+  `#[gtest]` above `#[rstest]` made all four pass. Impact: unit tests use
+  `#[gtest]` plus `#[rstest]`; step functions use `assert_that!`.
 
 - Observation: the constructors proposed in the first draft could not become
   what the design says they become. Design §5 declares a `configure` that takes
   `&mut App` and returns a harness result — it mutates a borrowed application —
-  whereas a constructor builds and returns one.
-  Evidence: design §5's trait definition, compared with the draft's
-  `pub fn minimal_app() -> App`.
-  Impact: the public surface was reshaped. `add_minimal_plugins` takes
-  `&mut App`, which is the shape `configure` calls, so
-  `MinimalBevyProfile::configure` becomes two lines that call it. `bare_app`
-  was dropped entirely: a plain `App::new()` needs no wrapper, and
-  `BareBevyProfile::configure` has an empty body, so there was nothing to seed.
+  whereas a constructor builds and returns one. Evidence: design §5's trait
+  definition, compared with the draft's `pub fn minimal_app() -> App`. Impact:
+  the public surface was reshaped. `add_minimal_plugins` takes `&mut App`,
+  which is the shape `configure` calls, so `MinimalBevyProfile::configure`
+  becomes two lines that call it. `bare_app` was dropped entirely: a plain
+  `App::new()` needs no wrapper, and `BareBevyProfile::configure` has an empty
+  body, so there was nothing to seed.
 
-- Observation: `App::new()` is not plugin-free. It already adds
-  `MainSchedulePlugin` and registers a message-update system in `First`.
-  Evidence: `bevy_app-0.17.3/src/app.rs`.
-  Impact: any test named "adds no plugins" would be false. The negative test is
-  named for what it checks — that an unconfigured application omits
-  `TimePlugin`. This is also why an unconfigured application can be updated at
-  all.
+- Observation: in the earlier Bevy `0.17.3` probe, `App::new()` was not
+  plugin-free. It already added `MainSchedulePlugin` and registers a
+  message-update system in `First`. Evidence: `bevy_app-0.17.3/src/app.rs`.
+  Impact: re-check this contract against `0.19.1` before retaining the negative
+  test. If the contract still holds, keep the test named for what it checks —
+  that an unconfigured application omits `TimePlugin` — rather than claiming
+  `App::new()` adds no plugins.
 
 - Observation: the first draft's build-cost figure of 98 crates was the
-  bevy-only probe measured for normal dependencies. The real crate resolves 139
-  crates for normal dependencies and 279 including development dependencies.
-  Evidence: `cargo tree --workspace -e normal --prefix none | sort -u | wc -l`
-  and the `-e normal,dev` equivalent, run against the full shape probe.
-  Impact: the build-cost risk is restated with measured wall-clock rather than
-  crate counts.
+  Bevy-only probe measured for normal dependencies. The full `0.17.3` probe
+  resolved 139 crates for normal dependencies and 279 including development
+  dependencies. Evidence:
+  `cargo tree --workspace -e normal --prefix none | sort -u | wc -l` and the
+  `-e normal,dev` equivalent, run against the full shape probe. Impact: the
+  build-cost risk is restated with measured wall-clock rather than crate counts.
 
 - Observation: the CI coverage action builds with *default* features via
-  `cargo llvm-cov nextest`, and nextest does not run doctests.
-  Evidence: the `generate-coverage` action's Rust runner script in
-  `leynos/shared-actions`.
+  `cargo llvm-cov nextest`, and nextest does not run doctests. Evidence: the
+  `generate-coverage` action's Rust runner script in `leynos/shared-actions`.
   Impact: doctests contribute nothing to the codecov figure. The patch target
   is still met, but by the unit tests — the first draft gave the wrong reason.
 
 - Observation: `docs/rstest-bdd-users-guide.md` and
   `docs/ortho-config-users-guide.md`, cited in the earlier `1.1.1` execplan, do
-  not exist in this repository.
-  Evidence: repository-wide glob for both names returns nothing.
-  Impact: this plan cites the upstream `rstest-bdd` users' guide by uniform
-  resource locator (URL) instead, and does not create either local file.
+  not exist in this repository. Evidence: repository-wide glob for both names
+  returns nothing. Impact: this plan cites the upstream `rstest-bdd` users'
+  guide by uniform resource locator (URL) instead, and does not create either
+  local file.
 
 ## Decision log
 
 - Decision: depend on published `rstest-bdd` `0.6.0-beta3` crates rather than
-  git dependencies against `main`.
-  Rationale: the roadmap's git-dependency instruction was explicitly
-  conditional on `beta3` not yet being published; it now is. Published crates
-  keep `Cargo.lock` stable and avoid pulling `rstest-bdd`'s vendored GPUI tree
-  into this workspace's resolution. The later APIs are not needed here.
-  Date/Author: 2026-08-15, planning pass.
+  git dependencies against `main`. Rationale: the roadmap's git-dependency
+  instruction was explicitly conditional on `beta3` not yet being published; it
+  now is. Published crates keep `Cargo.lock` stable and avoid pulling
+  `rstest-bdd`'s vendored GPUI tree into this workspace's resolution. The later
+  APIs are not needed here. Date/Author: 2026-08-15, planning pass.
 
-- Decision: use exact `=0.6.0-beta3` requirements, deviating from `AGENTS.md`'s
-  caret mandate for pre-release requirements only.
-  Rationale: a caret on a pre-release admits `0.6.0-beta4`, which upstream has
-  made source-breaking, and Dependabot runs daily with automerge here.
-  `AGENTS.md` forbids `*` and `>=` and constrains `~` but is silent on `=`, and
-  the mandate's stated purpose — build stability and reproducibility — is
-  served by pinning a pre-release rather than floating across it. Revert to a
-  caret when `0.6.0` final publishes. Subject to the approval gate.
-  Date/Author: 2026-08-15, planning pass.
+- Decision: use exact `=0.6.0-beta3` requirements, as a maintainer-approved
+  temporary exception to the implicit-caret rule for pre-release requirements
+  only. Rationale: a caret on a pre-release admits `0.6.0-beta4`, which
+  upstream has made source-breaking, and Dependabot runs daily with automerge
+  here. `AGENTS.md` forbids `*` and `>=` and constrains `~` but is silent on
+  `=`, and the mandate's stated purpose — build stability and reproducibility —
+  is served by pinning a pre-release rather than floating across it. A published
+  `0.6.0` final is a migration trigger, not proof of compatibility: validate
+  the full suite first, then return to implicit caret syntax. Date/Author:
+  2026-08-17, maintainer decision.
+
+- Decision: write stable dependency requirements with implicit caret syntax,
+  such as `0.19.1`, rather than redundant explicit syntax such as `^0.19.1`.
+  Rationale: both forms have the same Cargo semantics, while the implicit form
+  matches the repository's manifest convention. The exact `=0.6.0-beta3`
+  requirements are the sole temporary exception recorded above. Date/Author:
+  2026-08-17, maintainer decision.
 
 - Decision: declare Bevy with `default-features = false` plus
-  `features = ["std"]`.
-  Rationale: disabling default features is what the roadmap and design require,
-  and it excludes the renderer, windowing, assets, audio, and the
-  multi-threaded executor. `std` is added back because without it
-  `bevy_platform` substitutes a clock that reinterprets timestamp counter ticks
-  as nanoseconds, so real time — and fixed time beneath it — would run at
-  roughly the counter frequency. That would be a booby trap for the fixed-tick
-  Skyjoust profile at `0.5.1.4`. Determinism is explicitly *not* part of this
-  rationale: nothing in this milestone has ambiguous system ordering. Cost is
-  24 crates, from 115 to 139 normal dependencies.
+  `features = ["std"]`. Rationale: disabling default features is what the
+  roadmap and design require, and the `0.17.3` probe showed that `std` was
+  necessary to avoid fallback timekeeping without enabling the renderer or
+  window. The declaration remains the intended `0.19.1` starting point, but
+  Milestone 0 must reconfirm its feature graph and clock implementation before
+  treating the decision as discharged. Determinism is explicitly *not* part of
+  this rationale: nothing in this milestone has ambiguous system ordering.
   Date/Author: 2026-08-15, planning pass.
 
-- Decision: pin Bevy `0.17.3`, and record that `0.19.1` is the current release.
-  Rationale: the roadmap names `0.17.3` and this plan implements the roadmap.
-  The version is not a local choice — it couples the harness to whatever Bevy
-  the Skyjoust runtime adopts at roadmap `1.2.2` — so accepting `0.17.3` here
-  means committing the runtime to it too. Raised at the approval gate as item 1
-  of `Open decisions requiring approval`.
-  Date/Author: 2026-08-15, planning pass.
+- Decision: target Bevy `0.19.1` for both the harness and the future Skyjoust
+  runtime. Rationale: Bevy types cross the harness boundary, so the harness
+  cannot make an independent version choice. The roadmap's earlier `0.17.3`
+  text is stale and must be updated in Milestone 1. Because the completed
+  probes used `0.17.3`, repeat their compatibility, feature, and cost checks
+  before code work begins. Date/Author: 2026-08-17, maintainer decision.
+
+- Decision: propagate errors from `rstest-bdd` step functions and prefer
+  functional transformations where they remain readable. Rationale: step
+  functions are macro-registered free functions, not `#[test]` functions, so
+  `.expect()` violates the estate-wide `clippy::expect_used` policy.
+  `rstest-bdd 0.6.0-beta3` natively supports `Result`-returning steps. Returning
+  `StepResult`, using fallible borrow APIs, and applying `map`, `map_err`, or
+  `?` preserves diagnostic context without lint suppression or panic-based
+  control flow. Date/Author: 2026-08-17, maintainer decision.
+
+- Decision: wait for pull request #6 to automerge, then rebase this branch
+  stack onto `main` before adding the new crate. Rationale: pull request #6
+  updates the root package from `rstest 0.18` to the latest public release.
+  Rebasing first avoids deliberately introducing a short-lived second `rstest`
+  line and lets the new crate follow the merged workspace convention. A
+  post-rebase compatibility check decides the exact implicit-caret requirement;
+  incompatibility is an escalation condition. Date/Author: 2026-08-17,
+  maintainer decision.
 
 - Decision: this milestone ships two public functions, `add_minimal_plugins`
   and `minimal_app`, in `src/profile.rs`, plus a re-export block in `lib.rs`.
@@ -463,24 +490,24 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   call it in `0.5.1.2` — the carry-forward is real, not aspirational.
   `minimal_app` is the harness-free entry point for tests that want an
   application without a scenario, which Skyjoust and Lille will both want at
-  `0.5.1.4`. Both stay public after `0.5.1.2`.
-  Alternatives considered and rejected: (a) a `bare_app` constructor alongside
-  them — a plain `App::new()` needs no wrapper and `BareBevyProfile::configure`
-  has an empty body, so it would seed nothing; (b) shipping the whole
-  `BevyProfile` trait seam now — the roadmap explicitly assigns `BevyProfile`,
-  `BareBevyProfile`, and `MinimalBevyProfile` to task `0.5.1.2`, and this plan
-  must not consume the next task's named deliverables; (c) an empty library
-  with `bevy` and `rstest-bdd-harness` moved to development dependencies —
-  viable, and the behavioural scenario would still run, but it defers every
-  signature-shaped risk in design §5 and leaves the crate root undocumentable.
-  Date/Author: 2026-08-15, planning pass.
+  `0.5.1.4`. Both stay public after `0.5.1.2`. Alternatives considered and
+  rejected: (a) a `bare_app` constructor alongside them — a plain `App::new()`
+  needs no wrapper and `BareBevyProfile::configure` has an empty body, so it
+  would seed nothing; (b) shipping the whole `BevyProfile` trait seam now — the
+  roadmap explicitly assigns `BevyProfile`, `BareBevyProfile`, and
+  `MinimalBevyProfile` to task `0.5.1.2`, and this plan must not consume the
+  next task's named deliverables; (c) an empty library with `bevy` and
+  `rstest-bdd-harness` moved to development dependencies — viable, and the
+  behavioural scenario would still run, but it defers every signature-shaped
+  risk in design §5 and leaves the crate root undocumentable. Date/Author:
+  2026-08-15, planning pass.
 
 - Decision: re-export `bevy` from the crate root.
   Rationale: `minimal_app` returns a Bevy type, so a consumer that resolves a
   different `bevy` gets a mismatched-type error naming neither manifest. Design
   §9 already names Bevy's prelude as the downstream import surface; the
-  re-export is what makes that surface type-compatible.
-  Date/Author: 2026-08-15, planning pass.
+  re-export is what makes that surface type-compatible. Date/Author:
+  2026-08-15, planning pass.
 
 - Decision: declare `tracing` as a direct dependency and re-export it
   separately, rather than re-exporting it through `rstest-bdd-harness`.
@@ -489,8 +516,7 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   this crate's API with no change to its source or manifest.
   `rstest-bdd-harness-gpui` declares `tracing` directly and re-exports it; that
   is the precedent worth following. A `pub use` is a use, so the dependency is
-  not unused.
-  Date/Author: 2026-08-15, planning pass.
+  not unused. Date/Author: 2026-08-15, planning pass.
 
 - Decision: declare the crate ISC-licensed and unpublishable.
   Rationale: the repository's `LICENSE` file is ISC, and every published
@@ -500,77 +526,74 @@ Last green gate: `markdownlint` and `nixie` — documentation only, commit
   unpublishable prevents an accidental publish claiming a name the upstream
   cookbook documents, at a version below its siblings, from the wrong
   repository. Both settings change at extraction. Raise the validator crate's
-  licence declaration as a separate correction.
-  Date/Author: 2026-08-15, planning pass.
+  licence declaration as a separate correction. Date/Author: 2026-08-15,
+  planning pass.
 
 - Decision: keep the crate directory hyphenated, diverging from the existing
-  underscore-named validator directory.
-  Rationale: the roadmap and design both name the hyphenated path; the
-  extraction target repository is `leynos/rstest-bdd-harness-bevy`; and
-  upstream `rstest-bdd` uses hyphenated crate directories throughout. Matching
-  the extraction target keeps the eventual move a pure directory copy.
-  Date/Author: 2026-08-15, planning pass.
+  underscore-named validator directory. Rationale: the roadmap and design both
+  name the hyphenated path; the extraction target repository is
+  `leynos/rstest-bdd-harness-bevy`; and upstream `rstest-bdd` uses hyphenated
+  crate directories throughout. Matching the extraction target keeps the
+  eventual move a pure directory copy. Date/Author: 2026-08-15, planning pass.
 
 - Decision: write a new ADR rather than amending ADR 002, and add a forward
-  pointer from ADR 002's Consequences.
-  Rationale: [the developer's guide](../developers-guide.md) §2 requires an ADR
-  before workspace members change, and ADR 002 defers further crates "until a
-  later ADR records a specific extraction". Adding a third crate is that
-  trigger. ADR 002 is accepted; superseding text belongs in a new record, but
-  without a pointer ADR 002 keeps telling readers to expect two crates.
-  Date/Author: 2026-08-15, planning pass.
+  pointer from ADR 002's Consequences. Rationale:
+  [the developer's guide](../developers-guide.md) §2 requires an ADR before
+  workspace members change, and ADR 002 defers further crates "until a later
+  ADR records a specific extraction". Adding a third crate is that trigger. ADR
+  002 is accepted; superseding text belongs in a new record, but without a
+  pointer ADR 002 keeps telling readers to expect two crates. Date/Author:
+  2026-08-15, planning pass.
 
 - Decision: ADR 007 must be accepted, not merely proposed, before the commit
-  that changes workspace members lands.
-  Rationale: the developer's guide rule is "before changing workspace members".
-  Merging a membership change under a merely proposed ADR is what that rule
-  guards against. ADR 002's precedent carries both a status line and a separate
-  acceptance date, so acceptance is a distinct recorded event.
-  Date/Author: 2026-08-15, planning pass.
+  that changes workspace members lands. Rationale: the developer's guide rule
+  is "before changing workspace members". Merging a membership change under a
+  merely proposed ADR is what that rule guards against. ADR 002's precedent
+  carries both a status line and a separate acceptance date, so acceptance is a
+  distinct recorded event. Date/Author: 2026-08-15, planning pass.
 
 - Decision: follow the repository's existing ADR file convention in preference
   to the literal template in
-  [the documentation style guide](../documentation-style-guide.md).
-  Rationale: all five existing ADRs use the repository convention, and
+  [the documentation style guide](../documentation-style-guide.md). Rationale:
+  all five existing ADRs use the repository convention, and
   [the repository layout](../repository-layout.md) acknowledges that the ADR
   directory predates the style guide's canonical filename convention.
-  Reconciling the two conventions is out of scope.
-  Date/Author: 2026-08-15, planning pass.
+  Reconciling the two conventions is out of scope. Date/Author: 2026-08-15,
+  planning pass.
 
 - Decision: state the crate boundary as an extension-seam rule rather than as
-  hexagonal taxonomy.
-  Rationale: the first draft framed the crate as a ports-and-adapters adapter.
-  The label is strained — the harness trait is an extension point owned by
-  `rstest-bdd`, not a port this crate defines against a domain it owns, and
-  there is no local domain to invert dependencies around. The durable rule, and
-  the one that will actually keep game code out at `0.5.1.4`, is: *the profile
-  type is the single extension seam; every game-specific plugin, resource, and
-  cleanup hook lives in a downstream implementation of it, never in this
-  crate.* That is design §8 and §11 stated enforceably. The claim that the
-  crate holds no domain logic survives as a consequence.
-  Date/Author: 2026-08-15, planning pass.
+  hexagonal taxonomy. Rationale: the first draft framed the crate as a
+  ports-and-adapters adapter. The label is strained — the harness trait is an
+  extension point owned by `rstest-bdd`, not a port this crate defines against
+  a domain it owns, and there is no local domain to invert dependencies around.
+  The durable rule, and the one that will actually keep game code out at
+  `0.5.1.4`, is: *the profile type is the single extension seam; every
+  game-specific plugin, resource, and cleanup hook lives in a downstream
+  implementation of it, never in this crate.* That is design §8 and §11 stated
+  enforceably. The claim that the crate holds no domain logic survives as a
+  consequence. Date/Author: 2026-08-15, planning pass.
 
 - Decision: leave [the user's guide](../users-guide.md),
   [the development plan](../development-plan.md), and
-  [the technical design](../skyjoust-technical-design.md) unchanged.
-  Rationale: the user's guide is scoped to operators running the validator
-  tooling, and this change alters none of those workflows. The development plan
-  and technical design describe the *runtime* crate split accepted in ADR 002;
-  this crate is test tooling, not runtime, so "one runtime crate beside the
+  [the technical design](../skyjoust-technical-design.md) unchanged. Rationale:
+  the user's guide is scoped to operators running the validator tooling, and
+  this change alters none of those workflows. The development plan and
+  technical design describe the *runtime* crate split accepted in ADR 002; this
+  crate is test tooling, not runtime, so "one runtime crate beside the
   validator crate" remains accurate. The development plan's phase list predates
-  roadmap phase 0.5; reconciling the two belongs to `0.5.1.5`.
-  Date/Author: 2026-08-15, planning pass.
+  roadmap phase 0.5; reconciling the two belongs to `0.5.1.5`. Date/Author:
+  2026-08-15, planning pass.
 
 - Decision: include a `proptest` property over tick counts; do not use `kani`
-  or `verus`; do not add `insta` snapshots.
-  Rationale: an application updated *n* times must leave the frame count equal
-  to *n*, which is a genuine invariant over a range and directly pre-figures
-  design §5's `update_times`. Bounded model checking and deductive proof are
-  disproportionate for a property that holds by Bevy's own frame counter, with
-  no `unsafe` code and no unbounded state. Snapshots earn their keep when a
-  multivariant output format must stay stable; this milestone emits none. The
-  panic-diagnostic format in `0.5.1.3` is the artefact worth pinning.
-  Date/Author: 2026-08-15, planning pass.
+  or `verus`; do not add `insta` snapshots. Rationale: an application updated
+  *n* times must leave the frame count equal to *n*, which is a genuine
+  invariant over a range and directly pre-figures design §5's `update_times`.
+  Bounded model checking and deductive proof are disproportionate for a
+  property that holds by Bevy's own frame counter, with no `unsafe` code and no
+  unbounded state. Snapshots earn their keep when a multivariant output format
+  must stay stable; this milestone emits none. The panic-diagnostic format in
+  `0.5.1.3` is the artefact worth pinning. Date/Author: 2026-08-15, planning
+  pass.
 
 ## Outcomes & retrospective
 
@@ -578,8 +601,109 @@ To be completed at Milestone 6. Record: the measured cold and warm times for
 `make lint` and `make test` on the real workspace; the build-tree size; which
 tolerances were approached; whether the feature-file rebuild guard proved
 load-bearing under the A/B test; and what `0.5.1.2` should inherit — in
-particular the answers taken at the approval gate and any lint trap discovered
-while writing the scenario binding.
+particular the five maintainer decisions recorded on 2026-08-17 and any lint
+trap discovered while writing the scenario binding.
+
+## Conformance basis
+
+This plan implements roadmap task `0.5.1.1` from `docs/roadmap.md`. Its design
+basis is `docs/rstest-bdd-harness-bevy-design.md`, especially §§3, 9, 10, and
+11, as read on 2026-08-15 and amended in Milestone 1. ADR 002 governs the
+existing workspace split; ADR 006 governs the fixture-lint macro supplied by
+the lower stack layer; Milestone 1 must add and accept ADR 007 before the
+workspace membership changes. `AGENTS.md`, `docs/developers-guide.md`, and
+`docs/documentation-style-guide.md` supply the engineering, gate, and prose
+rules. No Terms of Reference document applies to this tooling change.
+
+The selective trace links are:
+
+- `EP-REQ-001`, headless execution: roadmap `0.5.1.1` and design §§9-10 map to
+  Milestones 0, 2, 3, 4, and 6, discharged by the focused scenario, feature
+  graph checks, and full gates.
+- `EP-REQ-002`, extraction independence: design §11 maps to Milestones 1, 4,
+  and 5, discharged by the direct-dependency tripwire, transitive `cargo tree`
+  check, ADR 007, and crate README.
+- `EP-REQ-003`, version coherence: the 2026-08-17 maintainer decision maps to
+  the Milestone 0 follow-up and Milestones 1, 2, and 6. Evidence must show one
+  Bevy `0.19.1` line across the harness-facing graph.
+- `EP-REQ-004`, dependency syntax and beta stability: the 2026-08-17
+  maintainer decisions map to Milestones 1, 2, and 6. Stable requirements use
+  implicit caret syntax; the `rstest-bdd` family alone remains exactly pinned to
+  `=0.6.0-beta3` until a deliberate compatibility pass succeeds.
+- `EP-REQ-005`, propagated fallible step operations: `AGENTS.md` error-handling
+  policy
+  and the 2026-08-17 maintainer decision map to Milestones 4-6. Step functions
+  return `StepResult`; lint and review must find no `.expect()` in them.
+- `EP-REQ-006`, stack alignment: pull request #6 maps to the Milestone 0
+  follow-up. Milestone 2 cannot start until automerge and the stack rebase are
+  complete.
+
+At every milestone boundary, compare the changed files and evidence with these
+links. A change to the Bevy line, an additional dependency, a new public API,
+or a game-code edge is an architecture deviation and must be recorded in the
+`Decision log` before the plan proceeds.
+
+## Verification plan
+
+`EP-INV-001` is the extraction invariant: the new crate has no direct or
+transitive dependency on a Skyjoust gameplay crate or Lille. The manifest
+predicate and its four tests cover exact direct names, including a synthetic
+forbidden dependency as a negative control and the permitted
+`skyjoust-test-macros` near-match. The manual `cargo tree` command covers
+transitive edges. The invariant is discharged only when both methods are green;
+neither is accepted as a substitute for the other.
+
+`EP-INV-002` is the headless invariant: neither the isolated crate graph nor
+the unified workspace graph contains Bevy rendering, windowing, asset, or audio
+crates. The two `cargo tree` checks in `Behavioural acceptance` provide the
+evidence. As a non-vacuity control, run the same query once against a temporary
+probe with Bevy default features enabled and record that it finds at least one
+forbidden graphics or window crate; delete the probe afterwards. The selected
+`0.19.1` graph discharges the invariant only if the control detects the fault
+and both real queries print the expected headless result.
+
+`EP-INV-003` is the tick invariant: after `n` calls to `App::update`, the frame
+count is `n` for `0 <= n <= 32`. The parameterized unit test supplies explicit
+witnesses at zero and three; the 32-case property test explores the bounded
+range. Before accepting it, temporarily add one extra update and confirm the
+property test fails for the intended off-by-one reason, then revert the seeded
+fault. This negative control and the explicit zero witness prevent a vacuous
+passing generator.
+
+`EP-INV-004` is version coherence. After the pull request #6 rebase, inspect
+`cargo tree -i bevy`, `cargo tree -i rstest`, and `cargo metadata`. The Bevy
+edge must resolve to `0.19.1`, the new crate's stable requirement must use
+implicit caret syntax, and the `rstest-bdd` family must resolve from exact
+`=0.6.0-beta3` requirements. A second `rstest` line is acceptable only if Cargo
+proves the merged root release is incompatible with beta3 and the maintainer
+explicitly approves a recorded deviation; otherwise it fails `EP-REQ-004` and
+`EP-REQ-006`.
+
+`EP-INV-005` is feature-file freshness. The Milestone 4 A/B test first removes
+the `include_str!` dependency and then restores it. The guard is load-bearing
+only if a feature-only edit passes stale without the guard and fails with it.
+If the macro itself detects both edits, record that discovery, remove the
+unnecessary guard, and amend the developer-facing claim; do not claim evidence
+the experiment did not produce.
+
+`EP-INV-006` is fallible-step error handling. `make lint` must reject the known
+`.expect()` negative probe and pass the committed `StepResult` functions.
+Source review confirms the committed steps use `try_borrow` or `try_borrow_mut`
+and map their errors rather than panic. The published `rstest-bdd 0.6.0-beta3`
+contract that `Result`-returning steps become scenario failures is an external
+axiom, exercised by the focused behavioural test and the upstream crate's
+installed return-step tests.
+
+The remaining external axioms are Cargo's documented caret resolution and
+workspace feature unification, the selected Rust toolchain and Cranelift
+configuration, and Bevy `0.19.1`'s actual application, time, and plugin APIs.
+The first two are exercised through metadata and the repository gates. The Bevy
+axiom is not yet discharged: the Milestone 0 follow-up must compile the target
+API, inspect its resolved features and clock path, run the focused test shape,
+and measure its cost before implementation approval. No formal proof or model
+checker is proportionate here: repository-owned logic is limited to small
+constructors and test predicates, while the non-trivial bounded transition
+property is covered by the property test and seeded fault.
 
 ## Context and orientation
 
@@ -587,10 +711,9 @@ Read this section if the repository is unfamiliar.
 
 **What Skyjoust is.** A game project. The repository root is a Cargo workspace
 whose root package, `skyjoust`, currently holds only a small binary in `src/`.
-The one existing member crate,
-`crates/skyjoust_stateright_validator/`, is a model checker for the game's
-high-level interaction contract. The workspace is declared in the root
-`Cargo.toml`:
+The one existing member crate, `crates/skyjoust_stateright_validator/`, is a
+model checker for the game's high-level interaction contract. The workspace is
+declared in the root `Cargo.toml`:
 
 ```toml
 [workspace]
@@ -604,10 +727,12 @@ An ECS stores game state as *components* on *entities*, and runs *systems*
 object that owns the ECS world, the plugin list, and the schedules; its
 `update` method runs one pass of the main schedule, which includes the `Update`
 schedule. `MinimalPlugins` is Bevy's smallest useful plugin group —
-`TaskPoolPlugin`, `FrameCountPlugin`, `TimePlugin`, and `ScheduleRunnerPlugin`
-— with no window and no renderer. Note that `App::new()` is not empty: it
-already installs `MainSchedulePlugin`, which is why an unconfigured application
-can be updated at all.
+`TaskPoolPlugin`, `FrameCountPlugin`, `TimePlugin`, and
+`ScheduleRunnerPlugin` — with no window and no renderer under the earlier
+`0.17.3` probe. The Milestone 0 follow-up must confirm the exact `0.19.1`
+composition. That probe must also re-check whether `App::new()` still installs
+`MainSchedulePlugin` before the plan relies on updating an unconfigured
+application.
 
 **What `rstest-bdd` is.** A behaviour-driven development framework for Rust
 that runs Gherkin scenarios through the ordinary `cargo test` harness. Gherkin
@@ -676,7 +801,8 @@ compromise.
 - [Navigating code complexity](../complexity-antipatterns-and-refactoring-strategies.md)
   — the complexity thresholds `clippy.toml` enforces.
 - The upstream `rstest-bdd` users' guide, especially its third-party harness
-  adapter cookbook: <https://github.com/leynos/rstest-bdd/blob/main/docs/users-guide.md>.
+  adapter cookbook:
+  <https://github.com/leynos/rstest-bdd/blob/main/docs/users-guide.md>.
 
 Load the `rust-router` skill to reach the Rust skills; `rust-unit-testing`,
 `arch-crate-design`, `arch-decision-records`, `proptest`, `commit-message`, and
@@ -687,8 +813,11 @@ Load the `rust-router` skill to reach the Rust skills; `rust-unit-testing`,
 
 ### Stage A: understand and propose (no code changes)
 
-Completed during planning; evidence is in `Surprises & discoveries` and
-`Artefacts and notes`. On approval, go straight to Milestone 1.
+The original pass is complete, with evidence in `Surprises & discoveries` and
+`Artefacts and notes`. Before approval, finish the Milestone 0 follow-up: wait
+for pull request #6 to automerge, rebase the stack onto `main`, and repeat the
+load-bearing probes against Bevy `0.19.1`. Do not carry the `0.17.3` probe
+results forward as though they verified the selected version.
 
 ### Stage B: record the decision (Milestone 1)
 
@@ -711,7 +840,7 @@ Documentation only.
      out;
    - the dependency decisions and their evidence, including that `Cargo.lock`
      is load-bearing for the `rstest-bdd` family until `0.6.0` is stable;
-   - that the Bevy major is a workspace-wide coupling, who owns the bump, and
+   - that the Bevy release is a workspace-wide coupling, who owns the bump, and
      what triggers it;
    - the headless guarantee stated accurately: *this crate declares no Bevy
      renderer, window, or asset features; the resolved graph in a workspace
@@ -724,11 +853,12 @@ Documentation only.
    - §9: replace the git-dependency instruction with the published
      requirements; note the later APIs unavailable under `beta3`; note that
      disabling default features needs `features = ["std"]` to keep the clock
-     real, with the evidence; and add the migration trigger — *when
-     `0.6.0-beta4` publishes, bump all `rstest-bdd` requirements together and
-     adopt the policy-conformance helper in `0.5.1.3`. If `0.5.1.3` reaches the
-     policy-conformance task first, escalate rather than adding a git
-     dependency.*
+     real, with the `0.19.1` evidence; and add the migration trigger — *when a
+     later beta or `0.6.0` final publishes, test the whole `rstest-bdd` family
+     together before changing the exact pins. Adopt the policy-conformance
+     helper in `0.5.1.3` only after that compatibility pass. If `0.5.1.3`
+     reaches the policy-conformance task first, escalate rather than adding a
+     git dependency.*
    - §9: update the layout block to the names `0.5.1.1` actually establishes,
      so `0.5.1.2` does not create a near-identical second scenario pair beside
      them.
@@ -736,6 +866,9 @@ Documentation only.
    - Add a pointer to ADR 007.
 3. Add a forward pointer to ADR 007 in ADR 002's Consequences.
 4. Index ADR 007 and this ExecPlan in [the contents index](../contents.md).
+5. Correct the roadmap's stale Bevy version to `0.19.1` and state that ordinary
+   stable requirements use implicit caret syntax while the `rstest-bdd`
+   pre-release family remains exactly pinned.
 
 Validation: the documentation gates (see `Concrete steps`). ADR 007 must be
 accepted before Milestone 2's workspace-member change is committed.
@@ -818,7 +951,8 @@ Make no other change in this step.
      acknowledges the third, tooling-facing harness crate and cites ADR 007;
    - add a section documenting the harness crate's boundary rule and the
      testing traps this task uncovered: that the expect-in-tests allowance does
-     not cover `rstest-bdd` step functions; that feature-file-only edits do not
+     not cover `rstest-bdd` step functions, so fallible steps return
+     `StepResult` and propagate errors; that feature-file-only edits do not
      invalidate the build without the `include_str!` guard; that
      `expect_that!` needs `#[gtest]` while `assert_that!` does not; and that
      `MinimalPlugins` includes `ScheduleRunnerPlugin`, whose `run` method loops
@@ -864,12 +998,39 @@ Expected:
 0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member
 ```
 
-Check free space before Milestone 2; the build tree reaches roughly 2.2 GB for
-this crate alone:
+Check free space before Milestone 2; the discarded `0.17.3` probe reached
+roughly 2.2 GB for this crate alone, and `0.19.1` may differ:
 
 ```bash
 df -h .
 ```
+
+### Milestone 0 follow-up — align and re-probe
+
+Watch pull request #6 without changing it:
+
+```bash
+gh pr view 6 --json state,mergedAt,url
+```
+
+Do not proceed until `state` is `MERGED` and `mergedAt` is non-null. Fetch the
+new base, then rebase the lower `add-test-macro-for-fixture-lint-suppression`
+branch first and this branch second, following the repository's conflict-aware
+rebase workflow:
+
+```bash
+git fetch origin main
+git merge-base --is-ancestor origin/main add-test-macro-for-fixture-lint-suppression
+git merge-base --is-ancestor add-test-macro-for-fixture-lint-suppression \
+  0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member
+```
+
+Both ancestry checks must exit zero after the rebases. Inspect the root
+`rstest` requirement from the rebased tree, then repeat the historical probe's
+API, feature, headless-graph, Cranelift, test, lint, and cost commands with Bevy
+`0.19.1`. Update `Surprises & discoveries`, `Risks`, `Verification plan`, and
+the historical evidence sections with the results before asking for execution
+approval.
 
 ### Milestone 1 — record the decision
 
@@ -883,11 +1044,10 @@ gate nixie make nixie
 gate diff-check git diff --check
 ```
 
-`make markdownlint` depends on `make spelling`, which chains through the
-phrase check, the spelling-config check, and a pytest run — it is not a light
-gate. If `typos` rejects new vocabulary, add narrow entries to
-`typos.local.toml`, then run `make spelling-config-write` to regenerate
-`typos.toml`, and commit both.
+`make markdownlint` depends on `make spelling`, which chains through the phrase
+check, the spelling-config check, and a pytest run — it is not a light gate. If
+`typos` rejects new vocabulary, add narrow entries to `typos.local.toml`, then
+run `make spelling-config-write` to regenerate `typos.toml`, and commit both.
 
 Commit with a file-based message:
 
@@ -1025,10 +1185,10 @@ the path.
    Record whether it passes stale.
 2. Restore the guard, repeat the same edit, and record the failure.
 
-Only "(1) passes and (2) fails" licenses the developer's-guide claim in
-Stage F. If (1) also fails, the macro already tracks the path: either drop the
-guard, or keep it and downgrade the guide text to belt and braces. Revert the
-feature file afterwards.
+Only "(1) passes and (2) fails" licenses the developer's-guide claim in Stage
+F. If (1) also fails, the macro already tracks the path: either drop the guard,
+or keep it and downgrade the guide text to belt and braces. Revert the feature
+file afterwards.
 
 ```bash
 gate lint make lint
@@ -1058,8 +1218,8 @@ Commit.
 Delegate the full gate run to the `scrutineer` sub-agent. It runs the gates
 sequentially — sequential execution is required for the build cache to be
 effective — captures each gate's output under `/tmp`, and returns a bounded
-report. The gates, following
-[the development plan](../development-plan.md) §3, are:
+report. The gates, following [the development plan](../development-plan.md) §3,
+are:
 
 ```bash
 make check-fmt
@@ -1087,8 +1247,8 @@ git push -u origin 0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member
 
 The title must carry the roadmap number in parentheses — for example
 `Add rstest-bdd-harness-bevy as a workspace member (0.5.1.1)` — and the body
-must mention this ExecPlan by path, surface the two items from
-`Open decisions requiring approval`, and end with a `## References` section
+must mention this ExecPlan by path, summarize the five maintainer decisions in
+`Decisions resolved before approval`, and end with a `## References` section
 linking the Lody session.
 
 ## Validation and acceptance
@@ -1096,16 +1256,16 @@ linking the Lody session.
 ### Red-green-refactor evidence
 
 - **Red.** `cargo test -p rstest-bdd-harness-bevy` fails to compile with
-  unresolved imports naming `add_minimal_plugins` and `minimal_app`, raised
-  from `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`. A green run with
-  zero tests means the module declaration is missing, not that the step
-  succeeded.
+  unresolved imports naming `add_minimal_plugins` and `minimal_app`, raised from
+  `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`. A green run with zero
+  tests means the module declaration is missing, not that the step succeeded.
 - **Green.** After implementing `profile.rs` and adding the re-export, the same
   command reports five library tests and two doctests passing, with zero
   failures.
 - **Refactor.** `make check-fmt` prints nothing and exits zero; `make lint`
-  completes `cargo doc`, `cargo clippy --workspace --all-targets --all-features`
-  with warnings denied, and the Whitaker Dylint suite with no diagnostics.
+  completes `cargo doc`,
+  `cargo clippy --workspace --all-targets --all-features` with warnings denied,
+  and the Whitaker Dylint suite with no diagnostics.
 
 ### The BDD feature specification
 
@@ -1225,9 +1385,9 @@ Adding the crate is additive: nothing existing is deleted. If the work must be
 abandoned, revert the commits and remove the crate path from the root
 `Cargo.toml` members array; the deleted directory leaves no residue.
 
-**Lockfile conflicts.** Adding roughly 139 crates rewrites a large contiguous
-block of `Cargo.lock`, so every rebase onto a moving `main` will conflict
-there. Never hand-merge it. Take `main`'s version wholesale, re-resolve with
+**Lockfile conflicts.** Adding the Bevy graph rewrites a large contiguous block
+of `Cargo.lock`, so every rebase onto a moving `main` may conflict there. Never
+hand-merge it. Take `main`'s version wholesale, re-resolve with
 `cargo metadata --offline >/dev/null`, and re-run the boundary checks from
 `Behavioural acceptance` before committing. A hand-merged lockfile is how a
 build stops being reproducible.
@@ -1248,11 +1408,12 @@ files are *not* scratch — commit them.
 
 ## Artefacts and notes
 
-### Evidence: the full crate shape passes every gate
+### Historical evidence: the `0.17.3` crate shape passes every gate
 
-A probe reproducing this plan's exact manifest, lint tables, `clippy.toml`,
+A probe reproducing the earlier `0.17.3` manifest, lint tables, `clippy.toml`,
 `.rustfmt.toml`, and pinned toolchain was built at `~/.cache/shape-probe`
-during planning:
+during planning. It is structural evidence for the test layout, not acceptance
+evidence for the selected `0.19.1` dependency:
 
 ```plaintext
      Running unittests src/lib.rs
@@ -1324,20 +1485,20 @@ stack: `#[allow_fixture_expansion_lints]` from `skyjoust-test-macros`, applied
 above `#[fixture]`, which lets the fixture keep its natural single-expression
 form. A plain non-fixture function with the same single-line shape does not
 fire the lint, so the cause is the fixture macro's expansion — which is
-precisely why the suppression belongs in a macro rather than at the call
-site.
+precisely why the suppression belongs in a macro rather than at the call site.
 
-### Evidence: Bevy feature selection and cost
+### Historical evidence: Bevy `0.17.3` feature selection and cost
 
-| Bevy dependency declaration                                            | Normal | With dev |
+| Historical Bevy dependency declaration                                 | Normal | With dev |
 | ---------------------------------------------------------------------- | ------ | -------- |
 | `{ version = "0.17.3", default-features = false }`                     | 115    | 259      |
 | `{ version = "0.17.3", default-features = false, features = ["std"] }` | 139    | 279      |
 | `"0.17.3"` (Bevy defaults)                                             | 428    | n/a      |
 
-*Table 1: Resolved crate counts for the full harness crate, measured with
-`cargo tree --workspace -e normal --prefix none | sort -u | wc -l` and the
-dev-inclusive equivalent. The 428 figure is from the bevy-only probe.*
+*Table 1: Historical resolved crate counts for the full harness crate, measured
+with `cargo tree --workspace -e normal --prefix none | sort -u | wc -l` and the
+dev-inclusive equivalent. The 428 figure is from the Bevy-only probe. Replace
+these figures with `0.19.1` evidence during the Milestone 0 follow-up.*
 
 Measured build cost on six cores with a warm Cargo registry:
 
@@ -1349,16 +1510,17 @@ WARM cranelift check:                                            0s
 du -sh target:                                                 2.2G
 ```
 
-Cranelift compiles the whole Bevy graph without incident, which is the
-configuration `make test`, `make lint`, and `make typecheck` all use.
+These figures prove only the discarded `0.17.3` baseline. The Milestone 0
+follow-up must establish that Cranelift compiles the `0.19.1` graph before the
+plan relies on equivalent cost or compatibility claims.
 
 ### Note on beta3 message wording
 
 Published `0.6.0-beta3` generated code panics with the message
-`harness failed to initialise scenario`, where `main` uses the `-ize` form.
-Any future test asserting on that string must match the version in use, and
-must keep the literal inside backticks — the spelling gate rejects the `-ise`
-form in bare prose. This milestone asserts on no such string.
+`harness failed to initialise scenario`, where `main` uses the `-ize` form. Any
+future test asserting on that string must match the version in use, and must
+keep the literal inside backticks — the spelling gate rejects the `-ise` form
+in bare prose. This milestone asserts on no such string.
 
 ## Interfaces and dependencies
 
@@ -1380,7 +1542,7 @@ readme = "README.md"
 workspace = true
 
 [dependencies]
-bevy = { version = "0.17.3", default-features = false, features = ["std"] }
+bevy = { version = "0.19.1", default-features = false, features = ["std"] }
 # Exact pins: a caret requirement on a pre-release is not a pin. A caret on
 # 0.6.0-beta3 admits 0.6.0-beta4, which changes StepContext borrowing.
 rstest-bdd-harness = "=0.6.0-beta3"
@@ -1412,14 +1574,16 @@ Notes on each entry:
   does not control. `0.5.1.2` needs it for design §6's diagnostic path.
 - `rstest-bdd` and `rstest-bdd-macros` are development dependencies: the
   crate's own behavioural tests use them, the library does not.
-- `rstest 0.26.1` matches what `rstest-bdd 0.6.0-beta3` expects, and is
-  deliberately different from the root package's `rstest = "0.18"`.
+- `rstest 0.26.1` matches what `rstest-bdd 0.6.0-beta3` expects. Pull request
+  #6 should make it the root package's line as well; confirm that after the
+  required rebase and update this manifest example if the merged public version
+  differs.
 - `skyjoust-test-macros` supplies `allow_fixture_expansion_lints`, without
-  which the scenario fixture cannot satisfy `make lint` and `make check-fmt`
-  at the same time. It is a path dependency on the crate added by the layer
-  beneath this one in the stack, and is dev-only: the library never uses it.
-  It is the one dependency here that does *not* travel to the extracted
-  repository — see the extraction note in
+  which the scenario fixture cannot satisfy `make lint` and `make check-fmt` at
+  the same time. It is a path dependency on the crate added by the layer
+  beneath this one in the stack, and is dev-only: the library never uses it. It
+  is the one dependency here that does *not* travel to the extracted repository
+  — see the extraction note in
   [ADR 006](../adr/006-test-macro-crate-for-fixture-expansion-lints.md).
 - The publish and licence settings change at extraction, where the crate should
   adopt the sibling `0.6.0-beta` numbering so its version states which harness
@@ -1541,9 +1705,7 @@ use super::{add_minimal_plugins, minimal_app};
 #[case(3)]
 fn minimal_app_counts_frames(#[case] ticks: u32) {
     let mut app = minimal_app();
-    for _ in 0..ticks {
-        app.update();
-    }
+    (0..ticks).for_each(|_| app.update());
     expect_that!(app.world().resource::<FrameCount>().0, eq(ticks));
 }
 ```
@@ -1566,6 +1728,7 @@ use std::cell::RefCell;
 use bevy::{app::App, diagnostic::FrameCount, time::TimePlugin};
 use googletest::prelude::*;
 use rstest::fixture;
+use rstest_bdd::StepResult;
 use rstest_bdd_harness_bevy::minimal_app;
 use rstest_bdd_macros::{given, scenario, then, when};
 use skyjoust_test_macros::allow_fixture_expansion_lints;
@@ -1580,28 +1743,41 @@ const _: &str = include_str!("features/headless_scenario.feature");
 fn app() -> RefCell<App> { RefCell::new(minimal_app()) }
 
 #[given("a minimal headless Bevy application")]
-fn given_minimal_app(app: &RefCell<App>) {
-    assert_that!(app.borrow().is_plugin_added::<TimePlugin>(), eq(true));
+fn given_minimal_app(app: &RefCell<App>) -> StepResult<(), String> {
+    app.try_borrow()
+        .map(|app| assert_that!(app.is_plugin_added::<TimePlugin>(), eq(true)))
+        .map_err(|error| error.to_string())
 }
 
 #[when("the schedule advances once")]
-fn when_schedule_advances_once(app: &RefCell<App>) { app.borrow_mut().update(); }
+fn when_schedule_advances_once(app: &RefCell<App>) -> StepResult<(), String> {
+    app.try_borrow_mut()
+        .map(|mut app| app.update())
+        .map_err(|error| error.to_string())
+}
 
 #[then("the frame count reads 1")]
-fn then_frame_count_reads_one(app: &RefCell<App>) {
-    let observed = app.borrow().world().resource::<FrameCount>().0;
-    assert_that!(observed, eq(1_u32));
+fn then_frame_count_reads_one(app: &RefCell<App>) -> StepResult<(), String> {
+    app.try_borrow()
+        .map(|app| {
+            let observed = app.world().resource::<FrameCount>().0;
+            assert_that!(observed, eq(1_u32));
+        })
+        .map_err(|error| error.to_string())
 }
 
 #[scenario(path = "tests/features/headless_scenario.feature", index = 0)]
 fn minimal_app_advances_one_tick(app: RefCell<App>) {}
 ```
 
-Two things a first reader will not guess. The fixture parameter must appear on
-the `#[scenario]` function as well as on the steps, because that is how
+Three things a first reader will not guess. The fixture parameter must appear
+on the `#[scenario]` function as well as on the steps, because that is how
 `rstest` knows to construct it. And step functions use `assert_that!`, which
 panics directly, rather than `expect_that!`, which needs a `#[gtest]` context
-that generated step functions do not have.
+that generated step functions do not have. Finally, a step is not itself a
+`#[test]` function, so `.expect()` is still denied there. The steps return
+`StepResult` and transform `RefCell` borrow errors into normal step failures;
+the functional chains keep mutation and error conversion adjacent.
 
 The property test in `tests/tick_properties.rs` states the invariant that
 `0.5.1.2`'s `update_times` must preserve, with an explicit case count:
@@ -1613,9 +1789,7 @@ proptest! {
     #[test]
     fn frame_count_tracks_update_calls(ticks in 0_u32..=32) {
         let mut app = minimal_app();
-        for _ in 0..ticks {
-            app.update();
-        }
+        (0..ticks).for_each(|_| app.update());
         prop_assert_eq!(app.world().resource::<FrameCount>().0, ticks);
     }
 }
@@ -1675,31 +1849,31 @@ declined here as disproportionate, and the manual `cargo tree` step in
 
 ### Files this plan creates or changes
 
-| Path                                                                                   | Change                                                         |
-| -------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `Cargo.toml`                                                                           | Add the workspace member.                                      |
-| `Cargo.lock`                                                                           | Regenerated; roughly 139 new entries.                          |
-| `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`                     | New ADR.                                                       |
-| `docs/adr/002-crate-layout-and-public-api.md`                                          | Add a forward pointer to ADR 007 in Consequences.              |
-| `crates/rstest-bdd-harness-bevy/Cargo.toml` (dev-dependency)                           | Path dependency on `skyjoust-test-macros`.                     |
-| `docs/rstest-bdd-harness-bevy-design.md`                                               | Amend sections 3, 9 (dependencies and layout), and 13.         |
-| `docs/contents.md`                                                                     | Index ADR 007 and this ExecPlan.                               |
-| `docs/repository-layout.md`                                                            | Tree sketch, path responsibilities, workspace membership note. |
-| `docs/developers-guide.md`                                                             | Amend section 2; add a harness-crate conventions section.      |
-| `docs/roadmap.md`                                                                      | Mark 0.5.1.1 done; correct the git-dependency sub-bullet.      |
-| `docs/execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`               | This living document, updated as work proceeds.                |
-| `crates/rstest-bdd-harness-bevy/Cargo.toml`                                            | New crate manifest.                                            |
-| `crates/rstest-bdd-harness-bevy/README.md`                                             | New crate README with the Bevy compatibility table.            |
-| `crates/rstest-bdd-harness-bevy/src/lib.rs`                                            | New crate root.                                                |
-| `crates/rstest-bdd-harness-bevy/src/profile.rs`                                        | New plugin configuration module.                               |
-| `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`                                  | New sibling unit tests.                                        |
-| `crates/rstest-bdd-harness-bevy/tests/headless_scenario.rs`                            | New behavioural binding.                                       |
-| `crates/rstest-bdd-harness-bevy/tests/features/headless_scenario.feature`              | New feature file.                                              |
-| `crates/rstest-bdd-harness-bevy/tests/tick_properties.rs`                              | New property test.                                             |
-| `crates/rstest-bdd-harness-bevy/tests/extraction_boundary.rs`                          | New boundary tripwire.                                         |
-| `crates/rstest-bdd-harness-bevy/tests/proptest-regressions/`                           | Created only if the property test ever fails; committed.       |
-| `typos.local.toml` and `typos.toml`                                                    | Only if spelling rejects new vocabulary; regenerate both.      |
-| `docs/users-guide.md`, `docs/development-plan.md`, `docs/skyjoust-technical-design.md` | No change — see `Decision log`.                                |
+| Path                                                                                   | Change                                                                |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `Cargo.toml`                                                                           | Add the workspace member.                                             |
+| `Cargo.lock`                                                                           | Regenerated for the measured Bevy `0.19.1` graph.                     |
+| `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`                     | New ADR.                                                              |
+| `docs/adr/002-crate-layout-and-public-api.md`                                          | Add a forward pointer to ADR 007 in Consequences.                     |
+| `crates/rstest-bdd-harness-bevy/Cargo.toml` (dev-dependency)                           | Path dependency on `skyjoust-test-macros`.                            |
+| `docs/rstest-bdd-harness-bevy-design.md`                                               | Amend sections 3, 9 (dependencies and layout), and 13.                |
+| `docs/contents.md`                                                                     | Index ADR 007 and this ExecPlan.                                      |
+| `docs/repository-layout.md`                                                            | Tree sketch, path responsibilities, workspace membership note.        |
+| `docs/developers-guide.md`                                                             | Amend section 2; add a harness-crate conventions section.             |
+| `docs/roadmap.md`                                                                      | Target Bevy `0.19.1`; mark 0.5.1.1 done; correct dependency guidance. |
+| `docs/execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`               | This living document, updated as work proceeds.                       |
+| `crates/rstest-bdd-harness-bevy/Cargo.toml`                                            | New crate manifest.                                                   |
+| `crates/rstest-bdd-harness-bevy/README.md`                                             | New crate README with the Bevy compatibility table.                   |
+| `crates/rstest-bdd-harness-bevy/src/lib.rs`                                            | New crate root.                                                       |
+| `crates/rstest-bdd-harness-bevy/src/profile.rs`                                        | New plugin configuration module.                                      |
+| `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`                                  | New sibling unit tests.                                               |
+| `crates/rstest-bdd-harness-bevy/tests/headless_scenario.rs`                            | New behavioural binding.                                              |
+| `crates/rstest-bdd-harness-bevy/tests/features/headless_scenario.feature`              | New feature file.                                                     |
+| `crates/rstest-bdd-harness-bevy/tests/tick_properties.rs`                              | New property test.                                                    |
+| `crates/rstest-bdd-harness-bevy/tests/extraction_boundary.rs`                          | New boundary tripwire.                                                |
+| `crates/rstest-bdd-harness-bevy/tests/proptest-regressions/`                           | Created only if the property test ever fails; committed.              |
+| `typos.local.toml` and `typos.toml`                                                    | Only if spelling rejects new vocabulary; regenerate both.             |
+| `docs/users-guide.md`, `docs/development-plan.md`, `docs/skyjoust-technical-design.md` | No change — see `Decision log`.                                       |
 
 *Table 2: The authoritative file manifest. The scope trigger in `Tolerances` is
 measured against this table.*
@@ -1739,7 +1913,7 @@ What changed and why:
   constraint; the CI cache budget; and the floating-versus-pinned rustfmt split
   between `make fmt` and `make check-fmt`.
 - **Added `Outcomes & retrospective`**, which the document's own opening
-  paragraph required and the first draft omitted, and
+  paragraph required and the first draft omitted, and a section then named
   `Open decisions requiring approval` for the two questions the review could
   not settle from the repository.
 - **Corrected figures.** The graph is 139 crates normal and 279 with
@@ -1756,11 +1930,10 @@ expansion lint, which now lands in the layer beneath this plan in the pull
 request stack rather than being worked around locally.
 
 - The `let`-binding workaround is withdrawn. The scenario fixture keeps its
-  natural single-expression form and carries
-  `#[allow_fixture_expansion_lints]` from `skyjoust-test-macros`, mirroring
-  `weaver-test-macros` in `leynos/weaver`. The workaround would have spread a
-  bespoke idiom across every fixture the project writes instead of fixing the
-  cause once.
+  natural single-expression form and carries `#[allow_fixture_expansion_lints]`
+  from `skyjoust-test-macros`, mirroring `weaver-test-macros` in
+  `leynos/weaver`. The workaround would have spread a bespoke idiom across
+  every fixture the project writes instead of fixing the cause once.
 - The harness ADR is renumbered 006 to 007, because the lower layer takes 006
   for the test-macro decision.
 - `skyjoust-test-macros` is added as a development dependency, and the
@@ -1769,6 +1942,27 @@ request stack rather than being worked around locally.
 - The boundary guard now matches dependency names exactly rather than by
   substring, and the `cargo tree` acceptance pattern anchors on the trailing
   space. Both changes exist for the same reason: `skyjoust-test-macros`
-  contains the substring `skyjoust`, so the guard as previously specified
-  would have rejected a dependency the contract allows. A fourth boundary test
-  pins that behaviour.
+  contains the substring `skyjoust`, so the guard as previously specified would
+  have rejected a dependency the contract allows. A fourth boundary test pins
+  that behaviour.
+
+Revision 4, 2026-08-17. Recorded the maintainer's answers to the open design
+questions and reconciled their effects across the complete plan.
+
+- Bevy now targets `0.19.1` with implicit caret syntax. All `0.17.3` probe
+  results are labelled historical, and a Milestone 0 follow-up must repeat the
+  API, feature, headless, Cranelift, lint, test, and cost checks before code
+  work begins.
+- The `rstest-bdd` family remains exactly pinned to `=0.6.0-beta3`. A later beta
+  or final release is only a migration trigger; the plan requires a green
+  compatibility pass before adopting it and returning to implicit caret syntax.
+- Step functions now return `StepResult`, propagate `RefCell` borrow failures,
+  and use functional transformations where those remain clear. This records why
+  `.expect()` is invalid in macro-registered step functions even though test
+  bodies may use it.
+- Pull request #6 is a prerequisite: wait for automerge, rebase the stack onto
+  `main`, and reconcile the new crate's `rstest` requirement with the merged
+  root before Milestone 2.
+- Added the mandatory `Conformance basis` and `Verification plan` living
+  sections, including trace links, negative controls, external axioms, and
+  discharge conditions for the new decisions.
