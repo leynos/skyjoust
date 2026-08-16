@@ -308,7 +308,9 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] Write `src/profile.rs` (module comment only) and `src/profile_tests.rs`.
   - [x] Observe the red state; record the exact error text.
   - [x] `make typecheck` as a whole-graph Cranelift smoke test.
-- [ ] Milestone 3 (green): implement `src/profile.rs`; export its two functions.
+- [x] (2026-08-17) Milestone 3 (green): implement `src/profile.rs`; export its
+      two functions.
+- [ ] Milestone 4: behavioural, property, and boundary coverage.
 - [ ] Milestone 4: behavioural, property, and boundary coverage.
   - [ ] `tests/features/headless_scenario.feature`.
   - [ ] `tests/headless_scenario.rs`.
@@ -467,6 +469,27 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   this six-core host, counting the two package-cache lock waits. Evidence: the
   Milestone 2 red run's own elapsed time. Impact: the build-cost tolerance is
   not stressed; the warm runs in Milestones 3-6 will confirm the repeat cost.
+
+- Observation: Milestone 3's unit tests discharge two `0.19.1` contracts the
+  plan had to re-check: `App::new()` still omits `TimePlugin` (the negative
+  test passes), and `MinimalPlugins` still includes `FrameCountPlugin`
+  (updating advances the frame counter). Evidence: the five unit tests and the
+  two doctests pass. Impact: the retained test names describe what they check.
+
+- Observation: `clippy::double_must_use` objects to a bare `#[must_use]` on
+  `minimal_app::() -> App` because Bevy's `App` is itself `#[must_use]`.
+  Evidence: `make lint` flags profile.rs and suggests "either add some
+  descriptive message or remove the attribute". Impact: the attribute carries
+  a message — `#[must_use = "advance the returned application or inspect its
+  world"]` — which keeps the plan's requirement and satisfies the estate deny.
+
+- Observation: the ExecPlan's verbatim `headless_scenario.rs` snippet trips
+  `clippy::shadow_reuse` under the current workspace baseline: the closure
+  parameters `|app|`, `|mut app|`, and their inner `let` shadow the step
+  function's own `app` parameter. Evidence: `make lint` lists three
+  `shadow_reuse` diagnostics against the snippet as written. Impact: the
+  closures are renamed (`shared`, `borrow`) without changing behaviour; the
+  snippet in this plan is amended to match.
 
 ## Decision log
 
@@ -1821,22 +1844,22 @@ fn app() -> RefCell<App> { RefCell::new(minimal_app()) }
 #[given("a minimal headless Bevy application")]
 fn given_minimal_app(app: &RefCell<App>) -> StepResult<(), String> {
     app.try_borrow()
-        .map(|app| assert_that!(app.is_plugin_added::<TimePlugin>(), eq(true)))
+        .map(|shared| assert_that!(shared.is_plugin_added::<TimePlugin>(), eq(true)))
         .map_err(|error| error.to_string())
 }
 
 #[when("the schedule advances once")]
 fn when_schedule_advances_once(app: &RefCell<App>) -> StepResult<(), String> {
     app.try_borrow_mut()
-        .map(|mut app| app.update())
+        .map(|mut borrow| borrow.update())
         .map_err(|error| error.to_string())
 }
 
 #[then("the frame count reads 1")]
 fn then_frame_count_reads_one(app: &RefCell<App>) -> StepResult<(), String> {
     app.try_borrow()
-        .map(|app| {
-            let observed = app.world().resource::<FrameCount>().0;
+        .map(|shared| {
+            let observed = shared.world().resource::<FrameCount>().0;
             assert_that!(observed, eq(1_u32));
         })
         .map_err(|error| error.to_string())
