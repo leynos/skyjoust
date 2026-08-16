@@ -269,11 +269,11 @@ request #6 automerged on 2026-08-16, the branch stack is rebased onto `main`,
 and the merged root `rstest` requirement is confirmed. The Bevy `0.19.1`
 compile, feature, clock, Cranelift, and cost evidence is collected by the
 Milestone 2/3 build rather than by a separate probe, because the crate itself
-is the `0.19.1` test vehicle; the results are recorded in `Surprises &
-discoveries` as they surface.
+is the `0.19.1` test vehicle; the results are recorded in
+`Surprises & discoveries` as they surface.
 
-Last green gate: `make markdownlint` and `make nixie` — documentation only,
-run on 2026-08-17 for Revision 4.
+Last green gate: `make markdownlint` and `make nixie` — documentation only, run
+on 2026-08-17 for Revision 4.
 
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
@@ -648,9 +648,9 @@ The selective trace links are:
   implicit caret syntax; the `rstest-bdd` family alone remains exactly pinned to
   `=0.6.0-beta3` until a deliberate compatibility pass succeeds.
 - `EP-REQ-005`, propagated fallible step operations: `AGENTS.md` error-handling
-  policy
-  and the 2026-08-17 maintainer decision map to Milestones 4-6. Step functions
-  return `StepResult`; lint and review must find no `.expect()` in them.
+  policy and the 2026-08-17 maintainer decision map to Milestones 4-6. Step
+  functions return `StepResult`; lint and review must find no `.expect()` in
+  them.
 - `EP-REQ-006`, stack alignment: pull request #6 maps to the Milestone 0
   follow-up. Milestone 2 cannot start until automerge and the stack rebase are
   complete.
