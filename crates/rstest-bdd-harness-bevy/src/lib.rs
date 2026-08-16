@@ -9,8 +9,17 @@
 mod profile;
 
 pub use bevy;
+pub use profile::{add_minimal_plugins, minimal_app};
 pub use rstest_bdd_harness::{
-    AttributePolicy, HarnessAdapter, HarnessError, HarnessResult, ScenarioMetadata,
-    ScenarioRunRequest, ScenarioRunner, StdScenarioRunRequest, StdScenarioRunner, TestAttribute,
+    AttributePolicy,
+    HarnessAdapter,
+    HarnessError,
+    HarnessResult,
+    ScenarioMetadata,
+    ScenarioRunRequest,
+    ScenarioRunner,
+    StdScenarioRunRequest,
+    StdScenarioRunner,
+    TestAttribute,
 };
 pub use tracing;
