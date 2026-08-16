@@ -1,0 +1,5 @@
+error: expected an rstest #[fixture] function
+ --> tests/ui/fixture_expansion_lints/fail/function_without_fixture.rs:4:4
+  |
+4 | fn seed() -> u32 { 7 }
+  |    ^^^^

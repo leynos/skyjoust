@@ -1,0 +1,8 @@
+#![deny(unused_braces)]
+
+use rstest::fixture;
+
+#[fixture]
+fn seed() -> u32 { 7 }
+
+fn main() {}

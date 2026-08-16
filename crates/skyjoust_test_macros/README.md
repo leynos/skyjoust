@@ -36,12 +36,18 @@ use skyjoust_test_macros::allow_fixture_expansion_lints;
 fn seed() -> u32 { 7 }
 ```
 
+`allow_fixture_expansion_lints` accepts only `rstest` fixture functions
+annotated with `#[fixture]`. Unsupported input is rejected at compile time,
+rather than being passed through as though it were a fixture.
+
 ## Files
 
-| Path                               | Responsibility                                       |
-| ---------------------------------- | ---------------------------------------------------- |
-| `src/lib.rs`                       | The `allow_fixture_expansion_lints` attribute macro. |
-| `tests/fixture_expansion_lints.rs` | Compile-level proof that the suppression works.      |
+| Path                                            | Responsibility                                       |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `src/lib.rs`                                    | The `allow_fixture_expansion_lints` attribute macro. |
+| `tests/fixture_expansion_lints.rs`              | Compile-level proof that the suppression works.      |
+| `tests/fixture_expansion_lints_ui.rs`           | Trybuild harness for the macro's input contract.     |
+| `tests/ui/fixture_expansion_lints/{pass,fail}/` | UI pass and compile-fail cases.                      |
 
 *Table 1: Source layout for `skyjoust-test-macros`.*
 
@@ -52,6 +58,10 @@ level, so the file compiles only while the attribute is doing its job. Removing
 the attribute from the single-expression fixture makes the test target fail to
 build — that failure is the assertion. The file also covers a multi-statement
 fixture, which is the case that rules out `#[expect]` in the expansion.
+
+The UI harness covers a supported `#[fixture]` function as a compile-pass case
+and unsupported input as compile-fail cases. These cases keep the macro's
+compile-time input contract explicit.
 
 Run it with:
 

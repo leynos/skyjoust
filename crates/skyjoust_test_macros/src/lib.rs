@@ -9,7 +9,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Item, parse_macro_input};
+use syn::{Attribute, ItemFn, parse_macro_input};
 
 /// Allows the `unused_braces` lint for fixture functions.
 ///
@@ -23,6 +23,8 @@ use syn::{Item, parse_macro_input};
 ///
 /// This attribute breaks that deadlock. Apply it directly above `#[fixture]`,
 /// leaving the fixture in its natural single-expression form.
+/// The macro accepts only function items carrying rstest's `#[fixture]`
+/// attribute; other input is rejected at compile time.
 ///
 /// # Examples
 ///
@@ -52,7 +54,16 @@ use syn::{Item, parse_macro_input};
 /// unguarded `#[expect]` would go unfulfilled under a plain `rustc` build.
 #[proc_macro_attribute]
 pub fn allow_fixture_expansion_lints(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let parsed_item = parse_macro_input!(item as Item);
+    let fixture = parse_macro_input!(item as ItemFn);
+
+    if !has_fixture_attribute(&fixture.attrs) {
+        return syn::Error::new_spanned(
+            &fixture.sig.ident,
+            "expected an rstest #[fixture] function",
+        )
+        .to_compile_error()
+        .into();
+    }
 
     quote! {
         #[allow(
@@ -66,7 +77,13 @@ pub fn allow_fixture_expansion_lints(_attr: TokenStream, item: TokenStream) -> T
                 reason = "needed to allow unused_braces for fixture macro expansion"
             )
         )]
-        #parsed_item
+        #fixture
     }
     .into()
+}
+
+fn has_fixture_attribute(attributes: &[Attribute]) -> bool {
+    attributes
+        .iter()
+        .any(|attribute| attribute.path().is_ident("fixture"))
 }

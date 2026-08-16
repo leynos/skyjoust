@@ -1,0 +1,16 @@
+error: unnecessary braces around block return value
+ --> tests/ui/fixture_expansion_lints/fail/fixture_without_attribute.rs:6:18
+  |
+6 | fn seed() -> u32 { 7 }
+  |                  ^^ ^^
+  |
+note: the lint level is defined here
+ --> tests/ui/fixture_expansion_lints/fail/fixture_without_attribute.rs:1:9
+  |
+1 | #![deny(unused_braces)]
+  |         ^^^^^^^^^^^^^
+help: remove these braces
+  |
+6 - fn seed() -> u32 { 7 }
+6 + fn seed() -> u32 7
+  |
