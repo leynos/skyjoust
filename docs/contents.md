@@ -67,11 +67,16 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 - [ADR 007: Adopt the Rust build standard in `.cargo/config.toml`](adr/007-adopt-the-rust-build-standard.md)
   - accepted decision to carry the estate build standard in the Cargo
   configuration, holding release and coverage off it.
+- [ADR 007: In-tree incubation of the Bevy BDD harness crate](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+  - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and pin
+  the `rstest-bdd` family to `=0.6.0-beta3`.
 
 ## Execution plans
 
 - [Record the initial runtime crate split as an ADR](execplans/1-1-1-record-runtime-crate-split-as-adr.md)
   - approval-gated plan for roadmap task `1.1.1`.
+- [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+  - execution plan for roadmap task `0.5.1.1`.
 
 ## State graph references and artefacts
 

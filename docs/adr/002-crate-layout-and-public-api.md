@@ -93,3 +93,9 @@ with named modules in the file tree, not a multi-crate workspace, until a later
 ADR records a specific extraction. Roadmap task `1.1.1`, the technical design's
 runtime ownership table, and the development plan's phase-2 entry all align
 with this decision.
+
+[ADR 007](007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
+`rstest-bdd-harness-bevy` as a third member crate — a tooling-facing test
+adapter in the same category as the validator exception recorded above. It does
+not reopen this ADR's deferral of runtime splits, which continues to govern
+*runtime* functionality only.
