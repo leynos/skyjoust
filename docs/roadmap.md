@@ -13,9 +13,9 @@ The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
 `docs/rstest-bdd-harness-bevy-design.md`,
 `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`, and the
-reference images in `ref/`. Five Architecture Decision Records (ADRs) already
-exist in `docs/adr/`; early roadmap tasks create further narrow ADRs where the
-design still names unresolved choices.
+reference images in `ref/`. ADRs numbered 001–006 already exist in `docs/adr/`;
+early roadmap tasks create further narrow ADRs where the design still names
+unresolved choices.
 
 ## 0.5. Bevy behaviour-driven development harness spike
 

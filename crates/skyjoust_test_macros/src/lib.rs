@@ -82,6 +82,7 @@ pub fn allow_fixture_expansion_lints(_attr: TokenStream, item: TokenStream) -> T
     .into()
 }
 
+/// Detects rstest's `#[fixture]` attribute.
 fn has_fixture_attribute(attributes: &[Attribute]) -> bool {
     attributes
         .iter()
