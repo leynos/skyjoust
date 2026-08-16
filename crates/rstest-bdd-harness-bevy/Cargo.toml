@@ -1,0 +1,27 @@
+[package]
+name = "rstest-bdd-harness-bevy"
+version = "0.1.0"
+edition = "2024"
+description = "Headless Bevy harness adapter for rstest-bdd behavioural tests."
+license = "ISC"
+publish = false
+readme = "README.md"
+
+[lints]
+workspace = true
+
+[dependencies]
+bevy = { version = "0.19.1", default-features = false, features = ["std"] }
+# Exact pins: a caret requirement on a pre-release is not a pin. A caret on
+# 0.6.0-beta3 admits 0.6.0-beta4, which changes StepContext borrowing.
+rstest-bdd-harness = "=0.6.0-beta3"
+tracing = "0.1"
+
+[dev-dependencies]
+googletest = "0.14.3"
+pretty_assertions = "1"
+proptest = "1"
+rstest = "0.26"
+rstest-bdd = "=0.6.0-beta3"
+rstest-bdd-macros = "=0.6.0-beta3"
+skyjoust-test-macros = { path = "../skyjoust_test_macros" }

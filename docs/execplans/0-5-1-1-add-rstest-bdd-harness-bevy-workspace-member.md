@@ -263,17 +263,15 @@ one, stop and escalate rather than working around it.
 
 ## Progress
 
-Next action: Milestone 1 — record the decision as ADR 007 after the stack
-rebase. The Milestone 0 follow-up that blocks Milestone 2 is complete: pull
-request #6 automerged on 2026-08-16, the branch stack is rebased onto `main`,
-and the merged root `rstest` requirement is confirmed. The Bevy `0.19.1`
-compile, feature, clock, Cranelift, and cost evidence is collected by the
-Milestone 2/3 build rather than by a separate probe, because the crate itself
-is the `0.19.1` test vehicle; the results are recorded in
+Next action: Milestone 2 — observe and commit the red state. Milestone 1 is
+committed (`11559e8 Record the Bevy BDD harness crate decision as ADR 007`).
+The Bevy `0.19.1` compile, feature, clock, Cranelift, and cost evidence is
+collected by the Milestone 2/3 build rather than by a separate probe, because
+the crate itself is the `0.19.1` test vehicle; the results are recorded in
 `Surprises & discoveries` as they surface.
 
-Last green gate: `make markdownlint` and `make nixie` — documentation only, run
-on 2026-08-17 for Revision 4.
+Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
+`git diff --check` against the Milestone 1 tree, run 2026-08-17.
 
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
@@ -297,19 +295,19 @@ on 2026-08-17 for Revision 4.
         `Artefacts and notes` as it surfaces.
   - [ ] Update all historical expectations in this plan with the new evidence.
         Pending the `0.19.1` build evidence.
-- [ ] Milestone 1: record the decision.
-  - [ ] Write the new ADR 007.
-  - [ ] Amend the harness design document §§3, 9, 13 and its layout block.
-  - [ ] Add a forward pointer from ADR 002.
-  - [ ] Index ADR 007 and this ExecPlan in `docs/contents.md`.
-  - [ ] Documentation gates green.
-- [ ] Milestone 2 (red): scaffold and failing tests.
-  - [ ] Add the workspace member.
-  - [ ] Write the crate manifest.
-  - [ ] Write `src/lib.rs` with the module declaration but no re-export of it.
-  - [ ] Write `src/profile.rs` (module comment only) and `src/profile_tests.rs`.
-  - [ ] Observe the red state; record the exact error text.
-  - [ ] `make typecheck` as a whole-graph Cranelift smoke test.
+- [x] (2026-08-17) Milestone 1: record the decision.
+  - [x] Write the new ADR 007.
+  - [x] Amend the harness design document §§3, 9, 13 and its layout block.
+  - [x] Add a forward pointer from ADR 002.
+  - [x] Index ADR 007 and this ExecPlan in `docs/contents.md`.
+  - [x] Documentation gates green.
+- [x] (2026-08-17) Milestone 2 (red): scaffold and failing tests.
+  - [x] Add the workspace member.
+  - [x] Write the crate manifest.
+  - [x] Write `src/lib.rs` with the module declaration but no re-export of it.
+  - [x] Write `src/profile.rs` (module comment only) and `src/profile_tests.rs`.
+  - [x] Observe the red state; record the exact error text.
+  - [x] `make typecheck` as a whole-graph Cranelift smoke test.
 - [ ] Milestone 3 (green): implement `src/profile.rs`; export its two functions.
 - [ ] Milestone 4: behavioural, property, and boundary coverage.
   - [ ] `tests/features/headless_scenario.feature`.
@@ -436,6 +434,39 @@ on 2026-08-17 for Revision 4.
   returns nothing. Impact: this plan cites the upstream `rstest-bdd` users'
   guide by uniform resource locator (URL) instead, and does not create either
   local file.
+
+- Observation: the selected Bevy `0.19.1` graph is smaller than the discarded
+  `0.17.3` baseline, at 121 normal crates and 267 with development
+  dependencies, measured against the historical 139 and 279. Evidence:
+  `cargo tree -p rstest-bdd-harness-bevy -e normal --prefix none | sort -u |
+  wc -l` and the dev-inclusive equivalent. Impact: both `EP-INV-002` headless
+  queries and the `EP-INV-001` transitive extraction query print the expected
+  clean result, and a single `bevy v0.19.1` line remains (`EP-REQ-003`).
+  `bevy-window` appears in the *lockfile* but is a non-Linux-target
+  dependency: it is absent from the reachable Linux normal-dependency graph,
+  so both headless queries pass. The 0.19.1 figures replace the historical
+  `0.17.3` table entries.
+
+- Observation: since the lexical crate files were pre-created during a
+  bash-classifier outage, the Milestone 2 red run reported the expected
+  `profile_tests.rs` grouped diagnostic and two further `E0432`s from the
+  not-yet-implemented `minimal_app` re-export in the pre-created integration
+  test files. The red-state gate is satisfied: the error names exactly the two
+  missing symbols, and no other cause appears in the build output.
+
+- Observation: a background Cargo-aware process (rust-analyzer) resolved the
+  workspace while the new manifest was being created and wrote a 335-package
+  `Cargo.lock` superset that included `bevy-window` as a reachable package.
+  The file was restored from `main` and the Milestone 2 build regenerated the
+  authoritative 227-package lockfile from the crate's actual manifest.
+  Impact: the lockfile must not be trusted to `cargo metadata` from a watcher;
+  regenerate it deliberately with the milestone build.
+
+- Observation: the cold Cranelift resolve plus lock plus compile of the full
+  `0.19.1` graph and the `rstest-bdd` family took 40 seconds wall-clock on
+  this six-core host, counting the two package-cache lock waits. Evidence: the
+  Milestone 2 red run's own elapsed time. Impact: the build-cost tolerance is
+  not stressed; the warm runs in Milestones 3-6 will confirm the repeat cost.
 
 ## Decision log
 
@@ -1424,6 +1455,34 @@ planning live under `~/.cache/`, outwith the working tree. Proptest regression
 files are *not* scratch — commit them.
 
 ## Artefacts and notes
+
+### Evidence: the Milestone 2 red state
+
+The focused command
+`env RUSTFLAGS="-D warnings" cargo --config tools/dev-fast/config.toml test -p
+rstest-bdd-harness-bevy` fails at compilation with exactly the planned
+diagnostic, naming both missing symbols in one grouped error:
+
+```plaintext
+error[E0432]: unresolved imports `super::add_minimal_plugins`, `super::minimal_app`
+ --> crates/rstest-bdd-harness-bevy/src/profile_tests.rs:7:13
+  |
+7 | use super::{add_minimal_plugins, minimal_app};
+  |             ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^ no `minimal_app` in `profile`
+  |             |
+  |             no `add_minimal_plugins` in `profile`
+
+error: could not compile `rstest-bdd-harness-bevy` (lib test) due to 1 previous
+error
+```
+
+`make typecheck` (the whole-workspace Cranelift smoke test) reports the same
+grouped diagnostic as the only Rust error in the graph: every `0.19.1` Bevy
+crate and the `rstest-bdd` family check cleanly under the pinned
+`nightly-2026-03-26` with the Cranelift backend, so the codegen choice is
+discharged before any implementation is written. The pre-created integration
+test files raise the same missing `minimal_app` through the absent re-export,
+which is the same defect class.
 
 ### Historical evidence: the `0.17.3` crate shape passes every gate
 
