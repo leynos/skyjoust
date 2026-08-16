@@ -1,5 +1,5 @@
 error: expected `fn`
- --> tests/ui/fixture_expansion_lints/fail/non_function.rs:4:1
+ --> tests/ui/fixture_expansion_lints/fail/non_function.rs:6:1
   |
-4 | struct Seed;
+6 | struct Seed;
   | ^^^^^^

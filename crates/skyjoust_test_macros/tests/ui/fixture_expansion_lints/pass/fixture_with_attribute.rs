@@ -1,3 +1,5 @@
+//! The attribute successfully suppresses lints from fixture expansion.
+
 #![deny(unused_braces)]
 
 use rstest::fixture;
