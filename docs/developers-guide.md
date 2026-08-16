@@ -266,6 +266,36 @@ violation still exists; once the site is fixed or refactored away, the
 unfulfilled expectation itself becomes a warning, so a stale annotation
 surfaces instead of rotting silently.
 
+That rule governs handwritten code. Lints raised by *macro expansion* are a
+separate case, because the expansion — not the visible source — decides whether
+the lint fires, and often varies from one annotated item to the next. There the
+argument for `expect` inverts: an expectation that goes unfulfilled on some
+items warns on exactly the sites that were already clean. Such suppressions
+belong in an attribute macro in `crates/skyjoust_test_macros`, not at the call
+site. [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+records the decision and the reasoning.
+
+The case that prompted it is `rstest`'s `#[fixture]`, which re-wraps the
+annotated body in a further block and so trips `unused_braces` on a
+single-expression fixture. Splitting the body over several lines silences the
+lint, but `.rustfmt.toml` sets `fn_single_line = true`, so `cargo fmt`
+collapses it back: `make lint` and `make check-fmt` then demand mutually
+exclusive spellings of the same fixture. Annotate the fixture instead:
+
+```rust
+use rstest::fixture;
+use skyjoust_test_macros::allow_fixture_expansion_lints;
+
+#[allow_fixture_expansion_lints]
+#[fixture]
+fn seed() -> u32 { 7 }
+```
+
+Add `skyjoust-test-macros` as a path development dependency of any crate whose
+tests need it. Reach for a new attribute in that crate only when a lint comes
+from macro expansion and no reformulation of the source satisfies every gate at
+once; everything else takes `#[expect(...)]` at the site.
+
 ### 7.4. `clippy.toml` thresholds and the environment-access mandate
 
 `clippy.toml` sets the code-health thresholds (cognitive complexity, argument

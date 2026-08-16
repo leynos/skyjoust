@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace]
-members = [".", "crates/skyjoust_stateright_validator"]
+members = [
+    ".",
+    "crates/skyjoust_stateright_validator",
+    "crates/skyjoust_test_macros",
+]
 resolver = "3"
 
 [dependencies]
