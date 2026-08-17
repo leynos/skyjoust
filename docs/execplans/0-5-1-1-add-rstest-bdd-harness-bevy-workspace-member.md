@@ -5,13 +5,14 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: IN EXECUTION
+Status: COMPLETED
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
-by directing that the planned functionality be implemented.
+by directing that the planned functionality be implemented. All six
+milestones are delivered; the branch awaits review through pull request #51.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -324,14 +325,16 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] `docs/repository-layout.md`.
   - [x] `docs/developers-guide.md`.
   - [x] `docs/roadmap.md` — tick `0.5.1.1`, correct the stale sub-bullet.
-- [ ] Milestone 6: full gate run, measurements, push, draft pull request.
+- [x] (2026-08-17) Milestone 6: full gate run, measurements, push, draft
+      pull request.
   - [x] Full gate run green: `make check-fmt`, `make check-state-graphs`,
         `make markdownlint`, `make lint`, `make test`, and `make nixie` all
         pass via the `scrutineer` sub-agent (nextest 89/89 plus all doctests;
         hold-up numbers recorded in `Outcomes & retrospective`).
   - [x] Measurements recorded in `Outcomes & retrospective`.
-  - [ ] CodeRabbit review cleared.
-  - [ ] Push and draft pull request update.
+  - [x] CodeRabbit review cleared. `coderabbit review --agent` completed with
+        zero findings across 19 reviewed files.
+  - [x] Push and draft pull request update.
 
 ## Surprises & discoveries
 
