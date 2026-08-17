@@ -5,14 +5,15 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: COMPLETED
+Status: COMPLETED — PENDING DELIVERY PUSH
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. All six
-milestones are delivered; the branch awaits review through pull request #51.
+milestones are delivered; the branch awaits the authorized push to update
+pull request #51.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -334,7 +335,13 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] Measurements recorded in `Outcomes & retrospective`.
   - [x] CodeRabbit review cleared. `coderabbit review --agent` completed with
         zero findings across 19 reviewed files.
-  - [x] Push and draft pull request update.
+  - [x] PR title confirmed free of the `Plan: ` prefix; PR #51 body rewritten
+        for the implementation deliverable; the Lody session titles updated.
+  - [ ] Push the rebased branch and update PR #51's diff. BLOCKED on
+        authorization: the ExecPlan-mandated rebase rewrote history, so the
+        update requires `git push --force-with-lease
+        0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member`, which the
+        auto-mode classifier will not run without the maintainer naming it.
 
 ## Surprises & discoveries
 
