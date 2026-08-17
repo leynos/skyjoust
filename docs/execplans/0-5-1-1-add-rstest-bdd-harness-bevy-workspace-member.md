@@ -335,8 +335,9 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] Measurements recorded in `Outcomes & retrospective`.
   - [x] CodeRabbit review cleared. `coderabbit review --agent` completed with
         zero findings across 19 reviewed files.
-  - [x] PR title confirmed free of the `Plan: ` prefix; PR #51 body rewritten
-        for the implementation deliverable; the Lody session titles updated.
+  - [x] PR title confirmed free of the plan-draft "Plan: " prefix; PR #51 body
+        rewritten for the implementation deliverable; the Lody session titles
+        updated.
   - [ ] Push the rebased branch and update PR #51's diff. BLOCKED on
         authorization: the ExecPlan-mandated rebase rewrote history, so the
         update requires `git push --force-with-lease
