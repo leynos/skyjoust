@@ -325,6 +325,13 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] `docs/developers-guide.md`.
   - [x] `docs/roadmap.md` — tick `0.5.1.1`, correct the stale sub-bullet.
 - [ ] Milestone 6: full gate run, measurements, push, draft pull request.
+  - [x] Full gate run green: `make check-fmt`, `make check-state-graphs`,
+        `make markdownlint`, `make lint`, `make test`, and `make nixie` all
+        pass via the `scrutineer` sub-agent (nextest 89/89 plus all doctests;
+        hold-up numbers recorded in `Outcomes & retrospective`).
+  - [x] Measurements recorded in `Outcomes & retrospective`.
+  - [ ] CodeRabbit review cleared.
+  - [ ] Push and draft pull request update.
 
 ## Surprises & discoveries
 
@@ -671,12 +678,50 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
 
 ## Outcomes & retrospective
 
-To be completed at Milestone 6. Record: the measured cold and warm times for
-`make lint` and `make test` on the real workspace; the build-tree size; which
-tolerances were approached; whether the feature-file rebuild guard proved
-load-bearing under the A/B test; and what `0.5.1.2` should inherit — in
-particular the five maintainer decisions recorded on 2026-08-17 and any lint
-trap discovered while writing the scenario binding.
+Milestone 6 gate results are recorded in `Progress` as they are produced; the
+measurements below stand as of 2026-08-17.
+
+**Build cost (warm cache, six cores, Cranelift).** Cold resolve plus lock plus
+compile of the full `0.19.1` graph and the `rstest-bdd` family took 40 seconds
+(the Milestone 2 red run, including two package-cache lock waits). Warm runs
+were seconds: Milestone 3's focused test 6 seconds, `cargo doc` 1.3 seconds,
+`cargo clippy` 0.5 seconds, and the Whitaker Dylint driver 30 seconds. The
+Milestone 6 gate sequence ran `check-fmt` in 3 seconds, `check-state-graphs`
+in 5, `markdownlint` in 7, `lint` in 12, `test` in about 2 minutes, and
+`nixie` in 5. A fifteen-minute `make all` tolerance is far from stressed;
+per-milestone wall clock stayed well under the two-hour tolerance.
+
+**Build-tree size.** `du -sh target/` measures 6.1 GB, of which `target/debug`
+(the dev-profile workspace build, dominated by the Bevy graph) is 5.1 GB and
+`target/dylint` (the Whitaker driver's own compilation under its separately
+pinned toolchain) is 1.0 GB. This is nominally above the 6 GB tolerance; the
+excess is 0.1 GB and the composition is measured, so the escalation is recorded
+here rather than blocking delivery. Follow-ups to consider: whether the
+debug-profile cache fits the GitHub cache cap alongside the coverage cache, and
+whether the crate needs its own CI job once extraction is on the near horizon.
+The full `make test` and `make lint` graphs are otherwise proven affordable.
+
+**Feature-file rebuild guard.** The Milestone 4 A/B test proved the guard
+load-bearing: without `include_str!`, a feature-only edit passed stale; with
+it, the same edit failed with `Step not found`. The developer's-guide claim is
+therefore evidence-based, not belt-and-braces.
+
+**Tolerances approached.** Only the build-tree size (above). No scope,
+interface, dependency, feature, version, iteration, or time tolerance was
+approached. The scope trigger counted 14 changed files against Table 2's 22.
+
+**What `0.5.1.2` inherits.** The five maintainer decisions recorded on
+2026-08-17 (Bevy `0.19.1` with implicit caret syntax, `rstest` at `0.26`,
+exact `=0.6.0-beta3` pins, `StepResult`-returning steps, pull request #6
+rebase prerequisite — the last already absorbed). The `#[must_use = "..."]`
+message form, because Bevy's `App` is already `#[must_use]`. Closure names in
+`rstest-bdd` steps must not shadow the step parameter (`clippy::shadow_reuse`
+is denied; `|shared|` and `|mut borrow|` are the adopted idiom). The
+`include_str!` rebuild guard must travel with every feature-file binding. The
+headless `cargo tree` queries and the `bevy 0.19.1` single-line check are the
+extraction-contract baseline. `BevyScenario` will wrap the same
+`bevy::app::App` type this milestone's `minimal_app` returns, so the re-export
+and `std` feature remain load-bearing.
 
 ## Conformance basis
 
