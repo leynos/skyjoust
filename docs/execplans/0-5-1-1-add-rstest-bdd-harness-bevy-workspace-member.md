@@ -289,12 +289,14 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
         in `Interfaces and dependencies` is reconciled to the same implicit
         caret line (`0.26`), which remains compatible with `rstest-bdd
         0.6.0-beta3` (which expects `rstest 0.26.1`).
-  - [ ] Repeat the API, feature, headless-graph, Cranelift, test, lint, and cost
-        probes against Bevy `0.19.1`. Discharged by the Milestone 2/3 build;
-        evidence is appended to `Surprises & discoveries` and
-        `Artefacts and notes` as it surfaces.
-  - [ ] Update all historical expectations in this plan with the new evidence.
-        Pending the `0.19.1` build evidence.
+  - [x] Repeat the API, feature, headless-graph, Cranelift, test, lint, and
+        cost probes against Bevy `0.19.1`. Discharged by the Milestone 2/3
+        build; evidence is recorded in `Surprises & discoveries` and
+        `Artefacts and notes`, and Table 1 below carries the `0.19.1`
+        resolution figures.
+  - [x] Update all historical expectations in this plan with the new evidence.
+        The 0.17.3 probe figures remain labelled historical and the `0.19.1`
+        figures stand beside them.
 - [x] (2026-08-17) Milestone 1: record the decision.
   - [x] Write the new ADR 007.
   - [x] Amend the harness design document §§3, 9, 13 and its layout block.
@@ -317,11 +319,11 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] `tests/tick_properties.rs`.
   - [x] `tests/extraction_boundary.rs`.
   - [x] A/B-prove the feature-file rebuild guard.
-- [ ] Milestone 5: documentation.
-  - [ ] Crate `README.md` including the Bevy compatibility table.
-  - [ ] `docs/repository-layout.md`.
-  - [ ] `docs/developers-guide.md`.
-  - [ ] `docs/roadmap.md` — tick `0.5.1.1`, correct the stale sub-bullet.
+- [x] (2026-08-17) Milestone 5: documentation.
+  - [x] Crate `README.md` including the Bevy compatibility table.
+  - [x] `docs/repository-layout.md`.
+  - [x] `docs/developers-guide.md`.
+  - [x] `docs/roadmap.md` — tick `0.5.1.1`, correct the stale sub-bullet.
 - [ ] Milestone 6: full gate run, measurements, push, draft pull request.
 
 ## Surprises & discoveries
@@ -1612,11 +1614,14 @@ precisely why the suppression belongs in a macro rather than at the call site.
 | `{ version = "0.17.3", default-features = false }`                     | 115    | 259      |
 | `{ version = "0.17.3", default-features = false, features = ["std"] }` | 139    | 279      |
 | `"0.17.3"` (Bevy defaults)                                             | 428    | n/a      |
+| `{ version = "0.19.1", default-features = false, features = ["std"] }` | 121    | 267      |
 
 *Table 1: Historical resolved crate counts for the full harness crate, measured
 with `cargo tree --workspace -e normal --prefix none | sort -u | wc -l` and the
-dev-inclusive equivalent. The 428 figure is from the Bevy-only probe. Replace
-these figures with `0.19.1` evidence during the Milestone 0 follow-up.*
+dev-inclusive equivalent. The 428 figure is from the Bevy-only probe. The final
+row is the selected `0.19.1` graph, measured the same way against the real
+workspace during Milestone 2; the isolated crate queries in `Behavioural
+acceptance` report the same counts.*
 
 Measured build cost on six cores with a warm Cargo registry:
 
