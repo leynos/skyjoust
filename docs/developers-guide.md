@@ -17,9 +17,11 @@ The validator must stay synchronized with these source documents:
 
 [ADR 002](adr/002-crate-layout-and-public-api.md) is the source of truth for
 the workspace shape. The accepted decision is one runtime crate with strict
-internal modules, beside the separate `skyjoust_stateright_validator` crate.
-Maintainers should add new runtime functionality as a module inside the runtime
-crate, not as a new crate.
+internal modules, beside the separate `skyjoust_stateright_validator` crate;
+[ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds a
+third member crate, `rstest-bdd-harness-bevy`, as tooling in the same category
+as the validator exception. Maintainers should add new runtime functionality as
+a module inside the runtime crate, not as a new crate.
 
 The runtime modules and their responsibilities follow the technical design's
 runtime ownership table: `game_app`, `core`, `sim`, `terrain`, `stategraphs`,
@@ -43,6 +45,47 @@ conditions holds:
 
 Record any such extraction in a follow-up ADR before changing `Cargo.toml`
 workspace members.
+
+### 2.1. The `rstest-bdd-harness-bevy` crate
+
+The harness crate plugs a headless Bevy application into the `rstest-bdd`
+harness contract. Its boundary rule is stated in
+[ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) as an
+extension seam: *the profile type is the single extension seam. Every
+game-specific plugin, resource, and cleanup hook lives in a downstream
+implementation of it, never in this crate.* Skyjoust and Lille each define a
+profile type outside the crate once the first deterministic runtime resources
+exist (roadmap `0.5.1.4`); the crate itself never acquires game modules.
+
+The crate incubates here but keeps its extraction contract: no Skyjoust or
+Lille dependency, directly or transitively. `tests/extraction_boundary.rs`
+trips on a directly declared game crate, and
+`cargo tree -p rstest-bdd-harness-bevy -e normal,dev` remains the authority for
+the transitive half.
+
+Writing behavioural scenarios taught this task two estate-specific traps and
+one Bevy trap.
+
+- The `allow-expect-in-tests` setting covers `#[test]` functions only.
+  `rstest-bdd` step functions are macro-registered free functions, so
+  `.expect()` inside a step fails `make lint`. Fallible steps return
+  `StepResult` and propagate `RefCell` borrow failures with `try_borrow` and
+  `try_borrow_mut`, mapping errors instead of panicking. See
+  `tests/headless_scenario.rs` for the pattern.
+- A feature-file-only edit does not invalidate a `cargo test` build: only
+  Rust sources and `include_str!` dependencies are fingerprinted. Bind the
+  feature file with `const _: &str = include_str!("features/...");` so a
+  changed scenario cannot pass stale against an old compiled step table. The
+  ExecPlan's Milestone 4 A/B test proved the guard load-bearing.
+- `googletest`'s `expect_that!` panics without a `#[gtest]` test context, so
+  unit tests annotate `#[gtest]` above `#[rstest]`. `rstest-bdd` step functions
+  have no such context and use `assert_that!`, which panics directly.
+- Bevy's `MinimalPlugins` includes `ScheduleRunnerPlugin`, whose own `run`
+  method loops forever. Scenarios must call `App::update` explicitly (via the
+  fixture or a step) and must never let the schedule runner drive the loop.
+
+The fixture-expansion lint trap is documented in §7.3; it applies to the
+behavioural fixture exactly as the search-based tests in that section describe.
 
 ## 3. Validator module structure
 
@@ -207,11 +250,10 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace \
 ```
 
 Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to emit a
-`tracing::debug!` event for each transition attempt during depth-first
-search. `validate_trace` and the Explorer example both install a
-stderr-writing `tracing_subscriber`, so the events are visible when
-running either; a caller embedding the library elsewhere must install
-its own subscriber to observe them.
+`tracing::debug!` event for each transition attempt during depth-first search.
+`validate_trace` and the Explorer example both install a stderr-writing
+`tracing_subscriber`, so the events are visible when running either; a caller
+embedding the library elsewhere must install its own subscriber to observe them.
 
 ## 7. Lint baseline
 
@@ -317,37 +359,35 @@ run under the pinned nightly automatically; rustup resolves the toolchain from
 
 ## 8. Fast development builds
 
-`make dev-build` and `make dev-test` offer an opt-in, faster iteration loop
-for local debug work: `dev-build` compiles debug binaries and `dev-test`
-runs the test suite, both using the Cranelift codegen backend and the
-`mold` linker configured in `tools/dev-fast/config.toml`.
+`make dev-build` and `make dev-test` offer an opt-in, faster iteration loop for
+local debug work: `dev-build` compiles debug binaries and `dev-test` runs the
+test suite, both using the Cranelift codegen backend and the `mold` linker
+configured in `tools/dev-fast/config.toml`.
 
 The `DEV_FAST_CONFIG` variable names that fragment, defaulting to
 `tools/dev-fast/config.toml`; both targets pass it to Cargo explicitly with
-`--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment —
-it takes effect only when a target invokes it directly.
+`--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment — it
+takes effect only when a target invokes it directly.
 
-Using the fragment requires a nightly toolchain, since the Cranelift
-codegen backend is unstable. On Linux it also requires the `mold` linker
-on `PATH`; the fragment gates the `-fuse-ld=mold` flag behind a
-`target_os = "linux"` `cfg` table, so other platforms fall back to their
-default linker.
+Using the fragment requires a nightly toolchain, since the Cranelift codegen
+backend is unstable. On Linux it also requires the `mold` linker on `PATH`; the
+fragment gates the `-fuse-ld=mold` flag behind a `target_os = "linux"` `cfg`
+table, so other platforms fall back to their default linker.
 
 Never copy the fragment's contents into `.cargo/config.toml`. Cargo
 auto-discovers that file and applies it to every invocation, which would
-silently degrade release, coverage, and verification builds to the faster
-but less optimizing backend. Keep the fast-build configuration isolated in
+silently degrade release, coverage, and verification builds to the faster but
+less optimizing backend. Keep the fast-build configuration isolated in
 `tools/dev-fast/config.toml` and reach it only through `make dev-build` and
 `make dev-test`, or through the standard targets described next.
 
-Skyjoust's own extra fact, beyond the general dev-fast contract above: per
-§7, the standard `build`, `test`, `lint`, and `typecheck` targets already
-pass `--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make.
-Dev-fast is therefore skyjoust's standard development path, not only an
-opt-in one; `make dev-build`/`make dev-test` remain useful for a
-build/test cycle that skips the other standard targets' formatting and
-lint checks. The one exception is `lint`'s Whitaker Dylint invocation:
-Whitaker runs its own dylint driver under a separately pinned toolchain,
-outside rustup's toolchain-file auto-install mechanism, so nothing
-guarantees that toolchain has the Cranelift component the fragment
-selects — the fragment is deliberately not passed there.
+Skyjoust's own extra fact, beyond the general dev-fast contract above: per §7,
+the standard `build`, `test`, `lint`, and `typecheck` targets already pass
+`--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make. Dev-fast
+is therefore skyjoust's standard development path, not only an opt-in one;
+`make dev-build`/`make dev-test` remain useful for a build/test cycle that
+skips the other standard targets' formatting and lint checks. The one exception
+is `lint`'s Whitaker Dylint invocation: Whitaker runs its own dylint driver
+under a separately pinned toolchain, outside rustup's toolchain-file
+auto-install mechanism, so nothing guarantees that toolchain has the Cranelift
+component the fragment selects — the fragment is deliberately not passed there.

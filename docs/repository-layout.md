@@ -16,6 +16,7 @@ the contributor orientation stays synchronized with the repository layout.
 .
 |-- .github/
 |-- crates/
+|   |-- rstest-bdd-harness-bevy/
 |   |-- skyjoust_stateright_validator/
 |   `-- skyjoust_test_macros/
 |-- docs/
@@ -40,8 +41,9 @@ _Figure 1: Simplified repository tree for contributor orientation._
   and keep edited guidance tied to the relevant `make` target or project
   document.
 - `Cargo.toml`: workspace root and root package configuration. The workspace
-  currently includes `.`, `crates/skyjoust_stateright_validator`, and
-  `crates/skyjoust_test_macros`. Run the Rust gates after workspace changes.
+  currently includes `.`, `crates/rstest-bdd-harness-bevy`,
+  `crates/skyjoust_stateright_validator`, and `crates/skyjoust_test_macros`.
+  Run the Rust gates after workspace changes.
 - `Makefile`: canonical contributor command surface for build, formatting,
   linting, tests, Markdown checks, diagram validation, and state graph
   regeneration. Prefer these targets over direct tool invocations.
@@ -77,6 +79,20 @@ _Figure 1: Simplified repository tree for contributor orientation._
   published. Add an attribute here only when a lint comes from an expansion
   rather than from handwritten code; see
   [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md).
+- `crates/rstest-bdd-harness-bevy/`: reusable Bevy harness scaffolding for
+  `rstest-bdd` behavioural tests. It incubates in-tree but depends on no
+  Skyjoust or Lille game code, so it can move to its own repository as a
+  directory move plus a dependency rewire. See
+  [ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
+  [the harness design](rstest-bdd-harness-bevy-design.md).
+- `crates/rstest-bdd-harness-bevy/src/`: headless plugin configuration.
+  `profile.rs` owns `add_minimal_plugins` and `minimal_app`; `profile_tests.rs`
+  holds the sibling unit tests. The harness types arrive with roadmap task
+  `0.5.1.2`.
+- `crates/rstest-bdd-harness-bevy/tests/`: integration coverage for the
+  scaffold — the Gherkin scenario binding, the tick-count property test, and
+  the extraction-contract tripwire. Keep the feature file in `tests/features/`
+  and the `include_str!` rebuild guard with its binding.
 - `docs/`: source of truth for product requirements, technical design, guides,
   standards, state graph references, and generated diagrams. Update the
   relevant document when requirements, architecture, workflows, or generated

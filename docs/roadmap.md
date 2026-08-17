@@ -38,7 +38,7 @@ informs later runtime testing in Phase 1. See
 `docs/rstest-bdd-harness-bevy-design.md` §§4-10 and
 `docs/skyjoust-technical-design.md` §§4, 5, and 14.
 
-- [ ] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
+- [x] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
   - Keep the crate free of Skyjoust and Lille dependencies.
   - Use Bevy `0.19.1` with `default-features = false` and the `std` feature;
     ordinary stable requirements use implicit caret syntax while the
