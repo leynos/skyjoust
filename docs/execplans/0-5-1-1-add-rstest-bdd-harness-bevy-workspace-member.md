@@ -440,13 +440,14 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   `0.17.3` baseline, at 121 normal crates and 267 with development
   dependencies, measured against the historical 139 and 279. Evidence:
   `cargo tree -p rstest-bdd-harness-bevy -e normal --prefix none | sort -u |
-  wc -l` and the dev-inclusive equivalent. Impact: both `EP-INV-002` headless
-  queries and the `EP-INV-001` transitive extraction query print the expected
-  clean result, and a single `bevy v0.19.1` line remains (`EP-REQ-003`).
-  `bevy-window` appears in the *lockfile* but is a non-Linux-target
-  dependency: it is absent from the reachable Linux normal-dependency graph,
-  so both headless queries pass. The 0.19.1 figures replace the historical
-  `0.17.3` table entries.
+  wc -l`
+  and the dev-inclusive equivalent. Impact: both `EP-INV-002` headless queries
+  and the `EP-INV-001` transitive extraction query print the expected clean
+  result, and a single `bevy v0.19.1` line remains (`EP-REQ-003`).
+  `bevy-window` appears in the *lockfile* but is a non-Linux-target dependency:
+  it is absent from the reachable Linux normal-dependency graph, so both
+  headless queries pass. The 0.19.1 figures replace the historical `0.17.3`
+  table entries.
 
 - Observation: since the lexical crate files were pre-created during a
   bash-classifier outage, the Milestone 2 red run reported the expected
@@ -457,15 +458,15 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
 
 - Observation: a background Cargo-aware process (rust-analyzer) resolved the
   workspace while the new manifest was being created and wrote a 335-package
-  `Cargo.lock` superset that included `bevy-window` as a reachable package.
-  The file was restored from `main` and the Milestone 2 build regenerated the
-  authoritative 227-package lockfile from the crate's actual manifest.
-  Impact: the lockfile must not be trusted to `cargo metadata` from a watcher;
+  `Cargo.lock` superset that included `bevy-window` as a reachable package. The
+  file was restored from `main` and the Milestone 2 build regenerated the
+  authoritative 227-package lockfile from the crate's actual manifest. Impact:
+  the lockfile must not be trusted to `cargo metadata` from a watcher;
   regenerate it deliberately with the milestone build.
 
 - Observation: the cold Cranelift resolve plus lock plus compile of the full
-  `0.19.1` graph and the `rstest-bdd` family took 40 seconds wall-clock on
-  this six-core host, counting the two package-cache lock waits. Evidence: the
+  `0.19.1` graph and the `rstest-bdd` family took 40 seconds wall-clock on this
+  six-core host, counting the two package-cache lock waits. Evidence: the
   Milestone 2 red run's own elapsed time. Impact: the build-cost tolerance is
   not stressed; the warm runs in Milestones 3-6 will confirm the repeat cost.
 
@@ -478,9 +479,10 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
 - Observation: `clippy::double_must_use` objects to a bare `#[must_use]` on
   `minimal_app::() -> App` because Bevy's `App` is itself `#[must_use]`.
   Evidence: `make lint` flags profile.rs and suggests "either add some
-  descriptive message or remove the attribute". Impact: the attribute carries
-  a message — `#[must_use = "advance the returned application or inspect its
-  world"]` — which keeps the plan's requirement and satisfies the estate deny.
+  descriptive message or remove the attribute". Impact: the attribute carries a
+  message —
+  `#[must_use = "advance the returned application or inspect its world"]` —
+  which keeps the plan's requirement and satisfies the estate deny.
 
 - Observation: the ExecPlan's verbatim `headless_scenario.rs` snippet trips
   `clippy::shadow_reuse` under the current workspace baseline: the closure
@@ -1482,8 +1484,9 @@ files are *not* scratch — commit them.
 
 The focused command
 `env RUSTFLAGS="-D warnings" cargo --config tools/dev-fast/config.toml test -p
-rstest-bdd-harness-bevy` fails at compilation with exactly the planned
-diagnostic, naming both missing symbols in one grouped error:
+rstest-bdd-harness-bevy`
+fails at compilation with exactly the planned diagnostic, naming both missing
+symbols in one grouped error:
 
 ```plaintext
 error[E0432]: unresolved imports `super::add_minimal_plugins`, `super::minimal_app`
@@ -1512,9 +1515,9 @@ The A/B test in Milestone 4 proves the `include_str!` guard, not the macro,
 tracks the feature file:
 
 1. With the guard commented out, the scenario binary is built warm, and a
-   feature-only edit to the `Then` line ("frame count" → "frame counter")
-   runs stale: `Finished in 0.49s` with no recompile, and the test passes
-   against the old embedded content.
+   feature-only edit to the `Then` line ("frame count" → "frame counter") runs
+   stale: `Finished in 0.49s` with no recompile, and the test passes against
+   the old embedded content.
 2. With the guard restored and the identical edit in place, the binary
    recompiles in 0.85 seconds and the test fails with
    `Step not found at index 2: Then the frame counter reads 1`.
