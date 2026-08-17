@@ -310,14 +310,13 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   - [x] `make typecheck` as a whole-graph Cranelift smoke test.
 - [x] (2026-08-17) Milestone 3 (green): implement `src/profile.rs`; export its
       two functions.
-- [ ] Milestone 4: behavioural, property, and boundary coverage.
-- [ ] Milestone 4: behavioural, property, and boundary coverage.
-  - [ ] `tests/features/headless_scenario.feature`.
-  - [ ] `tests/headless_scenario.rs`.
-  - [ ] Clippy immediately after the scenario binding first compiles.
-  - [ ] `tests/tick_properties.rs`.
-  - [ ] `tests/extraction_boundary.rs`.
-  - [ ] A/B-prove the feature-file rebuild guard.
+- [x] (2026-08-17) Milestone 4: behavioural, property, and boundary coverage.
+  - [x] `tests/features/headless_scenario.feature`.
+  - [x] `tests/headless_scenario.rs`.
+  - [x] Clippy immediately after the scenario binding first compiles.
+  - [x] `tests/tick_properties.rs`.
+  - [x] `tests/extraction_boundary.rs`.
+  - [x] A/B-prove the feature-file rebuild guard.
 - [ ] Milestone 5: documentation.
   - [ ] Crate `README.md` including the Bevy compatibility table.
   - [ ] `docs/repository-layout.md`.
@@ -1506,6 +1505,23 @@ crate and the `rstest-bdd` family check cleanly under the pinned
 discharged before any implementation is written. The pre-created integration
 test files raise the same missing `minimal_app` through the absent re-export,
 which is the same defect class.
+
+### Evidence: the feature-file rebuild guard is load-bearing
+
+The A/B test in Milestone 4 proves the `include_str!` guard, not the macro,
+tracks the feature file:
+
+1. With the guard commented out, the scenario binary is built warm, and a
+   feature-only edit to the `Then` line ("frame count" → "frame counter")
+   runs stale: `Finished in 0.49s` with no recompile, and the test passes
+   against the old embedded content.
+2. With the guard restored and the identical edit in place, the binary
+   recompiles in 0.85 seconds and the test fails with
+   `Step not found at index 2: Then the frame counter reads 1`.
+
+The two observations together license the developer's-guide claim that
+feature-file-only edits do not invalidate the build without the guard. The
+feature file is reverted and the 13-test suite is green afterwards.
 
 ### Historical evidence: the `0.17.3` crate shape passes every gate
 
