@@ -17,9 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@794e4801babcf68065c660fdf4781ad62be5d061
+        uses: leynos/shared-actions/.github/actions/setup-rust@197d04cbc6f20cd7d1a08b4e445a5c35910e5364
       - name: Setup uv
-        uses: astral-sh/setup-uv@d08d816a1ea176d61a318eff45abd3dffef415b1
+        uses: astral-sh/setup-uv@e105c8fb1d7b13074b851babdaef4185243c6a07
         with:
           version: '0.11.28'
       - name: Format
@@ -61,7 +61,7 @@ jobs:
       - name: Lint
         run: make lint
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@794e4801babcf68065c660fdf4781ad62be5d061
+        uses: leynos/shared-actions/.github/actions/generate-coverage@197d04cbc6f20cd7d1a08b4e445a5c35910e5364
         with:
           output-path: lcov.info
           format: lcov
@@ -69,7 +69,7 @@ jobs:
         env:
           CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
         if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@794e4801babcf68065c660fdf4781ad62be5d061
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@197d04cbc6f20cd7d1a08b4e445a5c35910e5364
         with:
           format: lcov
           access-token: ${{ env.CS_ACCESS_TOKEN }}
