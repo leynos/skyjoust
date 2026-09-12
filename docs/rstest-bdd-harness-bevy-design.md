@@ -25,12 +25,13 @@ design already assigns ECS schedules and state resources to Bevy, while `winit`
 and `pixels` own windowing and presentation for the Minimum Viable Product
 (MVP).
 
-`rstest-bdd` HEAD provides the harness extension points needed for this shape:
+`rstest-bdd` provides the harness extension points needed for this shape:
 `HarnessAdapter`, associated `Context`, `ScenarioRunRequest`, `ScenarioRunner`,
-`HarnessResult`, `ScenarioMetadata`, `AttributePolicy`, and `TestAttribute`.
-The public manifest still labels those workspace crates as `0.6.0-beta2`, but
-the branch head inspected for this design is commit `21b67a4`, which carries
-the v0.6.0-beta3 harness API targeted by this work.
+`HarnessResult`, `ScenarioMetadata`, `AttributePolicy`, and `TestAttribute`. The
+`0.6.0-beta3` releases carrying that API were published to crates.io on
+2026-07-07; upstream `main` has since moved to an unpublished `0.6.0-beta4`. See
+[ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) for the
+dependency decision and its evidence.
 
 The design also needs to remain extractable. Skyjoust should incubate the crate
 in-tree because that keeps review and validation local while the first runtime
@@ -81,11 +82,16 @@ when a step panics, and resumes unwinding with an augmented panic message. The
 Bevy harness should mirror the diagnostic pattern without inheriting GPUI's
 single-threaded runtime constraints.
 
-Bevy 0.17.3 documents `App` as the primary application API for plugin setup and
-the standard lifecycle. It documents `MinimalPlugins` as the minimal plugin
-group for a Bevy application, including task pools, time, frame count, and the
-schedule runner. That matches the headless behavioural test need better than a
-raw `World`.
+Bevy 0.19.1 documents `App` as the primary application API for plugin setup and
+the standard lifecycle, and `MinimalPlugins` as the minimal plugin group for a
+Bevy application, including task pools, time, frame count, and the schedule
+runner. That matches the headless behavioural test need better than a raw
+`World`. The harness declares Bevy with `default-features = false` plus
+`features = ["std"]`: under the earlier `0.17.3` probe, omitting `std` silently
+degraded the time plugin to a fallback clock running at the timestamp counter
+frequency, so `std` is load-bearing for real time without enabling the renderer
+or window. The same check is repeated against `0.19.1` in the ExecPlan's
+Milestone 0 follow-up.
 
 ## 4. Architecture
 
@@ -271,27 +277,36 @@ The Skyjoust incubation crate should use this layout:
 ```plaintext
 crates/rstest-bdd-harness-bevy/
 |-- Cargo.toml
+|-- README.md
 |-- src/
 |   |-- lib.rs
-|   |-- context.rs
-|   |-- harness.rs
-|   |-- panic.rs
-|   |-- policy.rs
-|   `-- profile.rs
+|   |-- profile.rs
+|   `-- profile_tests.rs
 `-- tests/
-    |-- bevy_scenario.rs
-    |-- panic_diagnostics.rs
-    |-- profile_hooks.rs
+    |-- extraction_boundary.rs
+    |-- headless_scenario.rs
+    |-- tick_properties.rs
     `-- features/
-        `-- bevy_scenario.feature
+        `-- headless_scenario.feature
 ```
 
-The first compatibility line should target Bevy 0.17.3 with
-`default-features = false`, because `bevy::prelude::*` is the natural import
-surface for downstream steps and the default harness must stay headless. Until
-`rstest-bdd` publishes v0.6.0-beta3, the harness crate should use git
-dependencies against `https://github.com/leynos/rstest-bdd` `main`. After
-publication, replace those with normal `0.6.0-beta3` crate dependencies.
+Roadmap task `0.5.1.1` establishes exactly the subset above. Task `0.5.1.2` adds
+`src/context.rs`, `src/harness.rs`, `src/panic.rs`, and `src/policy.rs` and
+their behavioural test pairs; the feature file `headless_scenario.feature` is
+re-bound through the harness-selecting `#[scenario]` rather than copied.
+
+The compatibility line targets Bevy `0.19.1` with `default-features = false` and
+`features = ["std"]`: `bevy::prelude::*` is the natural import surface for
+downstream steps, the default harness must stay headless, and the `std` feature
+keeps the time plugin on wall-clock without enabling the renderer or window. All
+`rstest-bdd` family requirements are exact `=0.6.0-beta3` pins against the
+published crates; do not use git dependencies against `main`, whose unpublished
+`0.6.0-beta4` changes `StepContext` borrowing and adds a policy-conformance
+module and a `testing` feature absent from `beta3`. When a later beta or
+`0.6.0` final publishes, test the whole `rstest-bdd` family together before
+changing the exact pins; adopt the policy-conformance helper in `0.5.1.3` only
+after that compatibility pass. If `0.5.1.3` reaches the policy-conformance task
+first, escalate rather than adding a git dependency.
 
 ## 10. Verification strategy
 
@@ -352,13 +367,15 @@ state resources unless they are represented as downstream profile code.
 
 ## 13. References
 
-- `rstest-bdd` repository HEAD, commit `21b67a4`, inspected on
-  2026-06-27: <https://github.com/leynos/rstest-bdd>.
+- `rstest-bdd` 0.6.0-beta3 crate releases, published 2026-07-07:
+  <https://crates.io/crates/rstest-bdd-harness/0.6.0-beta3>.
 - `rstest-bdd` third-party harness cookbook and GPUI harness documentation:
   <https://github.com/leynos/rstest-bdd/blob/main/docs/users-guide.md>.
-- Bevy 0.17.3 `App` documentation:
-  <https://docs.rs/bevy/0.17.3/bevy/app/struct.App.html>.
-- Bevy 0.17.3 `MinimalPlugins` documentation:
-  <https://docs.rs/bevy/0.17.3/bevy/prelude/struct.MinimalPlugins.html>.
+- Bevy 0.19.1 `App` documentation:
+  <https://docs.rs/bevy/0.19.1/bevy/app/struct.App.html>.
+- Bevy 0.19.1 `MinimalPlugins` documentation:
+  <https://docs.rs/bevy/0.19.1/bevy/prelude/struct.MinimalPlugins.html>.
 - Skyjoust runtime ownership and testing constraints:
   [Project Skyjoust technical design](skyjoust-technical-design.md).
+- In-tree incubation and dependency decisions:
+  [ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).

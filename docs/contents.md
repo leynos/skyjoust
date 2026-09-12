@@ -64,11 +64,16 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 - [ADR 006: Suppress macro-expansion lints through a test-macro crate](adr/006-test-macro-crate-for-fixture-expansion-lints.md)
   - accepted decision to hold fixture expansion lint suppression in a
   test-only procedural-macro crate.
+- [ADR 007: In-tree incubation of the Bevy BDD harness crate](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+  - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and pin
+  the `rstest-bdd` family to `=0.6.0-beta3`.
 
 ## Execution plans
 
 - [Record the initial runtime crate split as an ADR](execplans/1-1-1-record-runtime-crate-split-as-adr.md)
   - approval-gated plan for roadmap task `1.1.1`.
+- [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+  - execution plan for roadmap task `0.5.1.1`.
 
 ## State graph references and artefacts
 

@@ -12,3 +12,6 @@ __pycache__/
 *.swp
 *.swo
 *~
+
+# pytest-cov artefact from `make spelling-helper-test`
+.coverage
