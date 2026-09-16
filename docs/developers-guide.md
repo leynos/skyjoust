@@ -160,14 +160,12 @@ git diff --check
 
 ### 6.1. Markdown lint configuration
 
-Markdown validation uses two configuration files that must stay aligned:
+`.markdownlint-cli2.jsonc` is the single Markdown lint configuration. The
+`markdownlint-cli2 --fix` step in `make fmt`, the `make markdownlint` target,
+and the `markdownlint-cli2` action in CI all read it, so one policy governs
+formatting and checking alike.
 
-- `.markdownlint-cli2.jsonc` configures `make markdownlint`, which runs
-  `markdownlint-cli2` across repository Markdown.
-- `.markdownlint.json` configures the `markdownlint --fix` step invoked by
-  `mdformat-all` during `make fmt`.
-
-Both files enforce the same rule choices:
+It enforces the estate Markdown formatting baseline:
 
 - `MD004` requires dash bullets, matching the documentation style guide.
 - `MD010` permits hard tabs inside code blocks while still checking prose.
@@ -175,10 +173,9 @@ Both files enforce the same rule choices:
   ignores table and heading widths.
 - `MD029` requires ordered lists to use increasing numeric markers.
 
-Keeping these files synchronized prevents `make fmt` from applying one Markdown
-policy while `make markdownlint` checks another. When a Markdown lint rule
-changes, update both files in the same commit and rerun `make fmt` and
-`make markdownlint`.
+`make fmt` runs `mdtablefix` over the Markdown that Git tracks before the lint
+fix, and `make check-fmt` runs the matching `mdtablefix --check`, so
+unformatted Markdown fails CI.
 
 ### 6.2. Spelling policy
 
@@ -207,11 +204,10 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace \
 ```
 
 Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to emit a
-`tracing::debug!` event for each transition attempt during depth-first
-search. `validate_trace` and the Explorer example both install a
-stderr-writing `tracing_subscriber`, so the events are visible when
-running either; a caller embedding the library elsewhere must install
-its own subscriber to observe them.
+`tracing::debug!` event for each transition attempt during depth-first search.
+`validate_trace` and the Explorer example both install a stderr-writing
+`tracing_subscriber`, so the events are visible when running either; a caller
+embedding the library elsewhere must install its own subscriber to observe them.
 
 ## 7. Lint baseline
 
@@ -317,37 +313,35 @@ run under the pinned nightly automatically; rustup resolves the toolchain from
 
 ## 8. Fast development builds
 
-`make dev-build` and `make dev-test` offer an opt-in, faster iteration loop
-for local debug work: `dev-build` compiles debug binaries and `dev-test`
-runs the test suite, both using the Cranelift codegen backend and the
-`mold` linker configured in `tools/dev-fast/config.toml`.
+`make dev-build` and `make dev-test` offer an opt-in, faster iteration loop for
+local debug work: `dev-build` compiles debug binaries and `dev-test` runs the
+test suite, both using the Cranelift codegen backend and the `mold` linker
+configured in `tools/dev-fast/config.toml`.
 
 The `DEV_FAST_CONFIG` variable names that fragment, defaulting to
 `tools/dev-fast/config.toml`; both targets pass it to Cargo explicitly with
-`--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment —
-it takes effect only when a target invokes it directly.
+`--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment — it
+takes effect only when a target invokes it directly.
 
-Using the fragment requires a nightly toolchain, since the Cranelift
-codegen backend is unstable. On Linux it also requires the `mold` linker
-on `PATH`; the fragment gates the `-fuse-ld=mold` flag behind a
-`target_os = "linux"` `cfg` table, so other platforms fall back to their
-default linker.
+Using the fragment requires a nightly toolchain, since the Cranelift codegen
+backend is unstable. On Linux it also requires the `mold` linker on `PATH`; the
+fragment gates the `-fuse-ld=mold` flag behind a `target_os = "linux"` `cfg`
+table, so other platforms fall back to their default linker.
 
 Never copy the fragment's contents into `.cargo/config.toml`. Cargo
 auto-discovers that file and applies it to every invocation, which would
-silently degrade release, coverage, and verification builds to the faster
-but less optimizing backend. Keep the fast-build configuration isolated in
+silently degrade release, coverage, and verification builds to the faster but
+less optimizing backend. Keep the fast-build configuration isolated in
 `tools/dev-fast/config.toml` and reach it only through `make dev-build` and
 `make dev-test`, or through the standard targets described next.
 
-Skyjoust's own extra fact, beyond the general dev-fast contract above: per
-§7, the standard `build`, `test`, `lint`, and `typecheck` targets already
-pass `--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make.
-Dev-fast is therefore skyjoust's standard development path, not only an
-opt-in one; `make dev-build`/`make dev-test` remain useful for a
-build/test cycle that skips the other standard targets' formatting and
-lint checks. The one exception is `lint`'s Whitaker Dylint invocation:
-Whitaker runs its own dylint driver under a separately pinned toolchain,
-outside rustup's toolchain-file auto-install mechanism, so nothing
-guarantees that toolchain has the Cranelift component the fragment
-selects — the fragment is deliberately not passed there.
+Skyjoust's own extra fact, beyond the general dev-fast contract above: per §7,
+the standard `build`, `test`, `lint`, and `typecheck` targets already pass
+`--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make. Dev-fast
+is therefore skyjoust's standard development path, not only an opt-in one;
+`make dev-build`/`make dev-test` remain useful for a build/test cycle that
+skips the other standard targets' formatting and lint checks. The one exception
+is `lint`'s Whitaker Dylint invocation: Whitaker runs its own dylint driver
+under a separately pinned toolchain, outside rustup's toolchain-file
+auto-install mechanism, so nothing guarantees that toolchain has the Cranelift
+component the fragment selects — the fragment is deliberately not passed there.

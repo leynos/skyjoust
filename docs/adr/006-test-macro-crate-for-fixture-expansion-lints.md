@@ -9,8 +9,8 @@ Accepted: 2026-08-15
 ## Context
 
 The workspace runs every gate with warnings denied, and `.rustfmt.toml` sets
-`fn_single_line = true`. Those two settings collide with `rstest`'s `#[fixture]`
-attribute.
+`fn_single_line = true`. Those two settings collide with `rstest`'s
+`#[fixture]` attribute.
 
 `#[fixture]` re-wraps the annotated function body in a further block. When the
 body is a single expression, the expansion trips `unused_braces`:
@@ -97,9 +97,9 @@ in-crate alternative exists.
 Fixtures stay in their natural single-expression form, and both formatting and
 lint gates pass without either being weakened.
 
-[The developer's guide](../developers-guide.md) §7.3 gains an explicit carve-out
-so the `#[allow]` inside this crate does not read as a violation of the rule
-directly above it. The rule itself is unchanged for handwritten sites.
+[The developer's guide](../developers-guide.md) §7.3 gains an explicit
+carve-out so the `#[allow]` inside this crate does not read as a violation of
+the rule directly above it. The rule itself is unchanged for handwritten sites.
 
 Crates needing the attribute take a path development dependency on
 `skyjoust-test-macros`. Because the dependency is dev-only and the crate is
