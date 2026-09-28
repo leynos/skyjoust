@@ -1,19 +1,15 @@
-# Canonical opt-in Cargo configuration fragment for accelerated local debug
-# builds.
+# Cargo configuration fragment the Make development targets pass explicitly,
+# with `cargo --config tools/dev-fast/config.toml ...`.
 #
-# This configuration is deliberately kept out of `.cargo/config.toml`.
-# Cargo auto-discovers that path, so anything placed there applies to
-# release packaging, coverage, and verification builds, which must keep
-# the supported LLVM backend and platform linker. In a consuming
-# repository this fragment lives at `tools/dev-fast/config.toml` and is
-# passed explicitly with `cargo --config tools/dev-fast/config.toml ...`
-# from `make dev-build` and `make dev-test`.
+# `.cargo/config.toml` now carries the estate build standard, which includes
+# everything below (Cranelift for the development profile and `mold` on
+# Linux), so this fragment repeats it. The Make targets keep passing it so the
+# repository's dev-fast convention and its contract hold unchanged; retiring
+# the fragment is a separate decision.
 #
-# Repositories that set repository-wide `rustflags` in `.cargo/config.toml`
-# must restate them in the target table below. Cargo joins the rustflags of
-# every matching `[target.*]` entry (target-triple and `cfg` tables alike),
-# but the joined target rustflags take precedence over `[build].rustflags`
-# rather than merging with it.
+# Cargo joins the rustflags of every matching `[target.*]` entry
+# (target-triple and `cfg` tables alike), but the joined target rustflags take
+# precedence over `[build].rustflags` rather than merging with it.
 
 [unstable]
 codegen-backend = true

@@ -9,6 +9,32 @@ CARGO ?= cargo
 BUILD_JOBS ?=
 RUST_FLAGS ?=
 RUST_FLAGS := -D warnings $(RUST_FLAGS)
+# The build standard: every `rustflags` source in `.cargo/config.toml` carries
+# the parallel frontend, and the Linux source adds mold. Assigning `RUSTFLAGS`
+# replaces those sources outright, so the gate targets restate the flags here.
+# The recipes add them to any inherited `RUSTFLAGS` (setup-rust exports one
+# in CI) instead of replacing it.
+# Coverage and release builds deliberately take neither.
+STANDARD_THREADS_FLAG ?= -Zthreads=8
+STANDARD_MOLD_FLAG ?= -Clink-arg=-fuse-ld=mold
+BUILD_HOST_OS ?= $(shell uname -s)
+# mold is added only when the machine doing the build is Linux (only Make can
+# tell whether it has mold) and the compilation target is Linux too, which is
+# the host unless `CARGO_BUILD_TARGET` names another triple.
+STANDARD_TARGET_IS_LINUX = $(if $(CARGO_BUILD_TARGET),$(findstring -linux-,$(CARGO_BUILD_TARGET)),yes)
+STANDARD_RUSTFLAGS = $(STANDARD_THREADS_FLAG)$(if $(filter Linux,$(BUILD_HOST_OS)),$(if $(STANDARD_TARGET_IS_LINUX), $(STANDARD_MOLD_FLAG)))
+# Release builds take neither flag: assigning `RUSTFLAGS`, even to an empty
+# inherited value, displaces every `rustflags` source in the configuration.
+RELEASE_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS-}"
+# Debug builds keep a caller's exported flags and add the standard ones,
+# since an inherited `RUSTFLAGS` would otherwise displace the configuration.
+DEBUG_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)"
+# Whitaker's Dylint driver runs on its own pinned toolchain, which need not
+# carry the Cranelift component the development profile selects, so its
+# check builds take LLVM. Dylint builds its driver in a crate outside this
+# repository, which the `[unstable]` table does not reach, so the override
+# also enables the unstable key there.
+WHITAKER_CODEGEN_BACKEND ?= llvm
 RUSTDOC_FLAGS ?=
 RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --workspace --all-targets --all-features
@@ -51,10 +77,10 @@ clean: ## Remove build artefacts
 	$(CARGO) clean
 
 test: ## Run tests with warnings treated as errors
-	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 ifneq ($(TEST_CMD),test)
 	@doc_test_log="$$(mktemp)"; \
-	if RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" test --doc --workspace --all-features 2> "$$doc_test_log"; then \
+	if RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" test --doc --workspace --all-features 2> "$$doc_test_log"; then \
 		rm -f "$$doc_test_log"; \
 	elif grep -q "no library targets found" "$$doc_test_log"; then \
 		cat "$$doc_test_log"; \
@@ -68,15 +94,15 @@ ifneq ($(TEST_CMD),test)
 endif
 
 target/%/$(TARGET): ## Build binary in debug or release mode
-	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release,--config "$(DEV_FAST_CONFIG)") --bin $(TARGET)
+	$(if $(findstring release,$(@)),$(RELEASE_RUSTFLAGS),$(DEBUG_RUSTFLAGS)) $(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release,--config "$(DEV_FAST_CONFIG)") --bin $(TARGET)
 
 lint: ## Run Clippy and the Whitaker Dylint suite with warnings denied
-	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" doc $(DOC_FLAGS)
-	$(CARGO) --config "$(DEV_FAST_CONFIG)" clippy $(CLIPPY_FLAGS)
-	RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
+	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" doc $(DOC_FLAGS)
+	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" clippy $(CLIPPY_FLAGS)
+	CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=$(WHITAKER_CODEGEN_BACKEND) RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
 
 typecheck: ## Type-check without building
-	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" check $(CARGO_FLAGS)
+	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" check $(CARGO_FLAGS)
 
 fmt: ## Format Rust and Markdown sources
 	$(CARGO) +nightly fmt --all
