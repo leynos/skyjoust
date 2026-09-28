@@ -5,17 +5,19 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: COMPLETED — PENDING REMOTE CI
+Status: IMPLEMENTATION COMPLETE — REVIEW AND ACCEPTANCE PENDING
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
-by directing that the planned functionality be implemented. All six milestones
-are delivered; the branch awaits the authorized push to update pull request 51.
-The 2026-08-21 rebase and local acceptance evidence are complete; do not treat
-the plan as fully accepted until pull request #51 has a clean merge state
-and its remote checks have run.
+by directing that the planned functionality be implemented. The implementation
+milestones are delivered, but review and acceptance remain open. At the
+2026-09-28 review follow-up, pull request #51 was reported `DIRTY` /
+`CHANGES_REQUESTED` at head `6b185eee6ee3d330585b08b2fa3d5a529754a536` against
+`origin/main` `9e26f1565a8b29c084f20e868eb62ba6ee21af1f`. Do not treat this
+plan as fully accepted until the merge state, requested checks, and outstanding
+acceptance commands have been resolved and recorded.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -267,15 +269,34 @@ one, stop and escalate rather than working around it.
 
 ## Progress
 
-Next action: Milestone 2 — observe and commit the red state. Milestone 1 is
-committed (`11559e8 Record the Bevy BDD harness crate decision as ADR 007`).
-The Bevy `0.19.1` compile, feature, clock, Cranelift, and cost evidence is
-collected by the Milestone 2/3 build rather than by a separate probe, because
-the crate itself is the `0.19.1` test vehicle; the results are recorded in
+The six implementation milestones are complete. Review follow-up work is
+recorded below; its validation results remain pending and must be added by the
+owner after execution. Roadmap task `0.5.1.1` was already checked at
+`docs/roadmap.md:41`.
+
+Pre-rebase scrutineer evidence: on candidate HEAD
+`6b185eee6ee3d330585b08b2fa3d5a529754a536`, all seven gates passed:
+`make check-fmt`, `make check-state-graphs`, `make markdownlint`,
+`make typecheck`, `make lint`, `make test` (89 tests plus doctests passed), and
+`make nixie`. Acceptance checks also passed for package metadata/workspace
+membership, development and normal dependency graphs, the focused crate test
+suite, and the feature-file freshness A/B check. These are pre-rebase results;
+they do not validate the eventual rebased candidate.
+
+The next action is to rebase onto current `origin/main`: `git ls-remote` reports
+`bcbdcd59ec8aaa6d0936884765c813eab2a2fc00`, while PR #51 still reports
+`baseRefOid` `9e26f1565a8b29c084f20e868eb62ba6ee21af1f`. After the rebase,
+rerun the gates and acceptance checks, resolve the reported PR merge state,
+update the PR description, and request a fresh CodeRabbit review. The Bevy
+`0.19.1` compile, feature, clock, Cranelift, and cost evidence is collected by
+the Milestone 2/3 build rather than by a separate probe, because the crate
+itself is the `0.19.1` test vehicle; the results are recorded in
 `Surprises & discoveries` as they surface.
 
-Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
-`git diff --check` against the Milestone 1 tree, run 2026-08-17.
+Latest recorded green gates and acceptance checks: scrutineer completed the
+seven gates and acceptance checks above on pre-rebase HEAD `6b185eee`. The
+earlier 2026-08-21 run is also retained below. Neither set validates a
+candidate rebased onto the current `origin/main`.
 
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
@@ -351,10 +372,78 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
         13-test crate suite, and feature-file freshness A/B. Both graphs are
         headless, the isolated extraction graph is clean, and only the guarded
         feature-only edit fails.
-  - [ ] Publish the rebased branch with `git push --force-with-lease` and wait
-        for pull request #51 to become mergeable with non-skipped remote CI.
+  - [x] (2026-08-21) Publish the rebased branch with
+        `git push --force-with-lease`; it is published and tracks `origin` at
+        `6b185eee6ee3d330585b08b2fa3d5a529754a536`.
+
+- [ ] (2026-09-28) Resolve the review follow-up and rerun the requested checks.
+  - [x] Scrutineer passed all seven gates and acceptance checks on pre-rebase
+        HEAD `6b185eee6ee3d330585b08b2fa3d5a529754a536`; results are historical
+        and do not validate the rebased candidate.
+  - [ ] Rebase onto current `origin/main` at
+        `bcbdcd59ec8aaa6d0936884765c813eab2a2fc00`. PR #51's `baseRefOid` still
+        reports `9e26f1565a8b29c084f20e868eb62ba6ee21af1f`.
+  - [x] Verify the manifest path-dependency finding. The dependency is test-only
+        and documented as an accepted exception under ADRs 006 and 007; it is
+        still a known extraction rewire, not evidence that standalone source
+        extraction is ready today.
+  - [x] Verify the compile-time-test finding. Existing integration compilation
+        exercises the `rstest-bdd` attributes and the feature-file
+        `include_str!`; the missing-file error is rustc's built-in behaviour,
+        while the recorded A/B check establishes the rebuild dependency.
+  - [x] Add a concise consumer section to `docs/users-guide.md`. Do not add a
+        separate n+1 migration document: there are no current downstream
+        consumers, and adoption and extraction guidance belongs to roadmap
+        `0.5.1.5`.
+  - [x] Add a dated tooling-exception addendum to ADR 002 without changing its
+        accepted runtime crate decision; ADR 007 remains authoritative.
+  - [ ] Update the PR description, request a new CodeRabbit review, and record
+        their outcomes after execution.
+  - [ ] Rerun the gates and acceptance checks on the rebased candidate; record
+        their results and logs here without inferring success.
 
 ## Surprises & discoveries
+
+- Observation (2026-09-28 review verification): the `skyjoust-test-macros`
+  dependency is declared only under `[dev-dependencies]` and is used by the
+  integration-test fixture to contain `rstest` expansion lint fallout. ADRs 006
+  and 007 permit this test-tooling exception while excluding game runtime
+  dependencies. Its relative path still means extracted-source `cargo test`
+  needs dependency rewiring; the present workspace manifest is not standalone
+  extraction-ready. Keep the dependency for this milestone and make the rewire
+  explicit at extraction.
+
+- Observation (2026-09-28 review verification):
+  `tests/headless_scenario.rs` compiles the `rstest-bdd` fixture and scenario
+  attributes as part of the integration test and binds the Gherkin file through
+  `include_str!`. A missing included file is rejected directly by rustc; no
+  crate-specific compile-fail contract is introduced. The Milestone 4 A/B test
+  remains the evidence that changing only the feature file invalidates the
+  compiled test. Keep this integration test and its runtime Bevy assertion; do
+  not add a redundant trybuild case for built-in `include_str!` behaviour.
+
+- Observation (2026-09-28 review verification): the documentation style guide
+  includes library API consumers in the user's-guide audience. The new guide
+  section documents the current workspace-only dev-dependency setup, the two
+  public functions, Bevy `0.19.1`, and explicit headless schedule advancement.
+  No n+1 migration document is warranted before there are downstream consumers;
+  broader adoption and extraction instructions remain roadmap `0.5.1.5`.
+
+- Observation (2026-09-28): roadmap task `0.5.1.1` was already checked at
+  `docs/roadmap.md:41`; no roadmap edit was needed for this review follow-up.
+
+- Observation (2026-09-28 review verification): retain the exact
+  `=0.6.0-beta3` requirements despite the caret-pin review comment. The
+  maintainer-approved pre-release exception in the Decision log and ADR 007
+  exists because a caret can admit breaking beta releases, and the final
+  release has not passed the deliberate compatibility check. Do not float this
+  dependency family until that check is complete.
+
+- Observation (2026-09-28 documentation review): ADR 002's accepted runtime
+  crate decision remains accurate, but its Consequences now needs a dated
+  addendum for the later ADR 007 tooling exception and the development-only
+  extraction rewire. The addendum records that distinction without reopening
+  the accepted runtime split.
 
 - Observation: `rstest-bdd` `0.6.0-beta3` was published to crates.io on
   2026-07-07, along with `rstest-bdd-harness`, `rstest-bdd-macros`,
@@ -675,16 +764,43 @@ Last green gate: `mdformat-all`, `make markdownlint`, `make nixie`, and
   enforceably. The claim that the crate holds no domain logic survives as a
   consequence. Date/Author: 2026-08-15, planning pass.
 
-- Decision: leave [the user's guide](../users-guide.md),
-  [the development plan](../development-plan.md), and
-  [the technical design](../skyjoust-technical-design.md) unchanged. Rationale:
-  the user's guide is scoped to operators running the validator tooling, and
-  this change alters none of those workflows. The development plan and
-  technical design describe the *runtime* crate split accepted in ADR 002; this
-  crate is test tooling, not runtime, so "one runtime crate beside the
-  validator crate" remains accurate. The development plan's phase list predates
-  roadmap phase 0.5; reconciling the two belongs to `0.5.1.5`. Date/Author:
-  2026-08-15, planning pass.
+- Historical decision (superseded 2026-09-28): leave
+  [the user's guide](../users-guide.md), [the development plan](../development-plan.md),
+  and [the technical design](../skyjoust-technical-design.md) unchanged.
+  Rationale at the time: the user's guide was treated as scoped to validator
+  operators, and this crate was test tooling rather than runtime. The
+  development plan and technical design still describe the runtime crate split
+  accepted in ADR 002; "one runtime crate beside the validator crate" remains
+  accurate, and plan phase reconciliation remains in `0.5.1.5`. The
+  documentation style guide clarifies that library API consumers belong in the
+  user's guide, so a compact consumer section is now present. Date/Author:
+  2026-08-15, planning pass; superseded 2026-09-28.
+
+- Decision: retain the `skyjoust-test-macros` path dependency as a test-only
+  exception in this in-tree milestone. Rationale: the dependency is confined to
+  `[dev-dependencies]`, contains the fixture-expansion lint helper, and is
+  permitted by the extraction boundary recorded in ADRs 006 and 007. Removing
+  it now would require duplicating or changing that established helper. The
+  relative path is not extraction-safe by itself: standalone source extraction
+  still requires dependency rewiring, which must happen at the later extraction
+  step. This is not a claim of standalone-source readiness. Date/Author:
+  2026-09-28, review follow-up.
+
+- Decision: do not add a trybuild test for a missing feature file. Rationale:
+  the existing integration target already compiles the `rstest-bdd` macros and
+  its `include_str!` declaration, and rustc itself rejects a missing included
+  file. The relevant project-specific contract is freshness after a
+  feature-file-only edit; Milestone 4's A/B check proves that load-bearing
+  rebuild behaviour. Keep the existing runtime Bevy scenario as well. Date/
+  Author: 2026-09-28, review follow-up.
+
+- Decision: add consumer setup and API guidance to the user's guide, but no
+  separate n+1 migration document. Rationale: the style guide makes library API
+  consumers part of the user's-guide audience, so the public helpers need a
+  minimal task-oriented example there. The crate is still `publish = false` and
+  has no downstream consumers; broader adoption, validation, and extraction
+  guidance is already assigned to roadmap `0.5.1.5`. Date/Author: 2026-09-28,
+  review follow-up.
 
 - Decision: include a `proptest` property over tick counts; do not use `kani`
   or `verus`; do not add `insta` snapshots. Rationale: an application updated
@@ -2049,31 +2165,32 @@ declined here as disproportionate, and the manual `cargo tree` step in
 
 ### Files this plan creates or changes
 
-| Path                                                                                   | Change                                                                |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `Cargo.toml`                                                                           | Add the workspace member.                                             |
-| `Cargo.lock`                                                                           | Regenerated for the measured Bevy `0.19.1` graph.                     |
-| `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`                     | New ADR.                                                              |
-| `docs/adr/002-crate-layout-and-public-api.md`                                          | Add a forward pointer to ADR 007 in Consequences.                     |
-| `crates/rstest-bdd-harness-bevy/Cargo.toml` (dev-dependency)                           | Path dependency on `skyjoust-test-macros`.                            |
-| `docs/rstest-bdd-harness-bevy-design.md`                                               | Amend sections 3, 9 (dependencies and layout), and 13.                |
-| `docs/contents.md`                                                                     | Index ADR 007 and this ExecPlan.                                      |
-| `docs/repository-layout.md`                                                            | Tree sketch, path responsibilities, workspace membership note.        |
-| `docs/developers-guide.md`                                                             | Amend section 2; add a harness-crate conventions section.             |
-| `docs/roadmap.md`                                                                      | Target Bevy `0.19.1`; mark 0.5.1.1 done; correct dependency guidance. |
-| `docs/execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`               | This living document, updated as work proceeds.                       |
-| `crates/rstest-bdd-harness-bevy/Cargo.toml`                                            | New crate manifest.                                                   |
-| `crates/rstest-bdd-harness-bevy/README.md`                                             | New crate README with the Bevy compatibility table.                   |
-| `crates/rstest-bdd-harness-bevy/src/lib.rs`                                            | New crate root.                                                       |
-| `crates/rstest-bdd-harness-bevy/src/profile.rs`                                        | New plugin configuration module.                                      |
-| `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`                                  | New sibling unit tests.                                               |
-| `crates/rstest-bdd-harness-bevy/tests/headless_scenario.rs`                            | New behavioural binding.                                              |
-| `crates/rstest-bdd-harness-bevy/tests/features/headless_scenario.feature`              | New feature file.                                                     |
-| `crates/rstest-bdd-harness-bevy/tests/tick_properties.rs`                              | New property test.                                                    |
-| `crates/rstest-bdd-harness-bevy/tests/extraction_boundary.rs`                          | New boundary tripwire.                                                |
-| `crates/rstest-bdd-harness-bevy/tests/proptest-regressions/`                           | Created only if the property test ever fails; committed.              |
-| `typos.local.toml` and `typos.toml`                                                    | Only if spelling rejects new vocabulary; regenerate both.             |
-| `docs/users-guide.md`, `docs/development-plan.md`, `docs/skyjoust-technical-design.md` | No change — see `Decision log`.                                       |
+| Path                                                                      | Change                                                                |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `Cargo.toml`                                                              | Add the workspace member.                                             |
+| `Cargo.lock`                                                              | Regenerated for the measured Bevy `0.19.1` graph.                     |
+| `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`        | New ADR.                                                              |
+| `docs/adr/002-crate-layout-and-public-api.md`                             | Add the dated ADR 007 tooling-exception addendum.                     |
+| `crates/rstest-bdd-harness-bevy/Cargo.toml` (dev-dependency)              | Path dependency on `skyjoust-test-macros`.                            |
+| `docs/rstest-bdd-harness-bevy-design.md`                                  | Amend sections 3, 9 (dependencies and layout), and 13.                |
+| `docs/contents.md`                                                        | Index ADR 007 and this ExecPlan.                                      |
+| `docs/repository-layout.md`                                               | Tree sketch, path responsibilities, workspace membership note.        |
+| `docs/developers-guide.md`                                                | Amend section 2; add a harness-crate conventions section.             |
+| `docs/roadmap.md`                                                         | Target Bevy `0.19.1`; mark 0.5.1.1 done; correct dependency guidance. |
+| `docs/execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`  | This living document, updated as work proceeds.                       |
+| `crates/rstest-bdd-harness-bevy/Cargo.toml`                               | New crate manifest.                                                   |
+| `crates/rstest-bdd-harness-bevy/README.md`                                | New crate README with the Bevy compatibility table.                   |
+| `crates/rstest-bdd-harness-bevy/src/lib.rs`                               | New crate root.                                                       |
+| `crates/rstest-bdd-harness-bevy/src/profile.rs`                           | New plugin configuration module.                                      |
+| `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`                     | New sibling unit tests.                                               |
+| `crates/rstest-bdd-harness-bevy/tests/headless_scenario.rs`               | New behavioural binding.                                              |
+| `crates/rstest-bdd-harness-bevy/tests/features/headless_scenario.feature` | New feature file.                                                     |
+| `crates/rstest-bdd-harness-bevy/tests/tick_properties.rs`                 | New property test.                                                    |
+| `crates/rstest-bdd-harness-bevy/tests/extraction_boundary.rs`             | New boundary tripwire.                                                |
+| `crates/rstest-bdd-harness-bevy/tests/proptest-regressions/`              | Created only if the property test ever fails; committed.              |
+| `typos.local.toml` and `typos.toml`                                       | Only if spelling rejects new vocabulary; regenerate both.             |
+| `docs/users-guide.md`                                                     | Add workspace setup and public headless helper example.               |
+| `docs/development-plan.md`, `docs/skyjoust-technical-design.md`           | No change — see `Decision log`.                                       |
 
 *Table 2: The authoritative file manifest. The scope trigger in `Tolerances` is
 measured against this table.*
