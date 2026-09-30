@@ -186,6 +186,10 @@ dictionary and the repository-specific `typos.local.toml` overlay, then checks
 the tracked Markdown. Because the dictionary is live, `typos.toml` must never
 be drift checked in continuous integration.
 
+`TYPOS_CONFIG_BUILDER_VERSION` in the `Makefile` pins the
+`typos-config-builder` release the gate runs (currently `v0.1.3`). Raise it
+together with the regenerated `typos.toml`, never on its own.
+
 The shared `typos-config-builder` CLI refreshes the estate dictionary into an
 untracked local cache only when the authoritative copy is newer, so a valid
 cache remains usable in a network-restricted checkout.
