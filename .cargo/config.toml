@@ -3,8 +3,9 @@
 # Cranelift is the development-profile backend, the parallel `rustc` frontend
 # is the default for every build, and the `mold` linker is the default on
 # Linux. Cargo auto-discovers this file, so a bare `cargo build` gets all
-# three. Release builds use the release profile, which names no backend, and
-# assign `RUSTFLAGS`, which displaces every `rustflags` source below; coverage
+# three. `make release` uses the release profile, which names no backend, and
+# assigns `RUSTFLAGS`, which displaces every `rustflags` source below (a bare
+# `cargo build --release` still takes both flags); coverage
 # holds the development profile on LLVM and assigns its own `RUSTFLAGS`.
 #
 # `tools/dev-fast/config.toml` repeats the backend and the linker table for the
