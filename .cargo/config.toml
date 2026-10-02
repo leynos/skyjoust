@@ -5,8 +5,9 @@
 # Linux. Cargo auto-discovers this file, so a bare `cargo build` gets all
 # three. `make release` uses the release profile, which names no backend, and
 # assigns `RUSTFLAGS`, which displaces every `rustflags` source below (a bare
-# `cargo build --release` still takes both flags); coverage
-# holds the development profile on LLVM and assigns its own `RUSTFLAGS`.
+# `cargo build --release` still takes both flags). Coverage holds the
+# development profile on LLVM and takes neither flag only when its caller
+# exports `RUSTFLAGS`, as setup-rust does in CI.
 #
 # `tools/dev-fast/config.toml` repeats the backend and the linker table for the
 # Make targets that pass it explicitly; see "Development builds" in

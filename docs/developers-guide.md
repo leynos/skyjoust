@@ -338,18 +338,22 @@ sources, and `mold` in the `cfg(target_os = "linux")` source. The fragment
 therefore repeats what the configuration already sets, and the Make targets
 keep passing it so the dev-fast convention below still holds. `make release`
 uses the release profile, which names no backend, and assigns the inherited
-`RUSTFLAGS`, which is empty when the caller exports none, and which displaces
-every `rustflags` source, so it takes neither the frontend flag nor `mold`; a
-bare `cargo build --release` still takes both, because Cargo does not select
-`rustflags` by profile. CI's coverage action detects the Cranelift development
-profile and holds coverage on LLVM. Cargo applies one `rustflags` source and an
-assigned `RUSTFLAGS` replaces them all, so the Makefile restates both flags as
-`STANDARD_RUSTFLAGS` for the targets that assign `RUSTFLAGS`, adding them to any
-`RUSTFLAGS` the recipe inherits (setup-rust exports one in CI) rather than
-replacing it; every `lint` command assigns it too. The Makefile adds `mold`
-only when both the host and the compilation target (`CARGO_BUILD_TARGET`, when
-set) are Linux. `tests/build_standard_contract.rs` holds the configuration and
-those recipes to this.
+`RUSTFLAGS`, which is empty when the caller exports none. The assignment
+displaces every `rustflags` source, so release takes neither the frontend flag
+nor `mold`. A bare `cargo build --release` still takes both, because Cargo does
+not select `rustflags` by profile. The decision is recorded in
+[ADR 007](adr/007-adopt-the-rust-build-standard.md). CI's coverage action
+detects the Cranelift development profile and holds coverage on LLVM. Cargo
+applies one `rustflags` source and an assigned `RUSTFLAGS` replaces them all,
+so the Makefile restates both flags as `STANDARD_RUSTFLAGS` for the targets
+that assign `RUSTFLAGS`, adding them to any `RUSTFLAGS` the recipe inherits
+(setup-rust exports one in CI) rather than replacing it; every `lint` command
+assigns it too. The Makefile adds `mold` only when both the host and the
+compilation target (`CARGO_BUILD_TARGET`, when set) are Linux; an Android
+triple contains `-linux-` but is not Linux to Cargo's `target_os`, so it does
+not get `mold`. `tests/build_standard_contract.rs` (readers in
+`tests/build_standard/support.rs`) holds the configuration, those recipes and
+the Cranelift and Whitaker settings to this.
 
 Skyjoust's own extra fact, beyond the general dev-fast contract above: per §7,
 the standard `build`, `test`, `lint`, and `typecheck` targets already pass

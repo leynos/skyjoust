@@ -64,6 +64,9 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 - [ADR 006: Suppress macro-expansion lints through a test-macro crate](adr/006-test-macro-crate-for-fixture-expansion-lints.md)
   - accepted decision to hold fixture expansion lint suppression in a
   test-only procedural-macro crate.
+- [ADR 007: Adopt the Rust build standard in `.cargo/config.toml`](adr/007-adopt-the-rust-build-standard.md)
+  - accepted decision to carry the estate build standard in the Cargo
+  configuration, holding release and coverage off it.
 
 ## Execution plans
 
