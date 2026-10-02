@@ -412,20 +412,27 @@ collaboration.
 
 ## Fast development builds
 
-`make dev-build` and `make dev-test` compile with the opt-in Cranelift backend
-and the mold linker configured in `tools/dev-fast/config.toml`. They require a
-nightly toolchain and, on Linux, a `mold` binary on the `PATH`. The fragment is
-passed explicitly with `--config`, so release, coverage, and verification
-builds are unaffected; never copy its contents into `.cargo/config.toml`, which
-Cargo applies to every build.
+`.cargo/config.toml` carries the estate Rust build standard (concordat rule
+`rust-build-defaults`, recorded in
+[ADR 007](docs/adr/007-adopt-the-rust-build-standard.md)): the parallel frontend
+(`-Zthreads=8`) in every `rustflags` source, `mold` on Linux, and Cranelift
+for the development profile, which the whole suite passes under. Cargo applies
+the file to every build, so a bare `cargo build` gets the standard.
+`make release` and coverage keep the supported LLVM backend and the platform
+linker: release assigns `RUSTFLAGS`, which displaces every `rustflags` source,
+and coverage holds the development profile on LLVM.
 
-The dev-fast profile is the standard development path, not a side path: the
-ordinary `make build`, `make test`, `make lint`, and `make typecheck` targets
-already pass `--config tools/dev-fast/config.toml` to every cargo invocation
-they make. An agent or human calling `cargo` directly for a development build,
-test, lint, or typecheck run must pass `--config tools/dev-fast/config.toml`
-too, or the incremental cache thrashes (direct-cargo and `make` invocations
-without the flag produce different fingerprints for the same source, so each
-one evicts the other's cached artefacts). The fragment must never be applied to
-coverage, release, or verification builds; those keep the supported LLVM
-backend and the platform linker.
+`make dev-build` and `make dev-test` still pass `tools/dev-fast/config.toml`
+with `--config`. The fragment repeats what the configuration now sets, and it
+is for explicit opt-in use; it requires a nightly toolchain and, on Linux, a
+`mold` binary on the `PATH`.
+
+The dev-fast profile remains the path the ordinary `make build`, `make test`,
+`make lint`, and `make typecheck` targets take: they pass
+`--config tools/dev-fast/config.toml` to every cargo invocation they make. An
+agent or human calling `cargo` directly for a development build, test, lint, or
+typecheck run should pass it too, or the incremental cache thrashes
+(direct-cargo and `make` invocations without the flag produce different
+fingerprints for the same source, so each one evicts the other's cached
+artefacts). Never apply the fragment to coverage, release, or verification
+builds; those keep the supported LLVM backend and the platform linker.
