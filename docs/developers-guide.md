@@ -339,9 +339,10 @@ therefore repeats what the configuration already sets, and the Make targets
 keep passing it so the dev-fast convention below still holds. `make release`
 uses the release profile, which names no backend, and assigns the inherited
 `RUSTFLAGS`, which is empty when the caller exports none. The assignment
-displaces every `rustflags` source, so release takes neither the frontend flag
-nor `mold`. A bare `cargo build --release` still takes both, because Cargo does
-not select `rustflags` by profile. The decision is recorded in
+displaces every `rustflags` source, so release adds neither the frontend flag
+nor `mold` (a caller's own value can still contain either). A bare
+`cargo build --release` still takes both, because Cargo does not select
+`rustflags` by profile. The decision is recorded in
 [ADR 007](adr/007-adopt-the-rust-build-standard.md). CI's coverage action
 detects the Cranelift development profile and holds coverage on LLVM. Cargo
 applies one `rustflags` source and an assigned `RUSTFLAGS` replaces them all,

@@ -29,8 +29,8 @@ use support::{
     THREADS_FLAG,
     check_development_targets,
     dry_run,
+    flags::read,
     make_rustflags,
-    read,
     sources,
 };
 

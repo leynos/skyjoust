@@ -39,5 +39,8 @@ remains for explicit opt-in use.
 - A bare `cargo build` gets the standard; `AGENTS.md` no longer forbids the
   settings in `.cargo/config.toml`.
 - A Linux host needs `mold` installed before any build.
-- `tests/build_standard_contract.rs` holds the configuration, the Makefile
-  recipes and the CI install order to this decision.
+- `tests/build_standard_contract.rs` holds the configuration and the Makefile
+  recipes to this decision, and `tests/build_standard_ci.rs` holds the CI
+  install order.
+- CI runs `make test` before coverage, so the whole suite is exercised under
+  Cranelift; coverage itself holds the development profile on LLVM.

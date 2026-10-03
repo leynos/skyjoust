@@ -47,6 +47,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y mold clang
       - name: Lint
         run: make lint
+      - name: Test under Cranelift
+        # Coverage holds the development profile on LLVM, so it cannot show
+        # that the whole suite passes under Cranelift; this step does.
+        run: make test
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@0be482c01ce57c1f9213744aa2def02183bef290
         with:
