@@ -45,4 +45,6 @@ explicit opt-in use.
   recipes to this decision, and `tests/build_standard_ci.rs` holds the CI
   install order.
 - CI runs `make test` before coverage, so the whole suite is exercised under
-  Cranelift; coverage itself holds the development profile on LLVM.
+  Cranelift; coverage itself holds the development profile on LLVM and, at the
+  pinned action's defaults, measures a narrower scope than `make test`: its
+  optional doctests are uninstrumented and add no coverage.

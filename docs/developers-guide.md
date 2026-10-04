@@ -357,6 +357,20 @@ not get `mold`. `tests/build_standard_contract.rs` (readers in
 `tests/build_standard/support.rs`) holds the configuration, those recipes and
 the Cranelift and Whitaker settings to this.
 
+CI's coverage step is narrower than `make test`. The pinned coverage action
+defaults `all-features`, `all-targets` and `doctests` to `false`, and the
+workflow sets none of them, so coverage measures the default-feature library
+and test targets only. Its optional doctests, when enabled, run uninstrumented
+and contribute no coverage. Coverage therefore is not evidence that the whole
+suite passes under Cranelift; the `make test` step that precedes it is. The
+coverage step's effective `RUSTFLAGS` (setup-rust exports one) displace the
+configured `mold` flag, so coverage does not depend on `mold` being installed;
+`make lint` and `make test` do. `tests/build_standard_ci.rs` holds that order
+(`mold`, then `make lint`, then `make test`, then coverage) with one validator
+over the real `ci.yml` and over fixtures that echo, merely name, or
+conditionally skip a gate, using the reader in
+`tests/build_standard/workflow.rs`.
+
 Skyjoust's own extra fact, beyond the general dev-fast contract above: per §7,
 the standard `build`, `test`, `lint`, and `typecheck` targets already pass
 `--config "$(DEV_FAST_CONFIG)"` to every `cargo` invocation they make. Dev-fast

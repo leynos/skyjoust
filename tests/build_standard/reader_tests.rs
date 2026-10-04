@@ -41,6 +41,35 @@ fn only_a_running_cargo_or_whitaker_counts(#[case] command: &str, #[case] expect
     );
 }
 
+/// A wrapper in front of cargo or Whitaker is an error and never an unseen
+/// invocation: `RUSTFLAGS="-Zthreads=8" cargo test && env cargo test` must not
+/// read as one checked command.
+#[rstest]
+#[case::env("env cargo test")]
+#[case::env_assignment("env RUSTFLAGS=-Zx cargo test")]
+#[case::exec("exec whitaker --all")]
+#[case::sudo("sudo cargo build")]
+#[case::time("time /usr/bin/cargo test")]
+fn a_wrapped_cargo_command_is_an_error(#[case] command: &str) {
+    let message = Line(command)
+        .runs_cargo_or_whitaker()
+        .expect_err("a wrapper hid a cargo command")
+        .to_string();
+    assert!(message.contains("does not model wrappers"), "{message}");
+}
+
+#[test]
+fn a_wrapped_second_command_fails_the_whole_dry_run_read() {
+    let text = "RUSTFLAGS=\"-Zthreads=8\" cargo test && env cargo test\n";
+    let message = rustflags_in(text, "test", Host::Linux, None)
+        .expect_err("the second command went unread")
+        .to_string();
+    assert!(
+        message.contains("reading `make -n test` on Linux") && message.contains("`env`"),
+        "{message}"
+    );
+}
+
 #[test]
 fn a_similarly_named_variable_is_not_a_rustflags_assignment() {
     let found = assignment("CARGO_ENCODED_RUSTFLAGS=\"-Zx\" cargo test", None);

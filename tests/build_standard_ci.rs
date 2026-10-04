@@ -1,12 +1,18 @@
-//! Contract test for where CI installs `mold` relative to the gates.
+//! Contract test for the order of CI's gates and where it installs `mold`.
 //!
 //! The Makefile restates the build standard's `mold` flag for its gate targets,
-//! so the job must install `mold` before `make lint`, and before the coverage
-//! step, which builds the same tree on the same runner. (CI's setup-rust
-//! exports `RUSTFLAGS`, which displaces the configured linker flags for
-//! coverage, but the linker still has to be present for every step that links.)
-//! The test reads `ci.yml` as text, ignoring comments, and its reader is held by
-//! tests over fixed workflows, including a late install and none.
+//! so the job must install `mold` before `make lint` and `make test`, the steps
+//! that take it. Coverage does not need it: CI's setup-rust exports `RUSTFLAGS`,
+//! which displaces the configured linker flags for the coverage step, so its
+//! effective flags carry no `mold` flag whether or not it links. `make test`
+//! must also run after lint and before coverage, so the whole suite is exercised
+//! under Cranelift before coverage swaps the backend to LLVM.
+//!
+//! The order is one validator, `order_problem`, applied to the real `ci.yml` and
+//! to every fixture. It reads the workflow as text with the reader in
+//! `build_standard/workflow.rs`, which counts only an unconditional `run`
+//! command or `uses:` action: not a comment, a name, a description, an `echo`
+//! of a gate, or a step with an `if:`. Tests over fixed workflows hold the reader.
 //!
 //! File access goes through a `cap_std` directory handle rooted at the crate
 //! manifest directory.
@@ -16,8 +22,16 @@ use std::error::Error;
 use cap_std::{ambient_authority, fs::Dir};
 use rstest::rstest;
 
+#[path = "build_standard/workflow.rs"]
+mod workflow;
+
+use workflow::Job;
+
 /// The result of a reader, which the tests unwrap.
 type Read<T> = Result<T, Box<dyn Error>>;
+
+/// The shared action that measures coverage, by path.
+const COVERAGE_ACTION: &str = "leynos/shared-actions/.github/actions/generate-coverage";
 
 /// Reads a file relative to the crate manifest directory.
 fn read(path: &str) -> Read<String> {
@@ -25,193 +39,8 @@ fn read(path: &str) -> Read<String> {
     Ok(root.read_to_string(path)?)
 }
 
-/// Returns the number of leading spaces on a line.
-fn indent(line: &str) -> usize { line.len() - line.trim_start().len() }
-
-/// Returns whether a line is blank or a comment, and so evidence of nothing.
-fn is_inert(line: &str) -> bool {
-    let trimmed = line.trim_start();
-    trimmed.is_empty() || trimmed.starts_with('#')
-}
-
-/// Returns the lines of the job that contains the first line holding `needle`.
-///
-/// A job is a two-space-indented key under `jobs:`, running to the next one.
-fn job_containing<'a>(workflow: &'a str, needle: &str) -> Vec<&'a str> {
-    let lines: Vec<&str> = workflow.lines().collect();
-    let starts_job = |line: &str| indent(line) == 2 && line.trim_end().ends_with(':');
-    let bounds = lines
-        .iter()
-        .position(|line| !is_inert(line) && line.contains(needle))
-        .and_then(|found| {
-            let start = (0..=found).rfind(|&i| lines.get(i).is_some_and(|l| starts_job(l)))?;
-            let end = (found + 1..lines.len())
-                .find(|&i| lines.get(i).is_some_and(|l| starts_job(l)))
-                .unwrap_or(lines.len());
-            Some(start..end)
-        });
-    bounds
-        .and_then(|range| lines.get(range))
-        .map(<[&str]>::to_vec)
-        .unwrap_or_default()
-}
-
-/// Splits a shell command line at every `&&` that sits outside quotes.
-fn chain(text: &str) -> Vec<&str> {
-    let mut parts = Vec::new();
-    let (mut start, mut quote) = (0, None);
-    let bytes = text.as_bytes();
-    for (at, c) in text.char_indices() {
-        match (quote, c) {
-            (Some(open), _) if open == c => quote = None,
-            (None, '"' | '\'') => quote = Some(c),
-            (None, '&') if bytes.get(at + 1) == Some(&b'&') && at >= start => {
-                parts.push(text.get(start..at).unwrap_or_default());
-                start = at + 2;
-            }
-            _ => {}
-        }
-    }
-    parts.push(text.get(start..).unwrap_or_default());
-    parts
-}
-
-/// Returns whether one command runs `apt`/`apt-get ... install` naming mold:
-/// the command itself, not an `echo` of one.
-fn segment_installs_mold(segment: &str) -> bool {
-    let words: Vec<&str> = segment
-        .split_whitespace()
-        .skip_while(|w| *w == "sudo")
-        .collect();
-    words
-        .first()
-        .is_some_and(|first| matches!(*first, "apt" | "apt-get"))
-        && words.contains(&"install")
-        && words.contains(&"mold")
-}
-
-/// Returns the bounds of the step holding line `at`: from its `- ` line to the
-/// next step at the same or a shallower indent.
-fn step_bounds(job: &[&str], at: usize) -> Option<std::ops::Range<usize>> {
-    let starts_step = |line: &str| line.trim_start().starts_with("- ");
-    let start = (0..=at).rfind(|&i| job.get(i).copied().is_some_and(starts_step))?;
-    let start_indent = job.get(start).map_or(0, |line| indent(line));
-    let end = (start + 1..job.len())
-        .find(|&i| {
-            job.get(i)
-                .copied()
-                .is_some_and(|line| starts_step(line) && indent(line) <= start_indent)
-        })
-        .unwrap_or(job.len());
-    Some(start..end)
-}
-
-/// Returns whether the step holding line `at` carries an `if:` condition, so
-/// its commands may be skipped. The condition can be the step's first key.
-fn step_is_conditional(job: &[&str], at: usize) -> bool {
-    step_bounds(job, at)
-        .and_then(|bounds| job.get(bounds))
-        .is_some_and(|step| {
-            step.iter().any(|line| {
-                line.trim_start()
-                    .trim_start_matches("- ")
-                    .starts_with("if:")
-            })
-        })
-}
-
-/// Returns whether the step holding line `at` runs the setup-rust action.
-fn step_uses_setup_rust(job: &[&str], at: usize) -> bool {
-    step_bounds(job, at)
-        .and_then(|bounds| job.get(bounds))
-        .is_some_and(|step| {
-            step.iter().any(|line| {
-                let text = line.trim_start().trim_start_matches("- ");
-                text.starts_with("uses:") && text.contains("setup-rust")
-            })
-        })
-}
-
-/// Returns every executable `run` command of a job, with its line offset: the
-/// inline text of `run: cmd`, and each line of a `run: |` or `run: >` block.
-/// Text under any other key, such as a `name` or a description, is not a command.
-fn run_commands<'a>(job: &[&'a str]) -> Vec<(usize, &'a str)> {
-    let mut found = Vec::new();
-    let mut block: Option<usize> = None;
-    for (at, line) in job.iter().enumerate() {
-        if is_inert(line) {
-            continue;
-        }
-        if let Some(key_indent) = block {
-            if indent(line) > key_indent {
-                found.push((at, line.trim()));
-                continue;
-            }
-            block = None;
-        }
-        let text = line.trim().trim_start_matches("- ");
-        let Some(rest) = text.strip_prefix("run:") else {
-            continue;
-        };
-        let dash = if line.trim_start().starts_with("- ") {
-            2
-        } else {
-            0
-        };
-        let inline = rest.trim();
-        if inline.starts_with(['|', '>']) {
-            block = Some(indent(line) + dash);
-        } else if !inline.is_empty() {
-            found.push((at, inline));
-        }
-    }
-    found
-}
-
-/// Returns the offset of the first installation of mold: an `apt` install
-/// command that the job actually runs, in a step with no `if:` condition, or
-/// setup-rust's `install-mold` input set to true in an unconditional step.
-fn mold_install_offset(job: &[&str]) -> Option<usize> {
-    let commands = run_commands(job)
-        .into_iter()
-        .filter(|(at, text)| {
-            !step_is_conditional(job, *at) && chain(text).into_iter().any(segment_installs_mold)
-        })
-        .map(|(at, _)| at);
-    let inputs = job
-        .iter()
-        .enumerate()
-        .filter(|(at, line)| {
-            let text = line.trim();
-            !is_inert(line)
-                && text.starts_with("install-mold:")
-                && text.contains("true")
-                && step_uses_setup_rust(job, *at)
-                && !step_is_conditional(job, *at)
-        })
-        .map(|(at, _)| at);
-    commands.chain(inputs).min()
-}
-
-/// Returns the offset of the first non-comment line holding `needle`.
-fn offset_of(job: &[&str], needle: &str) -> Option<usize> {
-    job.iter()
-        .position(|line| !is_inert(line) && line.contains(needle))
-}
-
-#[test]
-fn ci_installs_mold_before_lint_and_coverage() {
-    let workflow = read(".github/workflows/ci.yml").expect("read ci.yml");
-    let job = job_containing(&workflow, "generate-coverage@");
-    let installed = mold_install_offset(&job).expect("the coverage job never installs mold");
-    for needle in ["make lint", "generate-coverage@"] {
-        let at = offset_of(&job, needle).expect("the job lacks a gate step");
-        assert!(installed < at, "mold is installed after `{needle}`");
-    }
-}
-
-/// A workflow whose coverage step carries its overrides in `env`, as required.
-#[cfg(test)]
+/// A workflow whose coverage job installs `mold`, then lints, tests and
+/// measures coverage.
 const GOOD_WORKFLOW: &str = concat!(
     "jobs:\n",
     "  build-test:\n",
@@ -221,7 +50,7 @@ const GOOD_WORKFLOW: &str = concat!(
     "      - run: make lint\n",
     "      - run: make test\n",
     "      - name: Coverage\n",
-    "        uses: org/actions/generate-coverage@abc\n",
+    "        uses: leynos/shared-actions/.github/actions/generate-coverage@abc\n",
     "        env:\n",
     "          CARGO_UNSTABLE_CODEGEN_BACKEND: \"true\"\n",
     "          CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm\n",
@@ -229,119 +58,162 @@ const GOOD_WORKFLOW: &str = concat!(
     "          format: lcov\n",
 );
 
-#[test]
-fn the_mold_reader_rejects_a_late_or_missing_install() {
-    let good = job_containing(GOOD_WORKFLOW, "generate-coverage@");
-    let good_install = mold_install_offset(&good).expect("the good workflow installs mold");
-    assert!(good_install < offset_of(&good, "make lint").expect("lint"));
-    let late_text = GOOD_WORKFLOW
-        .replace("run: sudo apt-get install --yes mold", "run: echo skipped")
-        .replace(
-            "      - run: make lint\n",
-            "      - run: make lint\n      - run: sudo apt-get install mold\n",
-        );
-    let late = job_containing(&late_text, "generate-coverage@");
-    let late_install = mold_install_offset(&late).expect("the late workflow installs mold");
-    assert!(late_install > offset_of(&late, "make lint").expect("lint"));
-    let none_text = GOOD_WORKFLOW.replace("sudo apt-get install --yes mold", "true");
-    assert!(mold_install_offset(&job_containing(&none_text, "generate-coverage@")).is_none());
-}
+/// The installation step of [`GOOD_WORKFLOW`], which the fixtures replace.
+const INSTALL_STEP: &str =
+    "      - name: Install mold linker\n        run: sudo apt-get install --yes mold\n";
 
-/// Returns whether a job runs `make test` between `make lint` and the coverage
-/// step, so the suite is exercised under Cranelift before coverage swaps the
-/// backend.
-fn suite_runs_between_lint_and_coverage(job: &[&str]) -> bool {
-    match (
-        offset_of(job, "make lint"),
-        offset_of(job, "make test"),
-        offset_of(job, "generate-coverage@"),
-    ) {
-        (Some(lint), Some(suite), Some(coverage)) => lint < suite && suite < coverage,
-        _ => false,
+/// The coverage job of a workflow text.
+fn coverage_job(workflow: &str) -> Job<'_> { Job::containing(workflow, "generate-coverage@") }
+
+/// The one validator of the gate order: `mold` is installed, then `make lint`
+/// and `make test` run, then coverage, each as a real unconditional step. It is
+/// the check on the real workflow and on every fixture, so a fixture it rejects
+/// is one the real check would reject.
+fn order_problem(workflow: &str) -> Option<String> {
+    let job = coverage_job(workflow);
+    let steps = [
+        ("the mold installation", job.mold_install_offset()),
+        ("`make lint`", job.gate_offset("lint")),
+        ("`make test`", job.gate_offset("test")),
+        ("the coverage action", job.action_offset(COVERAGE_ACTION)),
+    ];
+    let mut before: Option<(&str, usize)> = None;
+    for (name, found) in steps {
+        let Some(at) = found else {
+            return Some(format!("the coverage job lacks {name} as a real step"));
+        };
+        if let Some((earlier, earlier_at)) = before.filter(|&(_, earlier_at)| earlier_at >= at) {
+            return Some(format!(
+                "{earlier} (line {earlier_at}) is not before {name}"
+            ));
+        }
+        before = Some((name, at));
     }
+    None
 }
 
 #[test]
-fn ci_runs_the_suite_before_coverage() {
+fn ci_runs_its_gates_in_order() {
     let workflow = read(".github/workflows/ci.yml").expect("read ci.yml");
-    let job = job_containing(&workflow, "generate-coverage@");
-    assert!(
-        suite_runs_between_lint_and_coverage(&job),
-        "the coverage job must run `make test` after lint and before coverage"
-    );
+    assert_eq!(order_problem(&workflow), None);
 }
 
 #[test]
-fn the_suite_reader_rejects_a_missing_or_reordered_gate() {
-    let good = job_containing(GOOD_WORKFLOW, "generate-coverage@");
-    assert!(suite_runs_between_lint_and_coverage(&good));
-    let removed = GOOD_WORKFLOW.replace("      - run: make test\n", "");
-    assert!(!suite_runs_between_lint_and_coverage(&job_containing(
-        &removed,
-        "generate-coverage@"
-    )));
-    let reordered = GOOD_WORKFLOW
-        .replace("      - run: make test\n", "")
-        .replace(
-            "          format: lcov\n",
-            "          format: lcov\n      - run: make test\n",
-        );
-    assert!(!suite_runs_between_lint_and_coverage(&job_containing(
-        &reordered,
-        "generate-coverage@"
-    )));
+fn the_validator_accepts_the_good_workflow() {
+    assert_eq!(order_problem(GOOD_WORKFLOW), None);
+}
+
+/// Each fixture breaks the gate order in one way, and the validator that checks
+/// the real workflow must reject it for that reason.
+#[rstest]
+#[case::no_install(
+    GOOD_WORKFLOW.replace(INSTALL_STEP, ""),
+    "lacks the mold installation"
+)]
+#[case::install_after_lint(
+    GOOD_WORKFLOW.replace(INSTALL_STEP, "").replace(
+        "      - run: make lint\n",
+        "      - run: make lint\n      - run: sudo apt-get install mold\n",
+    ),
+    "is not before `make lint`"
+)]
+#[case::echoed_lint(
+    GOOD_WORKFLOW.replace("run: make lint", "run: echo make lint"),
+    "lacks `make lint`"
+)]
+#[case::echoed_test(
+    GOOD_WORKFLOW.replace("run: make test", "run: echo make test"),
+    "lacks `make test`"
+)]
+#[case::name_only_test(
+    GOOD_WORKFLOW.replace("      - run: make test\n", "      - name: make test\n"),
+    "lacks `make test`"
+)]
+#[case::conditional_test(
+    GOOD_WORKFLOW.replace("      - run: make test\n", "      - if: false\n        run: make test\n"),
+    "lacks `make test`"
+)]
+#[case::missing_test(
+    GOOD_WORKFLOW.replace("      - run: make test\n", ""),
+    "lacks `make test`"
+)]
+#[case::test_after_coverage(
+    GOOD_WORKFLOW.replace("      - run: make test\n", "").replace(
+        "          format: lcov\n",
+        "          format: lcov\n      - run: make test\n",
+    ),
+    "is not before the coverage action"
+)]
+#[case::conditional_coverage(
+    GOOD_WORKFLOW.replace(
+        "        uses: leynos/shared-actions/.github/actions/generate-coverage@abc\n",
+        "        if: false\n        uses: leynos/shared-actions/.github/actions/generate-coverage@abc\n",
+    ),
+    "lacks the coverage action"
+)]
+fn the_validator_rejects_a_broken_order(#[case] workflow: String, #[case] problem: &str) {
+    let found = order_problem(&workflow).expect("the validator accepted a broken order");
+    assert!(found.contains(problem), "{found}");
 }
 
 #[rstest]
-#[case::inert_echo("        run: echo sudo apt-get install mold\n", false)]
-#[case::real_install("        run: sudo apt-get install --yes mold\n", true)]
-fn only_a_real_install_command_counts(#[case] step: &str, #[case] counts: bool) {
-    let workflow = GOOD_WORKFLOW.replace("        run: sudo apt-get install --yes mold\n", step);
-    let job = job_containing(&workflow, "generate-coverage@");
-    assert_eq!(mold_install_offset(&job).is_some(), counts);
-}
-
-#[test]
-fn a_conditionally_skipped_install_does_not_count() {
-    let workflow = GOOD_WORKFLOW.replace(
-        "      - name: Install mold linker\n",
-        "      - name: Install mold linker\n        if: false\n",
-    );
-    let job = job_containing(&workflow, "generate-coverage@");
-    assert!(mold_install_offset(&job).is_none());
-}
-
-#[rstest]
+#[case::real_install("      - run: sudo apt-get install --yes mold\n", true)]
+#[case::inert_echo("      - run: echo sudo apt-get install mold\n", false)]
 #[case::step_first_if(
     "      - if: false\n        run: sudo apt-get install --yes mold\n",
     false
 )]
-#[case::quoted_echo("        run: echo \"x && sudo apt-get install mold\"\n", false)]
-#[case::description_text("        description: sudo apt-get install mold\n", false)]
+#[case::later_if(
+    "      - run: sudo apt-get install --yes mold\n        if: false\n",
+    false
+)]
+#[case::quoted_echo("      - run: echo \"x && sudo apt-get install mold\"\n", false)]
+#[case::description_text("      - description: sudo apt-get install mold\n", false)]
 #[case::block_run(
-    "        run: |\n          sudo apt-get update\n          sudo apt-get install mold\n",
+    "      - run: |\n          sudo apt-get update\n          sudo apt-get install mold\n",
     true
 )]
-fn the_install_reader_counts_only_runnable_commands(#[case] step: &str, #[case] counts: bool) {
-    let workflow = GOOD_WORKFLOW.replace("        run: sudo apt-get install --yes mold\n", step);
-    let job = job_containing(&workflow, "generate-coverage@");
-    assert_eq!(mold_install_offset(&job).is_some(), counts, "{step}");
-}
-
-#[rstest]
-#[case::setup_rust(
-    "      - uses: org/setup-rust@abc\n        with:\n          install-mold: true\n",
+#[case::folded_echo(
+    "      - run: >\n          echo skipped\n          sudo apt-get install mold\n",
+    false
+)]
+#[case::folded_install(
+    "      - run: >\n          sudo apt-get install\n          --yes mold\n",
     true
 )]
-#[case::unrelated_action(
+#[case::setup_rust_input(
+    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
+     install-mold: true\n",
+    true
+)]
+#[case::input_false_with_comment(
+    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
+     install-mold: false # true\n",
+    false
+)]
+#[case::input_not_exactly_true(
+    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
+     install-mold: untrue\n",
+    false
+)]
+#[case::input_in_env_not_with(
+    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        env:\n          \
+     install-mold: true\n",
+    false
+)]
+#[case::lookalike_action(
+    "      - uses: org/not-setup-rust-really@abc\n        with:\n          install-mold: true\n",
+    false
+)]
+#[case::unrelated_action_input(
     "      - uses: org/other-action@abc\n        with:\n          install-mold: true\n",
     false
 )]
-fn an_install_mold_input_counts_only_on_setup_rust(#[case] step: &str, #[case] counts: bool) {
-    let workflow = GOOD_WORKFLOW.replace(
-        "      - name: Install mold linker\n        run: sudo apt-get install --yes mold\n",
-        step,
+fn the_install_reader_counts_only_runnable_installs(#[case] step: &str, #[case] counts: bool) {
+    let workflow = GOOD_WORKFLOW.replace(INSTALL_STEP, step);
+    assert_eq!(
+        coverage_job(&workflow).mold_install_offset().is_some(),
+        counts,
+        "{step}"
     );
-    let job = job_containing(&workflow, "generate-coverage@");
-    assert_eq!(mold_install_offset(&job).is_some(), counts, "{step}");
 }

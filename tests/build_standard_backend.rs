@@ -66,15 +66,7 @@ fn lint_with_script(scratch: &str, script: &str) -> Read<(Output, String)> {
     let mut options = OpenOptions::new();
     options.write(true).create_new(true).mode(0o755);
     std::io::Write::write_all(&mut dir.open_with("whitaker", &options)?, script.as_bytes())?;
-    // A competing `whitaker` in the home directory the Makefile prepends to
-    // `PATH`: if the fake were found by name it could be shadowed by this one.
-    dir.create_dir_all(".cargo/bin")?;
-    let mut competing = OpenOptions::new();
-    competing.write(true).create_new(true).mode(0o755);
-    std::io::Write::write_all(
-        &mut dir.open_with(".cargo/bin/whitaker", &competing)?,
-        b"#!/bin/sh\necho competing > \"$(dirname \"$0\")/../../competing\"\nexit 0\n",
-    )?;
+    install_competing_whitaker(&root)?;
     let output = Command::new("make")
         // The fake is named by its path, which beats both an inherited
         // `WHITAKER` (the bogus value below) and a competing install found
@@ -109,6 +101,32 @@ fn lint_with_script(scratch: &str, script: &str) -> Read<(Output, String)> {
         )
     })?;
     Ok((output, record))
+}
+
+/// Installs a competing `whitaker` in the home directory the Makefile prepends
+/// to `PATH`: if the fake were found by name it could be shadowed by this one.
+///
+/// The competing script marks its run with a file in `root` named by an absolute
+/// path baked in here and written with `echo`, a shell builtin, so the marker
+/// needs no tool the run's `PATH` lacks. A run that left no marker is then
+/// evidence the script never ran, not that it could not write.
+#[cfg(unix)]
+fn install_competing_whitaker(root: &std::path::Path) -> Read<()> {
+    use cap_std::fs::{OpenOptions, OpenOptionsExt};
+
+    let dir = Dir::open_ambient_dir(root, ambient_authority())?;
+    dir.create_dir_all(".cargo/bin")?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true).mode(0o755);
+    let script = format!(
+        "#!/bin/sh\necho competing > '{}'\nexit 0\n",
+        root.join("competing").display()
+    );
+    std::io::Write::write_all(
+        &mut dir.open_with(".cargo/bin/whitaker", &options)?,
+        script.as_bytes(),
+    )?;
+    Ok(())
 }
 
 /// A Whitaker exit status decides `make lint`, and the fake is always run.
@@ -263,6 +281,25 @@ fn a_competing_home_install_does_not_shadow_the_fake() {
         Ok(_) => panic!("the competing home install ran instead of the fake"),
         Err(error) => panic!("could not check for the competing marker: {error}"),
     }
+}
+
+/// The competing install does write its marker when it is run under the same
+/// controlled `PATH`, so the marker's absence in the shadowing test means the
+/// script did not run, not that it was unable to record.
+#[cfg(unix)]
+#[test]
+fn the_competing_install_marks_its_run_under_the_controlled_path() {
+    let root = tool_directory("whitaker-competing-direct").expect("prepare the tool directory");
+    install_competing_whitaker(&root).expect("install the competing script");
+    let status = Command::new(root.join(".cargo/bin/whitaker"))
+        .env_clear()
+        .env("PATH", &root)
+        .status()
+        .expect("run the competing script");
+    assert!(status.success(), "the competing script failed: {status}");
+    let dir = Dir::open_ambient_dir(&root, ambient_authority()).expect("open the scratch root");
+    dir.metadata("competing")
+        .expect("the competing script ran but left no marker");
 }
 
 /// Runs `make test` with `script` as the cargo stand-in under the given test

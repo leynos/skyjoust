@@ -8,6 +8,12 @@
 
 use super::Read;
 
+/// Programs that run another command with a changed environment or privilege,
+/// which this reader does not model.
+const WRAPPERS: [&str; 10] = [
+    "env", "command", "exec", "sudo", "time", "nice", "nohup", "timeout", "xargs", "stdbuf",
+];
+
 /// One line of `make -n` output, or one simple command cut from it.
 #[derive(Clone, Copy)]
 pub struct Line<'a>(pub &'a str);
@@ -258,11 +264,35 @@ impl<'a> Line<'a> {
     ///
     /// # Errors
     ///
-    /// An unreadable leading assignment fails rather than hiding the command.
+    /// An unreadable leading assignment fails rather than hiding the command. So
+    /// does a wrapper (`env`, `sudo`, `exec` and the like) that has cargo or
+    /// Whitaker among its words: the reader does not model what a wrapper does to
+    /// the environment, so it refuses to report `env cargo test` as no command.
     pub fn runs_cargo_or_whitaker(self) -> Read<bool> {
         let (_, Line(rest)) = self.assignments()?;
-        let word = rest.split_whitespace().next().unwrap_or_default();
-        let name = word.rsplit('/').next().unwrap_or(word);
-        Ok(matches!(name, "cargo" | "whitaker"))
+        let mut words = rest.split_whitespace();
+        let first = words.next().unwrap_or_default();
+        let is_tool = |word: &str| {
+            matches!(
+                word.rsplit('/').next().unwrap_or(word),
+                "cargo" | "whitaker"
+            )
+        };
+        if is_tool(first) {
+            return Ok(true);
+        }
+        let wrapper = first.rsplit('/').next().unwrap_or(first);
+        let names_a_tool = rest.split_whitespace().skip(1).any(is_tool);
+        // `command -v` and `command -V` look a program up rather than run it.
+        let is_lookup = wrapper == "command" && matches!(words.next(), Some("-v" | "-V"));
+        let hides_a_tool = names_a_tool && !is_lookup;
+        if WRAPPERS.contains(&wrapper) && hides_a_tool {
+            return Err(format!(
+                "`{wrapper}` wraps a cargo or Whitaker command in `{rest}`; the reader does not \
+                 model wrappers"
+            )
+            .into());
+        }
+        Ok(false)
     }
 }
