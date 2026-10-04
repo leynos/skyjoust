@@ -90,6 +90,7 @@ const GOOD_WORKFLOW: &str = concat!(
     "      - name: Install mold linker\n",
     "        run: sudo apt-get install --yes mold\n",
     "      - run: make lint\n",
+    "      - run: make test\n",
     "      - name: Coverage\n",
     "        uses: org/actions/generate-coverage@abc\n",
     "        env:\n",
@@ -115,4 +116,49 @@ fn the_mold_reader_rejects_a_late_or_missing_install() {
     assert!(late_install > offset_of(&late, "make lint").expect("lint"));
     let none_text = GOOD_WORKFLOW.replace("sudo apt-get install --yes mold", "true");
     assert!(mold_install_offset(&job_containing(&none_text, "generate-coverage@")).is_none());
+}
+
+/// Returns whether a job runs `make test` between `make lint` and the coverage
+/// step, so the suite is exercised under Cranelift before coverage swaps the
+/// backend.
+fn suite_runs_between_lint_and_coverage(job: &[&str]) -> bool {
+    match (
+        offset_of(job, "make lint"),
+        offset_of(job, "make test"),
+        offset_of(job, "generate-coverage@"),
+    ) {
+        (Some(lint), Some(suite), Some(coverage)) => lint < suite && suite < coverage,
+        _ => false,
+    }
+}
+
+#[test]
+fn ci_runs_the_suite_before_coverage() {
+    let workflow = read(".github/workflows/ci.yml").expect("read ci.yml");
+    let job = job_containing(&workflow, "generate-coverage@");
+    assert!(
+        suite_runs_between_lint_and_coverage(&job),
+        "the coverage job must run `make test` after lint and before coverage"
+    );
+}
+
+#[test]
+fn the_suite_reader_rejects_a_missing_or_reordered_gate() {
+    let good = job_containing(GOOD_WORKFLOW, "generate-coverage@");
+    assert!(suite_runs_between_lint_and_coverage(&good));
+    let removed = GOOD_WORKFLOW.replace("      - run: make test\n", "");
+    assert!(!suite_runs_between_lint_and_coverage(&job_containing(
+        &removed,
+        "generate-coverage@"
+    )));
+    let reordered = GOOD_WORKFLOW
+        .replace("      - run: make test\n", "")
+        .replace(
+            "          format: lcov\n",
+            "          format: lcov\n      - run: make test\n",
+        );
+    assert!(!suite_runs_between_lint_and_coverage(&job_containing(
+        &reordered,
+        "generate-coverage@"
+    )));
 }

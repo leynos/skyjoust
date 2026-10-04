@@ -147,7 +147,8 @@ cargo doc --no-deps --workspace
 ```
 
 `make typecheck` runs `cargo check --workspace --all-targets --all-features`
-with `RUSTFLAGS="-D warnings "`, so warnings fail the gate.
+with `RUSTFLAGS` composed from the caller's value, `-D warnings` and the
+standard flags (`-Zthreads=8`, plus `mold` on Linux), so warnings fail the gate.
 
 Run Markdown checks after documentation changes:
 

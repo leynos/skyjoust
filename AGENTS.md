@@ -434,5 +434,12 @@ agent or human calling `cargo` directly for a development build, test, lint, or
 typecheck run should pass it too, or the incremental cache thrashes
 (direct-cargo and `make` invocations without the flag produce different
 fingerprints for the same source, so each one evicts the other's cached
-artefacts). Never apply the fragment to coverage, release, or verification
-builds; those keep the supported LLVM backend and the platform linker.
+artefacts). Never pass the fragment to coverage, release, or verification
+builds. Omitting it does not take them off the standard, because Cargo still
+applies `.cargo/config.toml`: release (`make release`) assigns the inherited
+`RUSTFLAGS`, which displaces every `rustflags` source and so adds neither
+standard flag; coverage holds the development profile on LLVM and takes the
+standard flags only when its caller leaves `RUSTFLAGS` unset (CI's setup-rust
+exports one, which displaces them); a verification or audit command that must
+stay on LLVM sets `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm` together with
+`CARGO_UNSTABLE_CODEGEN_BACKEND=true` itself, as `make lint` does for Whitaker.
