@@ -154,18 +154,20 @@ project:
   - `make typecheck` executes:
 
     ```sh
-    cargo check --workspace --all-targets --all-features -- -D warnings
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo check --workspace --all-targets --all-features
     ```
 
     type-checking every target with all features enabled while treating
-    warnings as errors.
+    warnings as errors, with the standard build flags composed in.
   - `make test` executes:
 
     ```sh
-    cargo test --workspace
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo nextest run --workspace --all-targets --all-features
+    cargo test --doc --workspace --all-features
     ```
 
-    running the full workspace test suite. Use `make fmt`
+    running the full workspace suite and the doctests (`cargo test` replaces
+    nextest where it is absent). Use `make fmt`
     (`cargo fmt --workspace`) to apply formatting fixes reported by the
     formatter check.
 - Clippy warnings MUST be disallowed.
@@ -417,10 +419,11 @@ collaboration.
 [ADR 007](docs/adr/007-adopt-the-rust-build-standard.md)): the parallel frontend
 (`-Zthreads=8`) in every `rustflags` source, `mold` on Linux, and Cranelift
 for the development profile, which the whole suite passes under. Cargo applies
-the file to every build, so a bare `cargo build` gets the standard.
-`make release` and coverage keep the supported LLVM backend and the platform
-linker: release assigns `RUSTFLAGS`, which displaces every `rustflags` source,
-and coverage holds the development profile on LLVM.
+the file to every build, so a bare `cargo build` gets these automatic defaults;
+the dev-fast fragment below is separate and applies only when passed with
+`--config`. Release and coverage are held off the standard, not off the
+configuration: `make release` assigns `RUSTFLAGS`, which displaces every
+`rustflags` source, and coverage holds the development profile on LLVM.
 
 `make dev-build` and `make dev-test` still pass `tools/dev-fast/config.toml`
 with `--config`. The fragment repeats what the configuration now sets, and it
