@@ -445,4 +445,10 @@ standard flag; coverage holds the development profile on LLVM and takes the
 standard flags only when its caller leaves `RUSTFLAGS` unset (CI's setup-rust
 exports one, which displaces them); a verification or audit command that must
 stay on LLVM sets `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm` together with
-`CARGO_UNSTABLE_CODEGEN_BACKEND=true` itself, as `make lint` does for Whitaker.
+`CARGO_UNSTABLE_CODEGEN_BACKEND=true` itself, as `make lint` does for Whitaker,
+and sets its own `RUSTFLAGS`, for example:
+
+```sh
+CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm \
+RUSTFLAGS="-D warnings" cargo test --workspace --all-features
+```

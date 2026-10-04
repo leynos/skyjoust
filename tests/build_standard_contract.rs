@@ -226,3 +226,26 @@ fn whitaker_selects_llvm() {
         }
     }
 }
+
+/// Doctests run under either test runner: `--all-targets` excludes them, so the
+/// plain `cargo test` branch needs the explicit run as much as nextest does.
+#[rstest]
+#[case::nextest("nextest run")]
+#[case::plain_cargo_test("test")]
+fn doctests_run_whichever_runner_is_selected(#[case] runner: &str) {
+    let output = std::process::Command::new("make")
+        .args(["-n", "-B", "test"])
+        .arg(format!("TEST_CMD={runner}"))
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env_remove("MAKEFLAGS")
+        .env_remove("MFLAGS")
+        .env_remove("MAKELEVEL")
+        .output()
+        .expect("run `make -n test`");
+    let plan = String::from_utf8_lossy(&output.stdout).replace("\\\n", " ");
+    assert!(output.status.success(), "`make -n test` failed: {plan}");
+    assert!(
+        plan.contains("test --doc"),
+        "no doctest run under `{runner}`: {plan}"
+    );
+}

@@ -28,11 +28,13 @@ into `.cargo/config.toml`, because Cargo applies that file to every build.
 
 Release and coverage are held off it deliberately. `make release` assigns
 `RUSTFLAGS`, which displaces every `rustflags` source. Coverage holds the
-development profile on LLVM, because `-Cinstrument-coverage` is LLVM-only.
-`make lint` runs Whitaker on LLVM, because its driver builds outside the
-workspace configuration. The Makefile restates the flags wherever it assigns
-`RUSTFLAGS`, composing them with an inherited value. The dev-fast fragment
-remains for explicit opt-in use.
+development profile on LLVM, because `-Cinstrument-coverage` is LLVM-only, and
+it takes the standard flags only when its caller leaves `RUSTFLAGS` unset; CI's
+setup-rust exports `RUSTFLAGS=-D warnings`, which displaces them. `make lint`
+runs Whitaker on LLVM, because its driver builds outside the workspace
+configuration. The Makefile restates the flags wherever it assigns `RUSTFLAGS`,
+composing them with an inherited value. The dev-fast fragment remains for
+explicit opt-in use.
 
 ## Consequences
 

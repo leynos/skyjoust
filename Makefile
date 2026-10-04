@@ -83,7 +83,8 @@ clean: ## Remove build artefacts
 
 test: ## Run tests with warnings treated as errors
 	$(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
-ifneq ($(TEST_CMD),test)
+	@# Doctests run whichever runner is selected: `--all-targets` excludes them,
+	@# so the plain `cargo test` branch needs the explicit run too.
 	@doc_test_log="$$(mktemp)"; \
 	if $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" test --doc --workspace --all-features 2> "$$doc_test_log"; then \
 		rm -f "$$doc_test_log"; \
@@ -96,7 +97,6 @@ ifneq ($(TEST_CMD),test)
 		rm -f "$$doc_test_log"; \
 		exit 1; \
 	fi
-endif
 
 target/%/$(TARGET): ## Build binary in debug or release mode
 	$(if $(findstring release,$(@)),$(RELEASE_RUSTFLAGS),$(DEBUG_RUSTFLAGS)) $(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release,--config "$(DEV_FAST_CONFIG)") --bin $(TARGET)
