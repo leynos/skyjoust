@@ -71,12 +71,20 @@ fn coverage_job(workflow: &str) -> Job<'_> { Job::containing(workflow, "generate
 /// is one the real check would reject.
 fn order_problem(workflow: &str) -> Option<String> {
     let job = coverage_job(workflow);
-    let steps = [
-        ("the mold installation", job.mold_install_offset()),
-        ("`make lint`", job.gate_offset("lint")),
-        ("`make test`", job.gate_offset("test")),
-        ("the coverage action", job.action_offset(COVERAGE_ACTION)),
-    ];
+    let unrecognised = |error: String| format!("unrecognised workflow form: {error}");
+    let offsets = (|| -> Result<_, String> {
+        Ok([
+            ("the mold installation", job.mold_install_offset()?),
+            ("`make lint`", job.gate_offset("lint")?),
+            ("`make test`", job.gate_offset("test")?),
+            ("the coverage action", job.action_offset(COVERAGE_ACTION)),
+        ])
+    })()
+    .map_err(unrecognised);
+    let steps = match offsets {
+        Ok(steps) => steps,
+        Err(problem) => return Some(problem),
+    };
     let mut before: Option<(&str, usize)> = None;
     for (name, found) in steps {
         let Some(at) = found else {
@@ -173,23 +181,10 @@ fn the_validator_rejects_a_broken_order(#[case] workflow: String, #[case] proble
     "      - run: |\n          sudo apt-get update\n          sudo apt-get install mold\n",
     true
 )]
-#[case::folded_echo(
-    "      - run: >\n          echo skipped\n          sudo apt-get install mold\n",
-    false
-)]
-#[case::folded_install(
-    "      - run: >\n          sudo apt-get install\n          --yes mold\n",
-    true
-)]
 #[case::setup_rust_input(
     "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
      install-mold: true\n",
     true
-)]
-#[case::input_false_with_comment(
-    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
-     install-mold: false # true\n",
-    false
 )]
 #[case::input_not_exactly_true(
     "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
@@ -211,9 +206,47 @@ fn the_validator_rejects_a_broken_order(#[case] workflow: String, #[case] proble
 )]
 fn the_install_reader_counts_only_runnable_installs(#[case] step: &str, #[case] counts: bool) {
     let workflow = GOOD_WORKFLOW.replace(INSTALL_STEP, step);
-    assert_eq!(
-        coverage_job(&workflow).mold_install_offset().is_some(),
-        counts,
-        "{step}"
+    let found = coverage_job(&workflow)
+        .mold_install_offset()
+        .expect("a recognised form");
+    assert_eq!(found.is_some(), counts, "{step}");
+}
+
+/// The reader judges this repository's own workflow forms and rejects any other
+/// with a named error, so a form it cannot model is never read as an install, a
+/// gate, or the absence of one.
+#[rstest]
+#[case::folded_install(
+    "      - run: >\n          echo skipped\n          sudo apt-get install mold\n",
+    "folded scalar"
+)]
+#[case::comment_after_false(
+    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
+     install-mold: false # true\n",
+    "trailing comment"
+)]
+#[case::comment_after_true(
+    "      - uses: leynos/shared-actions/.github/actions/setup-rust@abc\n        with:\n          \
+     install-mold: true # needed\n",
+    "trailing comment"
+)]
+fn the_reader_rejects_a_form_it_does_not_recognise(#[case] step: &str, #[case] error: &str) {
+    let workflow = GOOD_WORKFLOW.replace(INSTALL_STEP, step);
+    let found = order_problem(&workflow).expect("the validator accepted an unrecognised form");
+    assert!(
+        found.contains("unrecognised workflow form") && found.contains(error),
+        "{found}"
     );
+}
+
+/// A folded gate step is rejected as well as a folded install, since the reader
+/// reads every `run` command of the job.
+#[test]
+fn a_folded_gate_is_rejected_not_skipped() {
+    let workflow = GOOD_WORKFLOW.replace(
+        "      - run: make test\n",
+        "      - run: >\n          make test\n",
+    );
+    let found = order_problem(&workflow).expect("the validator accepted a folded gate");
+    assert!(found.contains("folded scalar"), "{found}");
 }

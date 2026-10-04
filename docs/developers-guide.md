@@ -369,7 +369,9 @@ configured `mold` flag, so coverage does not depend on `mold` being installed;
 (`mold`, then `make lint`, then `make test`, then coverage) with one validator
 over the real `ci.yml` and over fixtures that echo, merely name, or
 conditionally skip a gate, using the reader in
-`tests/build_standard/workflow.rs`.
+`tests/build_standard/workflow.rs`, which recognises only the forms this
+workflow uses and rejects any other (a folded `run: >` block, a comment after an
+`install-mold` value) with a named error.
 
 Skyjoust's own extra fact, beyond the general dev-fast contract above: per §7,
 the standard `build`, `test`, `lint`, and `typecheck` targets already pass
