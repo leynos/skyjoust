@@ -6,7 +6,8 @@
 //! than merging them, and an assigned `RUSTFLAGS` replaces every source. So the
 //! flags must be repeated in each configuration source, restated wherever the
 //! Makefile assigns `RUSTFLAGS` for a development target, and kept out of the
-//! release recipe, which ships and so stays on the default flags.
+//! release recipe, which ships: it adds neither standard flag and forwards the
+//! caller's own value untouched.
 //!
 //! The Makefile clauses run `make -n` and read the commands it would run,
 //! rather than the Makefile's text, so a flag lost through a variable or a
@@ -22,6 +23,7 @@ mod support;
 
 use rstest::rstest;
 use support::{
+    Flags,
     Host,
     LINUX_SELECTOR,
     LINUX_TABLES,
@@ -29,7 +31,7 @@ use support::{
     THREADS_FLAG,
     check_development_targets,
     dry_run,
-    flags::read,
+    flags::config,
     make_rustflags,
     sources,
 };
@@ -40,7 +42,8 @@ use support::{
 const DEVELOPMENT_TARGETS: [&str; 4] = ["test", "typecheck", "lint", "build"];
 
 /// Makefile targets that ship, so every command assigns `RUSTFLAGS` and none
-/// carries a standard flag. Coverage runs in CI, outwith the Makefile.
+/// adds a standard flag (a caller's own value is forwarded untouched). Coverage runs in CI, outwith
+/// the Makefile.
 const HELD_OUT_TARGETS: [&str; 1] = ["release"];
 
 /// Development targets that must assign `RUSTFLAGS` in at least one command,
@@ -159,7 +162,9 @@ fn the_assigning_targets_assign_rustflags() {
 #[rstest]
 #[case::no_caller(None)]
 #[case::with_a_caller(Some(INHERITED))]
-#[case::a_caller_naming_a_standard_flag(Some("-Zthreads=8"))]
+#[case::a_caller_naming_the_frontend_flag(Some("-Zthreads=8"))]
+#[case::a_caller_naming_mold(Some("-Clink-arg=-fuse-ld=mold"))]
+#[case::a_caller_naming_both_standard_flags(Some("-Zthreads=8 -Clink-arg=-fuse-ld=mold"))]
 fn release_adds_no_standard_flag(#[case] inherited: Option<&str>) {
     for target in HELD_OUT_TARGETS {
         for assigned in
@@ -169,7 +174,7 @@ fn release_adds_no_standard_flag(#[case] inherited: Option<&str>) {
                 panic!("`make {target}` runs a command that takes the configuration's flags")
             });
             assert!(
-                flags.is_exactly(inherited.unwrap_or_default()),
+                flags.equals(&Flags::from_text(inherited.unwrap_or_default())),
                 "`make {target}` assigns {flags:?}, not the caller's {inherited:?}"
             );
         }
@@ -185,9 +190,7 @@ fn value_at<'a>(root: &'a toml::Value, path: &[&str]) -> Option<&'a toml::Value>
 /// it, so release builds keep the supported LLVM backend.
 #[test]
 fn cranelift_is_the_development_backend_and_release_is_not() {
-    let config: toml::Value =
-        toml::from_str(&read(".cargo/config.toml").expect("read the Cargo configuration"))
-            .expect("parse the Cargo configuration");
+    let config = config().expect("read the Cargo configuration");
     assert_eq!(
         value_at(&config, &["unstable", "codegen-backend"]).and_then(toml::Value::as_bool),
         Some(true),

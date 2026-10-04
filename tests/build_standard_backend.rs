@@ -66,10 +66,24 @@ fn lint_with_script(scratch: &str, script: &str) -> Read<(Output, String)> {
     let mut options = OpenOptions::new();
     options.write(true).create_new(true).mode(0o755);
     std::io::Write::write_all(&mut dir.open_with("whitaker", &options)?, script.as_bytes())?;
+    // A competing `whitaker` in the home directory the Makefile prepends to
+    // `PATH`: if the fake were found by name it could be shadowed by this one.
+    dir.create_dir_all(".cargo/bin")?;
+    let mut competing = OpenOptions::new();
+    competing.write(true).create_new(true).mode(0o755);
+    std::io::Write::write_all(
+        &mut dir.open_with(".cargo/bin/whitaker", &competing)?,
+        b"#!/bin/sh\necho competing > \"$(dirname \"$0\")/../../competing\"\nexit 0\n",
+    )?;
     let output = Command::new("make")
-        // `WHITAKER=whitaker` beats an inherited `WHITAKER`, which the bogus
-        // value below would otherwise make the recipe run.
-        .args(["lint", "CARGO=true", "WHITAKER=whitaker"])
+        // The fake is named by its path, which beats both an inherited
+        // `WHITAKER` (the bogus value below) and a competing install found
+        // through `PATH`.
+        .args([
+            "lint".to_owned(),
+            "CARGO=true".to_owned(),
+            format!("WHITAKER={}", root.join("whitaker").display()),
+        ])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .env("PATH", &root)
         .env("WHITAKER", "/no/such/whitaker")
@@ -159,7 +173,9 @@ fn tool_directory(scratch: &str) -> Read<std::path::PathBuf> {
         })?;
     target_tmp.create_dir(scratch)?;
     let root = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(scratch);
-    for tool in ["sh", "env", "true", "make", "uname"] {
+    for tool in [
+        "sh", "env", "true", "make", "uname", "grep", "cat", "rm", "mktemp",
+    ] {
         let source = ["/usr/bin", "/bin"]
             .iter()
             .map(|base| std::path::Path::new(base).join(tool))
@@ -230,4 +246,78 @@ fn a_fake_that_leaves_no_record_is_reported_with_its_run() {
             "`{wanted}` missing from: {message}"
         );
     }
+}
+
+/// A real `whitaker` that is also installed in the home directory the Makefile
+/// searches does not shadow the fake the harness names by path: the fake's
+/// record exists and the competing install never ran.
+#[cfg(unix)]
+#[test]
+fn a_competing_home_install_does_not_shadow_the_fake() {
+    let (_, record) = lint_with_fake_whitaker("whitaker-competing", 0).expect("run `make lint`");
+    assert!(!record.is_empty(), "the intended fake did not run");
+    let root = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("whitaker-competing");
+    let dir = Dir::open_ambient_dir(&root, ambient_authority()).expect("open the scratch root");
+    match dir.metadata("competing") {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Ok(_) => panic!("the competing home install ran instead of the fake"),
+        Err(error) => panic!("could not check for the competing marker: {error}"),
+    }
+}
+
+/// Runs `make test` with `script` as the cargo stand-in under the given test
+/// runner, on a tool directory alone so nothing real can answer.
+#[cfg(unix)]
+fn make_test_with(scratch: &str, runner: &str, script: &str) -> Read<Output> {
+    use cap_std::fs::{OpenOptions, OpenOptionsExt};
+
+    let root = tool_directory(scratch)?;
+    let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true).mode(0o755);
+    std::io::Write::write_all(&mut dir.open_with("cargo", &options)?, script.as_bytes())?;
+    Ok(Command::new("make")
+        .args([
+            "test".to_owned(),
+            format!("CARGO={}", root.join("cargo").display()),
+            format!("TEST_CMD={runner}"),
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("PATH", &root)
+        .env("HOME", &root)
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_BUILD_TARGET")
+        .env_remove("MAKEFLAGS")
+        .env_remove("MFLAGS")
+        .env_remove("MAKELEVEL")
+        .output()?)
+}
+
+/// A failing doctest fails `make test` whichever runner is selected, and the
+/// recipe's one permitted skip, a package with no library target, passes.
+#[cfg(unix)]
+#[rstest]
+#[case::nextest_doctest_fails("nextest run", "doctest failed", false)]
+#[case::plain_cargo_doctest_fails("test", "doctest failed", false)]
+#[case::nextest_no_library_skips("nextest run", "error: no library targets found", true)]
+#[case::plain_cargo_no_library_skips("test", "error: no library targets found", true)]
+fn doctest_failures_fail_make_test_under_either_runner(
+    #[case] runner: &str,
+    #[case] message: &str,
+    #[case] passes: bool,
+) {
+    let script = format!(
+        "#!/bin/sh\ncase \" $* \" in\n  *\" --doc \"*) echo '{message}' >&2; exit 1;;\nesac\nexit \
+         0\n"
+    );
+    let scratch = format!("make-test-{}-{}", runner.replace(' ', "-"), passes);
+    let output = make_test_with(&scratch, runner, &script).expect("run `make test`");
+    assert_eq!(
+        output.status.success(),
+        passes,
+        "`make test` under `{runner}` with `{message}` exited {}: {}{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

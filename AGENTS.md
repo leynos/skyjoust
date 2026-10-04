@@ -154,7 +154,9 @@ project:
   - `make typecheck` executes:
 
     ```sh
-    RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo check --workspace --all-targets --all-features
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" \
+      cargo --config tools/dev-fast/config.toml check \
+      --workspace --all-targets --all-features
     ```
 
     type-checking every target with all features enabled while treating
@@ -162,8 +164,12 @@ project:
   - `make test` executes:
 
     ```sh
-    RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo nextest run --workspace --all-targets --all-features
-    RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo test --doc --workspace --all-features
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" \
+      cargo --config tools/dev-fast/config.toml nextest run \
+      --workspace --all-targets --all-features
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" \
+      cargo --config tools/dev-fast/config.toml test --doc \
+      --workspace --all-features
     ```
 
     running the full workspace suite and the doctests (`cargo test` replaces
