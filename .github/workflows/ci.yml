@@ -21,6 +21,9 @@ jobs:
         uses: astral-sh/setup-uv@a96208bed1fb5efb8da349c9bcc6cc58af9e7d74
         with:
           version: '0.11.28'
+          # A Rust-only repository has no Python dependency manifest for the
+          # cache key, so caching would only warn about unmatched inputs.
+          enable-cache: false
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
@@ -47,6 +50,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y mold clang
       - name: Lint
         run: make lint
+      - name: Test under Cranelift
+        # Coverage holds the development profile on LLVM, so it cannot show
+        # that the whole suite passes under Cranelift; this step does.
+        run: make test
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@0be482c01ce57c1f9213744aa2def02183bef290
         with:

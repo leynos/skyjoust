@@ -3,6 +3,10 @@
 This guide is for operators and integrators who run the Skyjoust validator
 tools against the high-level interaction contract.
 
+On Linux, install the `mold` linker before running any `cargo` command in this
+guide: the repository's Cargo configuration links Linux builds with it, so a
+build without `mold` fails at the link step.
+
 ## 1. Validator contract with `cargo test`
 
 The validator contract runs the Rust unit tests, integration tests, trace

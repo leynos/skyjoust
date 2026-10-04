@@ -154,18 +154,26 @@ project:
   - `make typecheck` executes:
 
     ```sh
-    cargo check --workspace --all-targets --all-features -- -D warnings
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" \
+      cargo --config tools/dev-fast/config.toml check \
+      --workspace --all-targets --all-features
     ```
 
     type-checking every target with all features enabled while treating
-    warnings as errors.
+    warnings as errors, with the standard build flags composed in.
   - `make test` executes:
 
     ```sh
-    cargo test --workspace
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" \
+      cargo --config tools/dev-fast/config.toml nextest run \
+      --workspace --all-targets --all-features
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" \
+      cargo --config tools/dev-fast/config.toml test --doc \
+      --workspace --all-features
     ```
 
-    running the full workspace test suite. Use `make fmt`
+    running the full workspace suite and the doctests (`cargo test` replaces
+    nextest where it is absent). Use `make fmt`
     (`cargo fmt --workspace`) to apply formatting fixes reported by the
     formatter check.
 - Clippy warnings MUST be disallowed.
@@ -412,20 +420,41 @@ collaboration.
 
 ## Fast development builds
 
-`make dev-build` and `make dev-test` compile with the opt-in Cranelift backend
-and the mold linker configured in `tools/dev-fast/config.toml`. They require a
-nightly toolchain and, on Linux, a `mold` binary on the `PATH`. The fragment is
-passed explicitly with `--config`, so release, coverage, and verification
-builds are unaffected; never copy its contents into `.cargo/config.toml`, which
-Cargo applies to every build.
+`.cargo/config.toml` carries the estate Rust build standard (concordat rule
+`rust-build-defaults`, recorded in
+[ADR 007](docs/adr/007-adopt-the-rust-build-standard.md)): the parallel frontend
+(`-Zthreads=8`) in every `rustflags` source, `mold` on Linux, and Cranelift
+for the development profile, which the whole suite passes under. Cargo applies
+the file to every build, so a bare `cargo build` gets these automatic defaults;
+the dev-fast fragment below is separate and applies only when passed with
+`--config`. Release and coverage are held off the standard, not off the
+configuration: `make release` assigns `RUSTFLAGS`, which displaces every
+`rustflags` source, and coverage holds the development profile on LLVM.
 
-The dev-fast profile is the standard development path, not a side path: the
-ordinary `make build`, `make test`, `make lint`, and `make typecheck` targets
-already pass `--config tools/dev-fast/config.toml` to every cargo invocation
-they make. An agent or human calling `cargo` directly for a development build,
-test, lint, or typecheck run must pass `--config tools/dev-fast/config.toml`
-too, or the incremental cache thrashes (direct-cargo and `make` invocations
-without the flag produce different fingerprints for the same source, so each
-one evicts the other's cached artefacts). The fragment must never be applied to
-coverage, release, or verification builds; those keep the supported LLVM
-backend and the platform linker.
+`make dev-build` and `make dev-test` still pass `tools/dev-fast/config.toml`
+with `--config`. The fragment repeats what the configuration now sets, and it
+is for explicit opt-in use; it requires a nightly toolchain and, on Linux, a
+`mold` binary on the `PATH`.
+
+The dev-fast profile remains the path the ordinary `make build`, `make test`,
+`make lint`, and `make typecheck` targets take: they pass
+`--config tools/dev-fast/config.toml` to every cargo invocation they make. An
+agent or human calling `cargo` directly for a development build, test, lint, or
+typecheck run should pass it too, or the incremental cache thrashes
+(direct-cargo and `make` invocations without the flag produce different
+fingerprints for the same source, so each one evicts the other's cached
+artefacts). Never pass the fragment to coverage, release, or verification
+builds. Omitting it does not take them off the standard, because Cargo still
+applies `.cargo/config.toml`: release (`make release`) assigns the inherited
+`RUSTFLAGS`, which displaces every `rustflags` source and so adds neither
+standard flag; coverage holds the development profile on LLVM and takes the
+standard flags only when its caller leaves `RUSTFLAGS` unset (CI's setup-rust
+exports one, which displaces them); a verification or audit command that must
+stay on LLVM sets `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm` together with
+`CARGO_UNSTABLE_CODEGEN_BACKEND=true` itself, as `make lint` does for Whitaker,
+and sets its own `RUSTFLAGS`, for example:
+
+```sh
+CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm \
+RUSTFLAGS="-D warnings" cargo test --workspace --all-features
+```
