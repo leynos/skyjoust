@@ -369,7 +369,7 @@ configured `mold` flag, so coverage does not depend on `mold` being installed;
 (`mold`, then `make lint`, then `make test`, then coverage) with one validator
 over the real `ci.yml` and over fixtures that echo, merely name, or
 conditionally skip a gate, using the reader in
-`tests/build_standard/workflow.rs`, which recognises only the forms this
+`tests/build_standard/workflow.rs`, which recognizes only the forms this
 workflow uses and rejects any other (a folded `run: >` block, a comment after an
 `install-mold` value) with a named error.
 
