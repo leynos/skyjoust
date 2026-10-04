@@ -55,7 +55,7 @@ jobs:
         # that the whole suite passes under Cranelift; this step does.
         run: make test
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@0be482c01ce57c1f9213744aa2def02183bef290
+        uses: leynos/shared-actions/.github/actions/generate-coverage@ebe2f3105334283441f4c915eb979a0f4b9f2c04
         with:
           output-path: lcov.info
           format: lcov
