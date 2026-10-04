@@ -7,9 +7,9 @@ use super::{
     assignment,
     dry_run,
     expand_value,
-    flags::table_flags,
+    flags::{parse, read, table_flags},
     make_rustflags,
-    shell::{commands, runs_cargo_or_whitaker},
+    shell::Line,
 };
 
 #[rstest]
@@ -20,7 +20,7 @@ use super::{
     &["command -v whitaker >/dev/null", "X=1 whitaker --all", "echo no", "fi"],
 )]
 fn commands_split_chained_and_branching_lines(#[case] line: &str, #[case] expected: &[&str]) {
-    assert_eq!(commands(line).expect("split the line"), expected);
+    assert_eq!(Line(line).commands().expect("split the line"), expected);
 }
 
 #[rstest]
@@ -33,7 +33,10 @@ fn commands_split_chained_and_branching_lines(#[case] line: &str, #[case] expect
 #[case("command -v whitaker", false)]
 #[case("echo whitaker not found", false)]
 fn only_a_running_cargo_or_whitaker_counts(#[case] command: &str, #[case] expected: bool) {
-    assert_eq!(runs_cargo_or_whitaker(command).expect("read"), expected);
+    assert_eq!(
+        Line(command).runs_cargo_or_whitaker().expect("read"),
+        expected
+    );
 }
 
 #[test]
@@ -74,12 +77,12 @@ fn a_target_the_makefile_lacks_is_an_error() {
 #[case::single_quoted("echo 'a; b' && cargo test", &["echo 'a; b'", "cargo test"])]
 #[case::escaped_quote("X=\"a \\\" && b\" cargo test", &["X=\"a \\\" && b\" cargo test"])]
 fn a_separator_inside_quotes_does_not_split(#[case] line: &str, #[case] expected: &[&str]) {
-    assert_eq!(commands(line).expect("split the line"), expected);
+    assert_eq!(Line(line).commands().expect("split the line"), expected);
 }
 
 #[test]
 fn an_unterminated_quote_is_an_error() {
-    assert!(commands("X=\"a && cargo test").is_err());
+    assert!(Line("X=\"a && cargo test").commands().is_err());
 }
 
 #[test]
@@ -152,7 +155,9 @@ fn an_unmodelled_expansion_is_an_error_not_a_guess(#[case] value: &str) {
 fn an_escaped_quote_does_not_end_the_assigned_value() {
     let found = assignment("RUSTFLAGS=\"a \\\" b\" cargo test", None);
     assert!(found.is_err(), "the escaped quote ended the value early");
-    let hidden = commands("X=\"a \\\" && b\" cargo test").expect("split");
+    let hidden = Line("X=\"a \\\" && b\" cargo test")
+        .commands()
+        .expect("split");
     assert_eq!(hidden.len(), 1);
 }
 
@@ -167,16 +172,26 @@ fn a_flag_list_missing_or_reordering_the_callers_words_does_not_carry_them() {
 }
 
 #[rstest]
-#[case::string("rustflags = \"-Zthreads=8 -Cdebuginfo=1\"", Some(2))]
-#[case::array("rustflags = [\"-Zthreads=8\", \"-C\", \"debuginfo=1\"]", Some(2))]
+#[case::string(
+    "rustflags = \"-Zthreads=8 -Cdebuginfo=1\"",
+    Some("-Zthreads=8 -Cdebuginfo=1")
+)]
+#[case::array(
+    "rustflags = [\"-Zthreads=8\", \"-C\", \"debuginfo=1\"]",
+    Some("-Zthreads=8 -Cdebuginfo=1")
+)]
 #[case::absent("other = 1", None)]
-fn the_accepted_rustflags_shapes_read_as_flags(#[case] table: &str, #[case] count: Option<usize>) {
+fn the_accepted_rustflags_shapes_read_as_the_complete_flag_list(
+    #[case] table: &str,
+    #[case] expected: Option<&str>,
+) {
     let value: toml::Value = toml::from_str(table).expect("parse the fixture");
     let found = table_flags("build", &value).expect("read the table");
-    assert_eq!(
-        found.map(|flags| flags.names("-Zthreads=8")),
-        count.map(|_| true)
-    );
+    match (found, expected) {
+        (Some(flags), Some(words)) => assert!(flags.is_exactly(words), "{flags:?}"),
+        (None, None) => {}
+        (read, wanted) => panic!("read {read:?}, wanted {wanted:?}"),
+    }
 }
 
 #[rstest]
@@ -191,4 +206,23 @@ fn a_malformed_rustflags_table_is_an_error_naming_the_file_and_key(#[case] table
         message.contains(".cargo/config.toml") && message.contains("[build]"),
         "{message}"
     );
+}
+
+#[test]
+fn a_file_the_reader_cannot_open_is_named_with_the_operation() {
+    let message = read("no/such/file.toml").expect_err("missing").to_string();
+    assert!(message.contains("reading `no/such/file.toml`"), "{message}");
+}
+
+#[test]
+fn text_that_is_not_toml_is_reported_as_the_configuration() {
+    let message = parse("rustflags = [").expect_err("malformed").to_string();
+    assert!(message.contains("parsing .cargo/config.toml"), "{message}");
+}
+
+#[rstest]
+#[case::text_after_a_single_quote("X='a 'b cargo test")]
+#[case::text_after_a_double_quote("X=\"a \"b cargo test")]
+fn text_stuck_to_a_closing_quote_is_an_error(#[case] command: &str) {
+    assert!(Line(command).assignments().is_err(), "read `{command}`");
 }

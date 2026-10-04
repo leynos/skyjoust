@@ -163,7 +163,7 @@ project:
 
     ```sh
     RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo nextest run --workspace --all-targets --all-features
-    cargo test --doc --workspace --all-features
+    RUSTFLAGS="<caller flags> -D warnings <standard flags>" cargo test --doc --workspace --all-features
     ```
 
     running the full workspace suite and the doctests (`cargo test` replaces
