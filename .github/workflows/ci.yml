@@ -40,7 +40,7 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install the Whitaker Dylint suite
-        uses: leynos/shared-actions/.github/actions/install-whitaker@6dea5677a84fec60ca51b07202570e3af12ffdb4
+        uses: leynos/shared-actions/.github/actions/install-whitaker@7d751eded578e48dacf43ab173d5820e6437c474
       - name: Install mold and clang
         # The standard build/test/lint/typecheck targets now pass
         # --config tools/dev-fast/config.toml, which selects the mold
