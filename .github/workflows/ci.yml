@@ -18,7 +18,7 @@ jobs:
       - name: Setup Rust
         uses: leynos/shared-actions/.github/actions/setup-rust@ff1dd759dfffc0db3459e30e833f52437ee62b57
       - name: Setup uv
-        uses: astral-sh/setup-uv@a96208bed1fb5efb8da349c9bcc6cc58af9e7d74
+        uses: astral-sh/setup-uv@c84232ca4fde9b022e20a930bfbbecd386b56fdf
         with:
           version: '0.11.28'
           # A Rust-only repository has no Python dependency manifest for the
