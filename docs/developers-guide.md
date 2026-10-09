@@ -335,6 +335,15 @@ backend is unstable. On Linux it also requires the `mold` linker on `PATH`; the
 fragment gates the `-fuse-ld=mold` flag behind a `target_os = "linux"` `cfg`
 table, so other platforms fall back to their default linker.
 
+CI provisions the linker through the pinned `leynos/shared-actions`
+`setup-rust` action rather than an `apt-get` step. The `Setup Rust` step in
+`.github/workflows/ci.yml` passes `install-mold: 'true'`, which `make dev-test`
+and the build standard need on Linux, and `install-clang-lld: 'true'`, which
+installs `clang` and `lld`. The `lld` install is new for this repository and
+unused by its configuration. The action fails the job unless each installed
+tool resolves on `PATH`, skips with a notice on other platforms, and sets no
+linker flag.
+
 The repository also follows the estate's Rust build standard, which
 `.cargo/config.toml` sets and Cargo auto-discovers, so a bare `cargo build`
 gets it: Cranelift for the development profile (the whole suite passes under
