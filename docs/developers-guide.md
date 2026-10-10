@@ -405,7 +405,7 @@ failing Whitaker run fails `make lint`; a missing `whitaker` binary skips the
 check with a message. A Linux host needs `mold` installed before any `cargo` or
 `make` build, build scripts included.
 
-## CodeScene coverage and the CV-005 contract
+## 9. CodeScene coverage and the CV-005 contract
 
 Main owns coverage publication (estate rule CV-005). A pull request measures
 coverage for its own ratchet check only, in the `build-test` job of `ci.yml`
