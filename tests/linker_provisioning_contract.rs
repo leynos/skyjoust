@@ -383,3 +383,12 @@ fn a_duplicated_input_is_reported_as_a_parse_failure() {
 
     assert_reports(&job(with_block, ""), "does not parse");
 }
+
+#[test]
+fn a_comment_aligned_with_with_before_the_inputs_is_accepted() {
+    let with_block =
+        "        with: # linkers\n        # note\n          install-mold: 'true'\n          \
+         install-clang-lld: 'true'\n";
+
+    assert_eq!(problems(&job(with_block, "")), Vec::<String>::new());
+}
