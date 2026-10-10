@@ -17,6 +17,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Rust
         uses: leynos/shared-actions/.github/actions/setup-rust@5bc2b2611f5921ef2c56e4ee3fde2b879a319361
+        with:
+          install-mold: 'true'
+          install-clang-lld: 'true'
       - name: Setup uv
         uses: astral-sh/setup-uv@b3c9b5fc56ebc90760c43b1ac9552c0d1705d3ca
         with:
@@ -41,13 +44,6 @@ jobs:
           globs: '**/*.md'
       - name: Install the Whitaker Dylint suite
         uses: leynos/shared-actions/.github/actions/install-whitaker@5bc2b2611f5921ef2c56e4ee3fde2b879a319361
-      - name: Install mold and clang
-        # The standard build/test/lint/typecheck targets now pass
-        # --config tools/dev-fast/config.toml, which selects the mold
-        # linker on Linux (and the Cranelift codegen backend, supplied by
-        # the pinned toolchain's own components list). Neither is
-        # provisioned by the Rust setup action above, so install them here.
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y mold clang
       - name: Lint
         run: make lint
       - name: Test under Cranelift
