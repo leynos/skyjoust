@@ -50,17 +50,16 @@ jobs:
         # Coverage holds the development profile on LLVM, so it cannot show
         # that the whole suite passes under Cranelift; this step does.
         run: make test
+      - name: Workflow contract tests
+        run: make test-workflow-contracts
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@5bc2b2611f5921ef2c56e4ee3fde2b879a319361
+        uses: leynos/shared-actions/.github/actions/generate-coverage@cabf105ae230e3759cf77b1c2d1d73ea0b67e9a9
         with:
           output-path: lcov.info
           format: lcov
-      - name: Upload coverage data to CodeScene
-        env:
-          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-        if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@5bc2b2611f5921ef2c56e4ee3fde2b879a319361
-        with:
-          format: lcov
-          access-token: ${{ env.CS_ACCESS_TOKEN }}
-          installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+          # The pull request measures coverage for its own ratchet check and
+          # nothing else: it neither publishes the report nor contacts
+          # CodeScene. Main owns both, in coverage-main.yml, and
+          # `make test-workflow-contracts` holds the split.
+          with-ratchet: 'true'
+          publish-artefact: 'false'
