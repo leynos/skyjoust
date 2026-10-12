@@ -12,14 +12,17 @@ treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. The implementation
-milestones are delivered, but review and acceptance remain open. The current
-local candidate is `f9a72c93b026e796ff025e71803e1a47a45ac31a` on tree
-`515c4b3bac3c97cb776e10dd10eda54bfd89e112`, rebased onto `origin/main`
-`d177781a276012da013531e7b6b9642fc0a5e0b8`. Pull request #51 still points to
-remote head `6b185eee6ee3d330585b08b2fa3d5a529754a536`; these local gate
-results are not hosted results. Do not treat the plan as fully accepted until
-the candidate is published, current hosted checks and review are reconciled,
-and all acceptance conditions are recorded.
+milestones are delivered, but review and acceptance remain open. The published
+candidate is `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800`, based on current `main`
+`d177781a276012da013531e7b6b9642fc0a5e0b8`; its source tree is the locally
+validated `f9a72c93b026e796ff025e71803e1a47a45ac31a` tree
+`515c4b3bac3c97cb776e10dd10eda54bfd89e112`, with documentation-only publication
+updates. PR #51 is ready, with merge state `BLOCKED` and review decision
+`CHANGES_REQUESTED`. Build-test run `38309867260` was in progress at the latest
+status check. Existing review findings refer to superseded head
+`6b185eee6ee3d330585b08b2fa3d5a529754a536`. Do not treat this plan as fully
+accepted until current hosted checks and review are reconciled and all
+acceptance conditions are recorded.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -279,11 +282,18 @@ one, stop and escalate rather than working around it.
 
 ## Progress
 
-Current local candidate `f9a72c93b026e796ff025e71803e1a47a45ac31a` is based on
-`origin/main` `d177781a276012da013531e7b6b9642fc0a5e0b8`. The documentation
-follow-up is uncommitted; its local formatter, documentation gates and
-acceptance checks have passed as recorded below. Publication, hosted checks,
-CodeRabbit assessment and review, and final PR acceptance remain pending.
+Published PR #51 head `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` is based on
+`main` `d177781a276012da013531e7b6b9642fc0a5e0b8`. Its source tree is the
+locally validated `f9a72c93b026e796ff025e71803e1a47a45ac31a` tree
+`515c4b3bac3c97cb776e10dd10eda54bfd89e112`; the published follow-up changed
+documentation only. Local formatter, documentation gates and acceptance checks
+passed as recorded below. The PR is ready but currently `BLOCKED` with review
+decision `CHANGES_REQUESTED`; build-test run `38309867260` was in progress at
+the latest status check. Review findings currently on record refer to the
+superseded `6b185eee6ee3d330585b08b2fa3d5a529754a536` head and require
+reconciliation. Run `38309867260` reports only the observed published head; a
+subsequent commit or push, including a status-only documentation change,
+requires fresh hosted status. Final PR acceptance remains pending.
 
 Candidate-execution provenance: this accepted base is the refreshed current
 `origin/main`; PR #51's live author is `leynos`, the candidate commits are
@@ -371,9 +381,13 @@ post-documentation `make markdownlint`, `make nixie`, and acceptance checks:
   `/tmp/accept-feature-ab-restored-guard-baseline-skyjoust-f9a72c9-20260928.out`.
 
 These results validate the local documentation follow-up and named acceptance
-checks; they are not hosted results. Review, hosted checks, publication and
-final PR acceptance remain pending because PR #51 still points to remote head
-`6b185eee6ee3d330585b08b2fa3d5a529754a536`.
+checks; they are not hosted results. PR #51 is now published at
+`adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800`. At the latest status check, the PR
+was ready but `BLOCKED`, its review decision was `CHANGES_REQUESTED`, and
+build-test run `38309867260` was still in progress. Existing review findings
+refer to the superseded `6b185eee6ee3d330585b08b2fa3d5a529754a536` head.
+Current hosted results and review reconciliation, and therefore final PR
+acceptance, remain pending.
 
 Pre-rebase scrutineer evidence: on candidate HEAD
 `6b185eee6ee3d330585b08b2fa3d5a529754a536`, all seven gates passed:
@@ -397,9 +411,10 @@ Historical snapshot: PR #65's root `rstest 0.27` update superseded the earlier
 `rstest-bdd` 0.6.0 decision and compatibility observations below supersede the
 beta3 pins. Pre-rebase gate results and the earlier candidate's lint failure
 are retained as historical evidence, not current blockers. The current local
-gate results and pending post-documentation acceptance and PR lifecycle work
-are recorded at the start of this section. Bevy `0.19.1` compile, feature,
-clock, Cranelift, and cost evidence remains in `Surprises & discoveries`.
+gate and post-documentation acceptance results, together with pending PR
+lifecycle work, are recorded at the start of this section. Bevy `0.19.1`
+compile, feature, clock, Cranelift, and cost evidence remains in
+`Surprises & discoveries`.
 
 Stable-release compatibility observations (2026-10-12): the upstream v0.6.0
 migration guide documents that a custom `HarnessAdapter::run` returns
@@ -435,8 +450,9 @@ temporary-edit run was invalid, and the subsequent in-scope run failed
 The maintainer later authorized the narrow helper extraction; current success
 and the earlier failed trybuild/EAGAIN observations are recorded at the start
 of this section. Both documentation gates and the acceptance commands listed in
-the review follow-up checklist passed after the adoption-note edits; hosted
-checks, review, publication, and final PR acceptance remain pending.
+the review follow-up checklist passed after the adoption-note edits. PR #51 is
+published, but hosted outcomes, review reconciliation, and final PR acceptance
+remain pending as recorded above.
 
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
@@ -1225,9 +1241,9 @@ committed `StepResult` functions. Source review confirms the steps use
 published stable 0.6.0 contract that result-returning steps propagate failures
 is an external axiom, exercised by the focused behavioural test. The later
 user-authorized helper extraction repaired the inherited lint finding, and
-`make lint` passed on the pre-documentation candidate. The post-documentation
-acceptance checklist remains pending; the temporary-edit lint pass remains
-invalid evidence.
+`make lint` passed on the pre-documentation candidate, and the
+post-documentation acceptance checklist passed as recorded in `Progress`; the
+temporary-edit lint pass remains invalid evidence.
 
 `EP-INV-007` is macro compile-time behaviour. The `trybuild` pass fixture
 covers an `rstest` fixture and `rstest-bdd` step attributes; it does not expand
@@ -2768,3 +2784,14 @@ This supersedes Revision 21's pending validation status, not its 34-path
 manifest. The roadmap item remains checked complete; publication, hosted
 checks, CodeRabbit assessment and review, and final PR acceptance remain
 pending.
+
+Revision 23, 2026-10-12. Recorded publication of PR #51 at
+`adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800`, based on `main`
+`d177781a276012da013531e7b6b9642fc0a5e0b8`. Its source tree is the locally
+validated `f9a72c9` tree; the publication follow-up changed documentation only.
+At the latest status check, the PR was ready but `BLOCKED`, review decision was
+`CHANGES_REQUESTED`, and build-test run `38309867260` was in progress. Existing
+review findings refer to old head `6b185ee`; they are not current-head review
+evidence and require reconciliation. Local gate and acceptance results remain
+local evidence only. The roadmap implementation item remains checked; hosted
+outcomes, current review, and final acceptance remain pending.

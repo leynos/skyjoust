@@ -71,19 +71,23 @@ informs later runtime testing in Phase 1. See
     `/tmp/{check-fmt,test,typecheck,lint,markdownlint,nixie}-skyjoust-final515c4b3-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`.
     Earlier trybuild unexpected-success and OS `EAGAIN` results are historical;
     constrained and full reruns passed, but resource exhaustion was not proved
-    as their cause. PR #51 still points to remote head
-    `6b185eee6ee3d330585b08b2fa3d5a529754a536`, so these are local results, not
-    hosted evidence. This roadmap item remains checked for implementation
-    completion. The post-documentation scrutineer rerun passed the isolated
+    as their cause. These are local results, not hosted evidence. This roadmap
+    item remains checked for implementation completion. The post-documentation
+    scrutineer rerun passed the isolated
     crate normal/development dependency graphs, workspace dependency graph,
     isolated and workspace headless normal graphs, standalone and focused
     crate tests, and stable feature-file freshness A/B from a disposable
     archive without tracked edits. `make markdownlint` passed for 35 files
     with zero errors, and `make nixie` passed; exact logs and the initial
     stable-Cargo/wrong-nightly correction history are recorded in the
-    ExecPlan's current Progress. These are local results only. Publication,
-    hosted checks, CodeRabbit assessment and review, and final PR acceptance
-    remain pending.
+    ExecPlan's current Progress. These are local results only. PR #51 is
+    published at `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` and is ready, but
+    merge state is `BLOCKED` and review decision is `CHANGES_REQUESTED`.
+    Build-test run `38309867260` was in progress at the latest status check.
+    Existing review findings refer to superseded head
+    `6b185eee6ee3d330585b08b2fa3d5a529754a536`; current hosted outcomes, review
+    reconciliation, and final PR acceptance remain pending. This roadmap item
+    remains checked for implementation completion, not PR acceptance.
 - [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.5.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,

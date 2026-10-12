@@ -42,9 +42,13 @@ graphs, standalone and focused crate tests, and feature-freshness A/B. The
 standalone test required pinned nightly after stable Cargo rejected the
 development profile, and the A/B ran from a disposable archive without tracked
 edits. Exact logs and correction history are in the ExecPlan's current
-Progress. These are local results only. The remote PR still points at an older
-head, so publication, hosted checks, CodeRabbit assessment and review, and
-final acceptance remain pending. See
+Progress. These are local results only. PR #51 is published at
+`adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` and is ready, but its merge state is
+`BLOCKED` and review decision is `CHANGES_REQUESTED`. Build-test run
+`38309867260` was in progress at the latest status check; existing review
+findings refer to superseded head `6b185eee6ee3d330585b08b2fa3d5a529754a536`.
+Hosted outcomes, current review reconciliation, and final acceptance remain
+pending. See
 [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
 the
 [ExecPlan](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
@@ -323,12 +327,13 @@ keeps the time plugin on wall-clock without enabling the renderer or window. The
 implicit-caret syntax. The historical exact `=0.6.0-beta3` pins avoided
 drifting across breaking beta releases; they are superseded by the stable
 release decision. The stable focused and workspace suites and six local gates
-passed on the candidate named in §1; hosted checks and PR acceptance remain
-pending. The migration guide notes that bound feature files are Cargo rebuild
-dependencies, a custom `HarnessAdapter::run` returns `HarnessResult<T>`, and
-Rust 1.88 is the minimum supported version. Review these changes against the
-current integration test and manifests before acceptance. Do not use git
-dependencies against upstream `main`.
+passed on the source tree named in §1. PR #51 is published but `BLOCKED` with
+review decision `CHANGES_REQUESTED`; build-test run `38309867260` was in
+progress at the latest status check. Current hosted outcomes, review
+reconciliation, and PR acceptance remain pending. The migration guide notes
+that bound feature files are Cargo rebuild dependencies, a custom
+`HarnessAdapter::run` returns `HarnessResult<T>`, and Rust 1.88 is the minimum
+supported version. Do not use git dependencies against upstream `main`.
 
 ## 10. Verification strategy
 
