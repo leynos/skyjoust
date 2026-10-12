@@ -12,12 +12,14 @@ treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. The implementation
-milestones are delivered, but review and acceptance remain open. At the
-2026-09-28 review follow-up, pull request #51 was reported `DIRTY` /
-`CHANGES_REQUESTED` at head `6b185eee6ee3d330585b08b2fa3d5a529754a536` against
-`origin/main` `9e26f1565a8b29c084f20e868eb62ba6ee21af1f`. Do not treat this
-plan as fully accepted until the merge state, requested checks, and outstanding
-acceptance commands have been resolved and recorded.
+milestones are delivered, but review and acceptance remain open. The current
+local candidate is `f9a72c93b026e796ff025e71803e1a47a45ac31a` on tree
+`515c4b3bac3c97cb776e10dd10eda54bfd89e112`, rebased onto `origin/main`
+`d177781a276012da013531e7b6b9642fc0a5e0b8`. Pull request #51 still points to
+remote head `6b185eee6ee3d330585b08b2fa3d5a529754a536`; these local gate
+results are not hosted results. Do not treat the plan as fully accepted until
+the candidate is published, current hosted checks and review are reconciled,
+and all acceptance conditions are recorded.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -70,9 +72,11 @@ without escalating.
 3. Historical decision (2026-08-17): pin every `rstest-bdd` family crate to
    `=0.6.0-beta3` because later prereleases could break the API. Superseding
    decision (2026-10-12): adopt published stable `0.6.0` with implicit-caret
-   requirements. The imported v0.6.0 migration and users' guides were reviewed,
-   and the inverse dependency checks and standalone crate suite now pass. Full
-   workspace gates and final acceptance remain pending.
+   requirements. The imported v0.6.0 migration and users' guides were reviewed.
+   Inverse dependency checks, the standalone crate suite, and all six workspace
+   gates passed on the current source tree before the documentation-only
+   follow-up; the follow-up's documentation and acceptance checks also passed.
+   Hosted checks, review, and final PR acceptance remain pending.
 4. `rstest-bdd` step functions are not `#[test]` functions, so the workspace's
    test allowance does not permit `.expect()` in them. Propagate fallible work
    through `Result` and `?`; where it stays clear, prefer functional
@@ -121,8 +125,12 @@ one, stop and escalate rather than working around it.
   `MinimalPlugins`, `FrameCount`, `TimePlugin`, `BevyProfile`, and so on — must
   be wrapped in backticks.
 - No source file exceeds 400 lines (`AGENTS.md`).
-- Do not modify `crates/skyjoust_stateright_validator/`, `src/`, or
-  `tests/makefile_contract.rs`.
+- Do not modify `crates/skyjoust_stateright_validator/` except for the
+  user-authorized, behaviour-preserving tracing-helper extraction in
+  `examples/serve_explorer.rs` that resolves cognitive complexity 15/9. Keep
+  the tracing event order and checker lifetime; do not suppress the lint or
+  change its threshold. No other edits in that crate are in scope. Do not modify
+  `src/` or `tests/makefile_contract.rs`.
 - Do not add or rename Makefile targets. `tests/makefile_contract.rs` asserts
   that the `build`, `test`, `lint`, and `typecheck` recipes each pass
   `--config tools/dev-fast/config.toml`; leaving the Makefile alone keeps that
@@ -139,10 +147,12 @@ one, stop and escalate rather than working around it.
 
 ## Tolerances (exception triggers)
 
-- Scope: the original tolerance was 22 touched paths. The maintainer
-  authorized a bounded review follow-up extending the actual scope to 24 paths,
-  enumerated in Table 2; do not extend this follow-up further without
-  escalating.
+- Scope: the original tolerance was 22 touched paths. A bounded review
+  follow-up extended it to 24; subsequent explicit user requests and the
+  narrowly authorized lint repair extended the candidate to 33. This adoption
+  note is the approved user-facing follow-up that brings the current manifest
+  to 34 paths, listed exactly once in Table 2. Any further path requires
+  escalation.
 - Public interface: this plan introduces exactly two public functions plus the
   re-export block described in `Interfaces and dependencies`. Anything named in
   design §§4-7 — `BevyScenario`, `BevyHarness`, `BevyProfile`,
@@ -209,8 +219,10 @@ one, stop and escalate rather than working around it.
 - Historical risk (superseded): a caret requirement on `0.6.0-beta3` could
   admit later prereleases, including source-breaking `beta4`. Exact beta3 pins
   mitigated that risk at the time. The current decision uses stable `0.6.0`
-  with the workspace's implicit-caret policy; its compatibility pass and gates
-  remain pending and are acceptance requirements.
+  with the workspace's implicit-caret policy. The stable compatibility pass and
+  six local gates passed before the current documentation follow-up; its
+  post-documentation gates and acceptance checks also passed, as recorded in
+  `Progress`.
 
 - Historical risk at beta3: editing only a `.feature` file left the compiled
   step table stale, and the explicit `include_str!` guard was load-bearing. The
@@ -218,8 +230,8 @@ one, stop and escalate rather than working around it.
   a feature-only edit triggers a rebuild and the expected `Step not found`
   failure. Stable macros therefore auto-track the bound file; retain the
   explicit declaration as the task-required, documentary dependency, not as a
-  load-bearing rebuild guard. Full compatibility and acceptance gates remain
-  pending.
+  load-bearing rebuild guard. The prior stable compatibility and local gates
+  passed; post-documentation acceptance checks also passed.
 
 - Risk: the crate adds a large graph to every workspace build. The discarded
   Bevy `0.17.3` baseline resolved 139 crates for normal dependencies and 279
@@ -262,31 +274,29 @@ one, stop and escalate rather than working around it.
   `rstest-bdd 0.6.0-beta3` requirement. Later PRs advanced the root requirement
   to `0.27`; the harness now declares `rstest = "0.27"`. Current inverse
   dependency checks resolve Bevy `0.19.1`, `rstest` `0.27.0`, and `rstest-bdd`
-  `0.6.0`; workspace acceptance remains pending.
+  `0.6.0`; the post-documentation acceptance checks passed, while final PR
+  acceptance remains pending.
 
 ## Progress
 
-Current unpublished candidate `6d5babe714d45179c632935bfa7611062216d3ad` is
-based on `origin/main` `d177781a276012da013531e7b6b9642fc0a5e0b8`.
+Current local candidate `f9a72c93b026e796ff025e71803e1a47a45ac31a` is based on
+`origin/main` `d177781a276012da013531e7b6b9642fc0a5e0b8`. The documentation
+follow-up is uncommitted; its local formatter, documentation gates and
+acceptance checks have passed as recorded below. Publication, hosted checks,
+CodeRabbit assessment and review, and final PR acceptance remain pending.
 
-The six implementation milestones are complete. Review follow-up work and
-partial stable-version evidence are recorded below. The focused trybuild target
-and feature-freshness A/B passed against stable 0.6.0. A sequential six-gate
-run passed only while a temporary extraction in
-`crates/skyjoust_stateright_validator/examples/serve_explorer.rs` was present,
-contrary to this plan's explicit ban on modifying that crate. That out-of-scope
-edit has been removed, so those results are not valid for the current tree. The
-decisive in-scope `make lint` rerun failed at
-`crates/skyjoust_stateright_validator/examples/serve_explorer.rs:12:4` with
-cognitive complexity 15/9 (log:
-`/tmp/lint-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-final4.out`).
-Fresh comparison confirms that the source is byte-identical to `origin/main`
-at base `d177781a276012da013531e7b6b9642fc0a5e0b8`. Review, acceptance, and
-publication remain pending. This failure report is historical: the maintainer
-has since authorized a minimal, behaviour-preserving repair to that example;
-the repair and its validation are recorded below. Roadmap implementation item
-`0.5.1.1` remains checked complete; that milestone status is distinct from
-final acceptance, which remains pending.
+Candidate-execution provenance: this accepted base is the refreshed current
+`origin/main`; PR #51's live author is `leynos`, the candidate commits are
+authored by `leynos`, and this candidate is the direct user-authorized replay
+of PR #51's source onto that base. This provenance is the trust basis for the
+candidate-defined local gate and acceptance evidence below; it does not
+establish hosted validation or PR acceptance.
+
+The six implementation milestones are complete. Earlier pre-repair gate results
+and the inherited `serve_explorer.rs` lint failure are retained below as
+historical evidence; they are superseded by the authorized helper extraction
+and current-candidate results. The roadmap implementation item `0.5.1.1`
+remains checked complete, distinct from pending PR acceptance.
 
 Pre-repair candidate validation: `make test` passed 236/236 tests plus
 workspace doctests (log:
@@ -297,26 +307,73 @@ are historical for the current candidate; their logs (`check-fmt`,
 `markdownlint`, `typecheck`, and `nixie`) use
 `/tmp/{gate}-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-final6.out`.
 
-Current repair validation (2026-10-12): the behaviour-preserving
-`serve_explorer` decomposition passed `make check-fmt`, `make typecheck`,
-`make lint` (including `cargo doc`, Clippy, and Whitaker), `make markdownlint`,
-and `make nixie`. The Makefile now resolves and exports the selected Cargo
-executable for test and doctest invocations. In the subsequent full test run,
-both compile-fail trybuild fixtures were reported as succeeding, and
-`build_standard_contract::development_targets_route_the_flags` separately
-failed with OS `EAGAIN` (log:
-`/tmp/test-skyjoust-rerun1-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`).
+Current candidate validation (2026-10-12): the user-authorized
+behaviour-preserving `serve_explorer` helper extraction repairs the inherited
+`clippy::cognitive_complexity` finding (15/9). It preserves tracing event order
+and keeps `_checker` alive through `std::thread::park()`; no suppression or
+threshold change was made. On candidate commit
+`f9a72c93b026e796ff025e71803e1a47a45ac31a`, tree
+`515c4b3bac3c97cb776e10dd10eda54bfd89e112`, the six sequential local gates all
+passed: `make check-fmt`, `make test` (236/236 plus workspace doctests),
+`make typecheck`, `make lint` (documentation, Clippy, and Whitaker),
+`make markdownlint` (34 files, zero errors), and `make nixie`. Logs are
+`/tmp/{check-fmt,test,typecheck,lint,markdownlint,nixie}-skyjoust-final515c4b3-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`.
 
-Observation: inspection of trybuild 1.0.121 shows its parser defaults a case to
-success when it finds no matching rustc JSON error, and `build_test`'s process
-exit status is not consulted. The gate log confirms both negative fixtures were
-reported as successful and records the separate `EAGAIN` failure. Hypothesis,
-not established: resource exhaustion may have prevented the expected compiler
-diagnostics and made trybuild report false success. A scrutineer-controlled
-focused `macro_ui` reproduction is pending to distinguish this from incorrectly
-specified fixtures. Do not claim `make test` or final acceptance as passing;
-roadmap item `0.5.1.1` remains checked for implementation completion, while
-review, acceptance, and publication remain pending.
+The constrained focused `macro_ui` rerun passed in 171 seconds, covering one
+compile-pass fixture, both compile-fail fixtures, and Make's workspace doctests
+(log:
+`/tmp/test-macro-ui-focused-skyjoust-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-followup1.out`).
+Earlier trybuild unexpected-success results and OS `EAGAIN` failures remain
+historical observations; the constrained focused and full reruns passed.
+Resource exhaustion was a plausible explanation for the earlier outcomes, not a
+proven cause. The roadmap implementation item `0.5.1.1` remains checked
+complete. The six-gate and focused results above predate this adoption-note
+follow-up. The planner's `make fmt` passed; the scrutineer then passed the
+post-documentation `make markdownlint`, `make nixie`, and acceptance checks:
+
+- Formatter log:
+  `/tmp/fmt-skyjoust-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-docs.out`.
+- `make markdownlint` passed for 35 files with zero errors; log:
+  `/tmp/markdownlint-skyjoust-postdocs-f9a72c9-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`.
+- `make nixie` passed; log:
+  `/tmp/nixie-skyjoust-postdocs-f9a72c9-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`.
+- The isolated normal and normal-plus-development dependency graphs were
+  clean; log:
+  `/tmp/accept-isolated-graphs-skyjoust-postdocs-f9a72c9-20260928-3.out`.
+- The workspace graphs contained 159 unique normal and 343 normal-plus-dev
+  packages, resolving Bevy `0.19.1`, `rstest` `0.27.0`, and `rstest-bdd`
+  `0.6.0`; log:
+  `/tmp/accept-workspace-graphs-skyjoust-postdocs-f9a72c9-20260928.out`.
+- The isolated crate and workspace normal graphs were headless; log:
+  `/tmp/accept-headless-graphs-skyjoust-postdocs-f9a72c9-20260928.out`.
+- The standalone crate suite passed with pinned nightly-2026-03-26, including
+  five unit tests, four extraction-boundary tests, one scenario, the UI
+  fixtures, one property test and two doctests; log:
+  `/tmp/accept-standalone-crate-test-skyjoust-postdocs-f9a72c9-20260928-pinned.out`.
+  The initial outside-root attempt used stable Cargo 1.99, which rejected the
+  `codegen-backend` profile in `tools/dev-fast/config.toml` (log:
+  `/tmp/accept-standalone-crate-test-skyjoust-postdocs-f9a72c9-20260928.out`).
+  The intervening wrong-nightly attempt was stopped before completion (partial
+  log:
+  `/tmp/accept-standalone-crate-test-skyjoust-postdocs-f9a72c9-20260928-2.out`);
+  only the pinned-nightly rerun is the accepted result.
+- The focused in-workspace crate suite and doctests passed; log:
+  `/tmp/accept-focused-crate-test-skyjoust-postdocs-f9a72c9-20260928.out`.
+- The stable feature-file freshness A/B passed from a disposable archive,
+  without tracked worktree edits. Both warm baselines passed, and feature-only
+  edits failed with the expected `Step not found` both without and with the
+  explicit include. Logs:
+  `/tmp/accept-feature-ab-no-guard-baseline-skyjoust-f9a72c9-20260928.out`,
+  `/tmp/accept-feature-ab-no-guard-feature-edit-skyjoust-f9a72c9-20260928.out`,
+  `/tmp/accept-feature-ab-guard-present-baseline-skyjoust-f9a72c9-20260928.out`,
+  `/tmp/accept-feature-ab-guard-present-feature-edit-skyjoust-f9a72c9-20260928.out`,
+  and
+  `/tmp/accept-feature-ab-restored-guard-baseline-skyjoust-f9a72c9-20260928.out`.
+
+These results validate the local documentation follow-up and named acceptance
+checks; they are not hosted results. Review, hosted checks, publication and
+final PR acceptance remain pending because PR #51 still points to remote head
+`6b185eee6ee3d330585b08b2fa3d5a529754a536`.
 
 Pre-rebase scrutineer evidence: on candidate HEAD
 `6b185eee6ee3d330585b08b2fa3d5a529754a536`, all seven gates passed:
@@ -335,24 +392,14 @@ Rebase evidence (2026-09-28): the branch was rebased from old head
 verified target stage 2 was kept and the `6b185ee` ExecPlan changes were
 preserved. The lockfile feature diff was deferred to post-rebase regeneration.
 
-PR #65's root `rstest 0.27` update supersedes the earlier `0.26` alignment. The
-harness development dependency is now `rstest = "0.27"`, and the regenerated
-lockfile resolves it to `0.27.0`. The 2026-10-12 decision now adopts published
-stable `rstest-bdd` 0.6.0 with implicit-caret requirements, superseding the
-historical exact beta3 pins. The inverse dependency checks and focused
-standalone crate suite against stable have passed; the remaining workspace
-gates and full acceptance checks are still pending. Do not claim final
-acceptance. The next actions are to complete those gates, resolve the reported
-PR merge state, update the PR description, and request a fresh CodeRabbit
-review. The Bevy `0.19.1` compile, feature, clock, Cranelift, and cost evidence
-is collected by the Milestone 2/3 build rather than by a separate probe,
-because the crate itself is the `0.19.1` test vehicle; the results are recorded
-in `Surprises & discoveries` as they surface.
-
-Latest recorded green gates and acceptance checks: scrutineer completed the
-seven gates and acceptance checks above on pre-rebase HEAD `6b185eee`. The
-earlier 2026-08-21 run is also retained below. Neither set validates a
-candidate rebased onto the current `origin/main`.
+Historical snapshot: PR #65's root `rstest 0.27` update superseded the earlier
+`0.26` alignment; the harness now resolves `rstest` `0.27.0`. The stable
+`rstest-bdd` 0.6.0 decision and compatibility observations below supersede the
+beta3 pins. Pre-rebase gate results and the earlier candidate's lint failure
+are retained as historical evidence, not current blockers. The current local
+gate results and pending post-documentation acceptance and PR lifecycle work
+are recorded at the start of this section. Bevy `0.19.1` compile, feature,
+clock, Cranelift, and cost evidence remains in `Surprises & discoveries`.
 
 Stable-release compatibility observations (2026-10-12): the upstream v0.6.0
 migration guide documents that a custom `HarnessAdapter::run` returns
@@ -365,8 +412,9 @@ documented in its README. The focused `macro_ui` target passed against stable
 edit with no Rust-source touch triggered recompilation and the expected
 `Step not found` failure both without and with explicit `include_str!`. This
 confirms macro-level tracking; the required explicit declaration remains as a
-documentary, belt-and-braces dependency, not a load-bearing guard. Full crate
-compatibility and acceptance gates remain pending. See the
+documentary, belt-and-braces dependency, not a load-bearing guard. The later
+focused and full test runs passed; the post-documentation acceptance rerun is
+recorded below and passed. See the
 [imported migration guide](../rstest-bdd-v0.6.0-migration-guide.md) and
 [user's guide](../rstest-bdd-v0.6.0-users-guide.md), sourced from the exact
 [upstream migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md)
@@ -381,20 +429,14 @@ Current validation (2026-10-12): inverse dependency checks passed with Bevy
 `0.19.1`, `rstest` `0.27.0`, and `rstest-bdd` `0.6.0`. The standalone manifest
 crate suite passed: five unit tests, four extraction-boundary tests, one
 headless scenario, one trybuild runner with pass/fail fixtures, one property
-test, and two doctests. `make check-fmt` and `make check-state-graphs` passed.
-The sequential six-gate run passed `make check-fmt`, `make markdownlint`,
-`make test` (236 tests plus doctests), `make typecheck`, `make lint`, and
-`make nixie` only while an out-of-scope temporary extraction of
-`examples/serve_explorer.rs` was present. That edit has been removed, so those
-results do not validate the current tree. The in-scope `make lint` rerun failed
-at `crates/skyjoust_stateright_validator/examples/serve_explorer.rs:12:4` with
-cognitive complexity 15/9; see the log recorded above. The source is byte-
-identical to `origin/main` at base `d177781a276012da013531e7b6b9642fc0a5e0b8`.
-On the final in-scope candidate, `make test` passed 236/236 tests plus
-workspace doctests (final5 log); `make check-fmt`, `make markdownlint` (0
-errors), `make typecheck`, and `make nixie` passed (final6 logs). The lint
-failure remains the only failing local gate. Review, acceptance, and
-publication remain pending because of that lint result and live PR state.
+The 2026-10-12 validation snapshots for candidate `6d5babe` are historical: the
+temporary-edit run was invalid, and the subsequent in-scope run failed
+`make lint` on cognitive complexity 15/9 in the unchanged `serve_explorer.rs`.
+The maintainer later authorized the narrow helper extraction; current success
+and the earlier failed trybuild/EAGAIN observations are recorded at the start
+of this section. Both documentation gates and the acceptance commands listed in
+the review follow-up checklist passed after the adoption-note edits; hosted
+checks, review, publication, and final PR acceptance remain pending.
 
 - [x] (2026-08-15) Milestone 0: orientation and evidence gathering. Six probes
       run against Bevy `0.17.3`; findings in `Surprises & discoveries` and
@@ -534,20 +576,22 @@ publication remain pending because of that lint result and live PR state.
         `TRYBUILD=overwrite` run passed with the pass fixture and both
         compile-fail fixtures; evidence is
         `/tmp/coderabbit-macro-ui-snapshot-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-3.out`.
-        The full crate gates remain pending. The stable feature-file freshness
-        A/B also passed.
-  - [x] Add a concise consumer section to `docs/users-guide.md` and import the
-        upstream v0.6.0 user's and migration guides. The imported upstream
-        migration guide documents framework changes; it does not replace future
-        Skyjoust-specific downstream adoption guidance in roadmap `0.5.1.5`.
+        At that point the full crate gates remained pending. The stable
+        feature-file freshness A/B also passed; later gate results and current
+        acceptance work are recorded at the start of `Progress`.
+  - [x] Add the consumer section to `docs/users-guide.md`, the Skyjoust-specific
+        adoption note, and the imported upstream v0.6.0 user's and migration
+        guides. The upstream migration guide covers framework changes; the new
+        note covers this workspace's dependency and helper migration boundary.
   - [x] Update ADR 009, the harness design, roadmap and crate README to record
         stable 0.6.0 as the selected dependency line and retain beta3 as history.
   - [x] Add a dated tooling-exception addendum to ADR 002 without changing its
         accepted runtime crate decision; ADR 009 remains authoritative.
+  - [x] After the documentation follow-up, rerun the documentation gates and
+        acceptance checks with the scrutineer. The results and log paths are
+        recorded in `Progress` above.
   - [ ] Update the PR description, request a new CodeRabbit review, and record
-        their outcomes after execution.
-  - [ ] Rerun the gates and acceptance checks on the rebased candidate; record
-        their results and logs here without inferring success.
+        their outcomes after current-candidate validation and publication.
 
 ## Surprises & discoveries
 
@@ -823,8 +867,9 @@ publication remain pending because of that lint result and live PR state.
   and reproducibility — is served by pinning a pre-release rather than floating
   across it. A published `0.6.0` final is a migration trigger, not proof of
   compatibility. The 2026-10-12 stable-adoption decision supersedes this
-  prerelease exception; compatibility validation remains pending. Date/Author:
-  2026-08-17, maintainer decision.
+  prerelease exception; compatibility validation was pending at that time.
+  Current evidence is recorded in `Progress`. Date/Author: 2026-08-17,
+  maintainer decision.
 
 - Decision: write stable dependency requirements with implicit caret syntax,
   such as `0.19.1`, rather than redundant explicit syntax such as `^0.19.1`.
@@ -991,12 +1036,19 @@ publication remain pending because of that lint result and live PR state.
   declaration as documentary, not as a load-bearing guard. Date/Author:
   2026-10-12, review follow-up.
 
-- Decision: add consumer setup and API guidance to the user's guide, but no
-  separate n+1 migration document. Rationale: the style guide makes library API
-  consumers part of the user's-guide audience, so the public helpers need a
-  minimal task-oriented example there. The crate is still `publish = false` and
-  has no downstream consumers; broader adoption, validation, and extraction
-  guidance is already assigned to roadmap `0.5.1.5`. Date/Author: 2026-09-28,
+- Historical decision (superseded): add consumer setup and API guidance to the
+  user's guide, but no separate adoption/migration note. Rationale: the style
+  guide makes library API consumers part of the user's-guide audience, and the
+  crate had no downstream consumers. Date/Author: 2026-09-28, superseded by the
+  user-facing review follow-up on 2026-10-12.
+
+- Decision: add a short Skyjoust-specific adoption note at
+  [the Bevy BDD helper adoption guide](../rstest-bdd-harness-bevy-adoption.md)
+  and link it from the contents index and user's guide. Rationale: consumer
+  documentation needs to state that the crate is a workspace-only development
+  dependency, show current imports and helper usage, and name the supported
+  Bevy/headless profile boundary. This is a narrow adoption note, not a crate
+  publication or runtime integration commitment. Date/Author: 2026-10-12,
   review follow-up.
 
 - Decision: include a `proptest` property over tick counts; do not use `kani`
@@ -1162,17 +1214,20 @@ both warm baselines passed; then a feature-only edit with no Rust-source touch
 triggered recompilation and the expected `Step not found` failure in both arms.
 This discharges freshness and proves the macro automatically tracks the bound
 feature. The explicit declaration remains because the task contract requires
-it; it is documentary, not load-bearing. Evidence and output paths are recorded
-in `Progress`. Full crate gates remain separate and pending.
+it; it is documentary, not load-bearing. The stable A/B passed on the
+pre-documentation candidate; repeat it as part of the post-documentation
+acceptance checklist in `Progress` before final acceptance.
 
 `EP-INV-006` is fallible-step error handling. Stable `rstest-bdd` 0.6.0
 supports result-returning steps. The standalone focused suite passed with the
 committed `StepResult` functions. Source review confirms the steps use
 `try_borrow` or `try_borrow_mut` and map their errors rather than panic. The
 published stable 0.6.0 contract that result-returning steps propagate failures
-is an external axiom, exercised by the focused behavioural test. The in-scope
-workspace lint rerun failed on the unchanged validator source; see `Progress`.
-The temporary-edit lint pass is not valid acceptance evidence.
+is an external axiom, exercised by the focused behavioural test. The later
+user-authorized helper extraction repaired the inherited lint finding, and
+`make lint` passed on the pre-documentation candidate. The post-documentation
+acceptance checklist remains pending; the temporary-edit lint pass remains
+invalid evidence.
 
 `EP-INV-007` is macro compile-time behaviour. The `trybuild` pass fixture
 covers an `rstest` fixture and `rstest-bdd` step attributes; it does not expand
@@ -1344,9 +1399,10 @@ Documentation only.
    - §3: replace the stale manifest-version claim with stable `0.6.0` and link
      the imported migration guide and user's guide.
    - §9: use the published stable `0.6.0` family with implicit-caret
-     requirements and the Bevy `0.19.1` line. Record that compatibility
-     validation, lockfile resolution and acceptance gates against stable remain
-     pending; link the imported user's and migration guides.
+     requirements and the Bevy `0.19.1` line. At that milestone, compatibility
+     validation, lockfile resolution and acceptance gates against stable were
+     pending; current evidence is recorded in `Progress`. Link the imported
+     user's and migration guides.
    - §9: update the layout block to the names `0.5.1.1` actually establishes,
      so `0.5.1.2` does not create a near-identical second scenario pair beside
      them.
@@ -2394,20 +2450,29 @@ declined here as disproportionate, and the manual `cargo tree` step in
 
 | Path                                                                      | Change                                                         |
 | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `Cargo.toml`                                                              | Add the workspace member.                                      |
+| `.gitignore`                                                              | Ignore the spelling-helper coverage artefact.                  |
 | `Cargo.lock`                                                              | Resolve the Bevy and stable BDD dependency graph.              |
+| `Cargo.toml`                                                              | Add the workspace member.                                      |
+| `Makefile`                                                                | Export the resolved Cargo executable to test processes.        |
 | `crates/rstest-bdd-harness-bevy/Cargo.toml`                               | Crate manifest and helper/trybuild dependencies.               |
 | `crates/rstest-bdd-harness-bevy/README.md`                                | Crate README and compatibility notes.                          |
+| `crates/rstest-bdd-harness-bevy/src/lib.rs`                               | Public harness re-exports.                                     |
+| `crates/rstest-bdd-harness-bevy/src/profile.rs`                           | Headless profile functions.                                    |
+| `crates/rstest-bdd-harness-bevy/src/profile_tests.rs`                     | Headless profile unit tests.                                   |
 | `crates/rstest-bdd-harness-bevy/test-macros/Cargo.toml`                   | Crate-owned fixture lint helper package.                       |
 | `crates/rstest-bdd-harness-bevy/test-macros/src/lib.rs`                   | Test-only fixture lint helper.                                 |
+| `crates/rstest-bdd-harness-bevy/tests/extraction_boundary.rs`             | Direct dependency boundary tests.                              |
 | `crates/rstest-bdd-harness-bevy/tests/features/headless_scenario.feature` | Gherkin feature used by the integration test.                  |
 | `crates/rstest-bdd-harness-bevy/tests/headless_scenario.rs`               | Headless scenario integration test.                            |
 | `crates/rstest-bdd-harness-bevy/tests/macro_ui.rs`                        | Trybuild compile-pass/fail runner.                             |
+| `crates/rstest-bdd-harness-bevy/tests/tick_properties.rs`                 | Bounded frame-count property test.                             |
 | `crates/rstest-bdd-harness-bevy/tests/ui/bdd_macro_contract.rs`           | Compile-pass fixture for fixtures and BDD step attributes.     |
 | `crates/rstest-bdd-harness-bevy/tests/ui/missing_feature_file.rs`         | Compile-fail fixture for a missing scenario feature.           |
-| `crates/rstest-bdd-harness-bevy/tests/ui/missing_feature_file.stderr`     | Expected compiler diagnostic.                                  |
+| `crates/rstest-bdd-harness-bevy/tests/ui/missing_feature_file.stderr`     | Expected scenario compiler diagnostic.                         |
+| `crates/rstest-bdd-harness-bevy/tests/ui/missing_include_file.rs`         | Compile-fail fixture for a missing included file.              |
+| `crates/rstest-bdd-harness-bevy/tests/ui/missing_include_file.stderr`     | Expected include compiler diagnostic.                          |
+| `crates/skyjoust_stateright_validator/examples/serve_explorer.rs`         | Minimal lint repair by helper extraction.                      |
 | `docs/adr/002-crate-layout-and-public-api.md`                             | Add the dated ADR 009 tooling exception.                       |
-| `docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`        | Deleted during ADR renumbering.                                |
 | `docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`    | Bevy harness ADR, numbered 009.                                |
 | `docs/contents.md`                                                        | Index current documents and remove stale deleted-path entries. |
 | `docs/developers-guide.md`                                                | Harness development conventions.                               |
@@ -2415,13 +2480,16 @@ declined here as disproportionate, and the manual `cargo tree` step in
 | `docs/repository-layout.md`                                               | Workspace layout and package ownership.                        |
 | `docs/roadmap.md`                                                         | Task status, dependency decision, and validation summary.      |
 | `docs/rstest-bdd-harness-bevy-design.md`                                  | Harness design and extraction boundary.                        |
+| `docs/rstest-bdd-harness-bevy-adoption.md`                                | Skyjoust-specific workspace adoption note.                     |
 | `docs/rstest-bdd-v0.6.0-migration-guide.md`                               | Imported upstream v0.6.0 migration guide.                      |
 | `docs/rstest-bdd-v0.6.0-users-guide.md`                                   | Imported upstream v0.6.0 users' guide.                         |
 | `docs/users-guide.md`                                                     | Harness setup and public API example.                          |
 
-*Table 2: The authoritative file manifest. The user-authorized 24-path review
-follow-up extends, but does not replace generally, the original 22-path scope
-tolerance.*
+*Table 2: The authoritative manifest of all 34 paths changed from `origin/main`
+to the current candidate. The original 22-path tolerance was extended first to
+24 by a bounded review authorization, then to 33 by subsequent explicit user
+requests and the narrowly authorized lint repair, and to 34 by this adoption
+note. No further scope is implied.*
 
 ## Revision note
 
@@ -2624,15 +2692,16 @@ targets. In-scope `make lint` remains failed on the unchanged origin/main
 example. Review, acceptance, and publication remain pending due to lint and
 live PR state.
 
-Revision 17, 2026-10-12. The maintainer's direct instruction supersedes the
-earlier validator-crate exclusion solely for the minimal cognitive-complexity
-repair in `crates/skyjoust_stateright_validator/examples/serve_explorer.rs`.
-The example now extracts tracing initialization and its two log events into
-small helpers. This preserves their startup order and keeps `_checker` alive
-through `std::thread::park()`. No lint suppression or threshold change was
-made. This is a narrow lint-baseline exception, not a general expansion of the
-crate's task scope. Focused and full gates must be rerun; no validation result
-is claimed yet, and review, acceptance, and publication remain pending.
+Revision 17, 2026-10-12. At the time of this entry, the maintainer's direct
+instruction superseded the earlier validator-crate exclusion solely for the
+minimal cognitive-complexity repair in
+`crates/skyjoust_stateright_validator/examples/serve_explorer.rs`. The example
+now extracts tracing initialization and its two log events into small helpers.
+This preserves their startup order and keeps `_checker` alive through
+`std::thread::park()`. No lint suppression or threshold change was made. This
+is a narrow lint-baseline exception, not a general expansion of the crate's
+task scope. The pending-validation status in this entry is historical; Revision
+20 records the focused and full reruns.
 
 Revision 18, 2026-10-12. Recorded validation after the narrow example repair:
 `make check-fmt`, `make typecheck`, `make lint`, markdownlint, and nixie
@@ -2656,3 +2725,46 @@ a proven cause. A constrained scrutineer reproduction of `macro_ui` is pending.
 Keep acceptance incomplete until the UI cases and full test gate are validly
 discharged; the roadmap's checked implementation milestone is not evidence that
 PR acceptance or delivery is complete.
+
+Revision 20, 2026-10-12. Reconciled this plan and the roadmap with the
+successful focused and full reruns on rebased candidate
+`f9a72c93b026e796ff025e71803e1a47a45ac31a` (tree
+`515c4b3bac3c97cb776e10dd10eda54bfd89e112`). The constrained `macro_ui` run
+passed one pass and two fail fixtures in 171 seconds; all six sequential
+workspace gates passed, including `make test` at 236/236 plus doctests. The
+earlier EAGAIN and unexpected-success outcomes remain historical; their
+suspected resource-exhaustion explanation was not proven. The narrow
+`serve_explorer.rs` helper extraction is accepted as the lint repair, without
+suppression or threshold changes, and supersedes only the earlier prohibition
+on editing that validator example. Updated Table 2 against the candidate diff:
+all 33 changed paths appear exactly once. This includes the previous bounded
+24-path follow-up plus later explicit user requests and the authorized lint
+repair; it does not authorize further scope. The roadmap item remains checked
+for implementation completion. Remote PR head, hosted checks, review, and final
+acceptance remain pending, so local gates are not represented as hosted
+evidence.
+
+Revision 21, 2026-10-12. Added the Skyjoust-specific adoption note at
+`docs/rstest-bdd-harness-bevy-adoption.md` and linked it from the documentation
+contents and user's guide, superseding the earlier decision that no separate
+adoption note was warranted. Reconciled Table 2 and the scope tolerance to 34
+paths: the 33 paths in the candidate diff from `origin/main`, plus the new
+untracked adoption note. The six gates and focused UI run in Revision 20 remain
+successful pre-documentation evidence, not validation of this follow-up. At
+that revision, documentation gates and the isolated/workspace graph, headless,
+focused-test and feature-freshness acceptance checks were pending. The roadmap
+item stays checked as implementation complete. PR acceptance, hosted checks,
+publication and review remain pending.
+
+Revision 22, 2026-10-12. Recorded the scrutineer's post-documentation results
+for the docs gates and all requested acceptance checks in `Progress` above. The
+outside-root standalone attempt first failed because stable Cargo 1.99 could
+not parse the configured `codegen-backend` profile; an intervening
+wrong-nightly attempt was stopped without a terminal result. The pinned
+nightly-2026-03-26 standalone rerun passed, as did the in-workspace focused
+suite. The isolated/workspace dependency and headless graphs passed, and the
+feature freshness A/B passed from a disposable archive without tracked edits.
+This supersedes Revision 21's pending validation status, not its 34-path
+manifest. The roadmap item remains checked complete; publication, hosted
+checks, CodeRabbit assessment and review, and final PR acceptance remain
+pending.

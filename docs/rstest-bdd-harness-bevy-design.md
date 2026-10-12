@@ -34,12 +34,22 @@ requirements. Its imported [user's guide](rstest-bdd-v0.6.0-users-guide.md)
 documents framework usage, while the
 [migration guide](rstest-bdd-v0.6.0-migration-guide.md) records the changes
 relevant to compatibility review. The focused `macro_ui` target and stable
-feature-freshness A/B have passed; the full focused crate suite, compatibility
-validation, and acceptance gates remain pending. See
+feature-freshness A/B passed, as did the full workspace test suite and six
+local gates on candidate `f9a72c93b026e796ff025e71803e1a47a45ac31a`. The
+Post-documentation `make markdownlint` and `make nixie` passed; the acceptance
+rerun also passed for the isolated/workspace dependency graphs, headless
+graphs, standalone and focused crate tests, and feature-freshness A/B. The
+standalone test required pinned nightly after stable Cargo rejected the
+development profile, and the A/B ran from a disposable archive without tracked
+edits. Exact logs and correction history are in the ExecPlan's current
+Progress. These are local results only. The remote PR still points at an older
+head, so publication, hosted checks, CodeRabbit assessment and review, and
+final acceptance remain pending. See
 [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
 the
 [ExecPlan](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
-for the current decision and pending evidence.
+for the current decision and local evidence; it distinguishes that evidence
+from the remaining PR lifecycle work.
 
 The design also needs to remain extractable. Skyjoust should incubate the crate
 in-tree because that keeps review and validation local while the first runtime
@@ -312,12 +322,13 @@ keeps the time plugin on wall-clock without enabling the renderer or window. The
 `rstest-bdd` family now uses published stable `0.6.0` requirements with
 implicit-caret syntax. The historical exact `=0.6.0-beta3` pins avoided
 drifting across breaking beta releases; they are superseded by the stable
-release decision, but the full compatibility pass and acceptance gates against
-`0.6.0` remain pending. The migration guide notes that bound feature files are
-Cargo rebuild dependencies, a custom `HarnessAdapter::run` returns
-`HarnessResult<T>`, and Rust 1.88 is the minimum supported version. Review
-these changes against the current integration test and manifests before
-acceptance. Do not use git dependencies against upstream `main`.
+release decision. The stable focused and workspace suites and six local gates
+passed on the candidate named in §1; hosted checks and PR acceptance remain
+pending. The migration guide notes that bound feature files are Cargo rebuild
+dependencies, a custom `HarnessAdapter::run` returns `HarnessResult<T>`, and
+Rust 1.88 is the minimum supported version. Review these changes against the
+current integration test and manifests before acceptance. Do not use git
+dependencies against upstream `main`.
 
 ## 10. Verification strategy
 

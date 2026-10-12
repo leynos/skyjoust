@@ -8,6 +8,9 @@
 - [Skyjoust user's guide](users-guide.md) - operator and integrator workflows
   for running validator checks, opening the Stateright Explorer, and replaying
   traces, with a headless Bevy test-helper example.
+- [Adopt the Bevy BDD helpers in Skyjoust](rstest-bdd-harness-bevy-adoption.md)
+  - workspace-only test dependency and migration guidance for the current
+  headless Bevy helpers.
 - [Skyjoust Product Requirements Document (PRD)](skyjoust-product-requirements.md)
   - product vision, game modes, platform constraints, and player-facing scope.
 

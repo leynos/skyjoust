@@ -54,19 +54,36 @@ informs later runtime testing in Phase 1. See
     `rstest` `0.27.0`, and `rstest-bdd` `0.6.0`). The standalone manifest
     crate suite passed (five unit, four boundary, one headless, one macro UI
     runner with pass/fail fixtures, one property, and two doctests).
-    `make check-state-graphs` passed. On final candidate
-    `6d5babe714d45179c632935bfa7611062216d3ad`, in-scope `make test` passed
-    236/236 tests plus workspace doctests; check-fmt, markdownlint (0 errors),
-    typecheck, and nixie also passed. The in-scope `make lint` rerun failed at
-    `crates/skyjoust_stateright_validator/examples/serve_explorer.rs:12:4` with
-    cognitive complexity 15/9 (log:
-    `/tmp/lint-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-final4.out`).
-    The source is byte-identical to `origin/main` at base
-    `d177781a276012da013531e7b6b9642fc0a5e0b8`; the unpublished candidate is
-    `6d5babe714d45179c632935bfa7611062216d3ad`. Review, acceptance, and
-    publication remain pending; this task remains checked without claiming
-    acceptance. An earlier six-gate green run used a temporary edit to the
-    excluded validator crate and is not accepted as evidence.
+    The narrow, user-authorized helper extraction in
+    `crates/skyjoust_stateright_validator/examples/serve_explorer.rs` repairs
+    the inherited cognitive-complexity 15/9 finding without lint suppression
+    or a threshold change; it preserves tracing order and the checker lifetime.
+    Before the adoption-note follow-up, local candidate
+    `f9a72c93b026e796ff025e71803e1a47a45ac31a`, tree
+    `515c4b3bac3c97cb776e10dd10eda54bfd89e112`, passed the constrained focused
+    `macro_ui` run covered one compile-pass fixture, both compile-fail fixtures,
+    and Make's workspace doctests in 171 seconds (log:
+    `/tmp/test-macro-ui-focused-skyjoust-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-followup1.out`).
+    The six sequential gates also passed: `make check-fmt`, `make test`
+    (236/236 plus workspace doctests), `make typecheck`, `make lint`
+    (documentation, Clippy, and Whitaker), `make markdownlint` (34 files,
+    zero errors), and `make nixie`; logs are under
+    `/tmp/{check-fmt,test,typecheck,lint,markdownlint,nixie}-skyjoust-final515c4b3-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`.
+    Earlier trybuild unexpected-success and OS `EAGAIN` results are historical;
+    constrained and full reruns passed, but resource exhaustion was not proved
+    as their cause. PR #51 still points to remote head
+    `6b185eee6ee3d330585b08b2fa3d5a529754a536`, so these are local results, not
+    hosted evidence. This roadmap item remains checked for implementation
+    completion. The post-documentation scrutineer rerun passed the isolated
+    crate normal/development dependency graphs, workspace dependency graph,
+    isolated and workspace headless normal graphs, standalone and focused
+    crate tests, and stable feature-file freshness A/B from a disposable
+    archive without tracked edits. `make markdownlint` passed for 35 files
+    with zero errors, and `make nixie` passed; exact logs and the initial
+    stable-Cargo/wrong-nightly correction history are recorded in the
+    ExecPlan's current Progress. These are local results only. Publication,
+    hosted checks, CodeRabbit assessment and review, and final PR acceptance
+    remain pending.
 - [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.5.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,

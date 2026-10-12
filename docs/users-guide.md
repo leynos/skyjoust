@@ -210,6 +210,8 @@ fn advances_one_headless_frame() {
 For the crate's full test setup and extension guidance, see the
 [crate README](../crates/rstest-bdd-harness-bevy/README.md) and
 [harness design](rstest-bdd-harness-bevy-design.md). The
+[Skyjoust adoption note](rstest-bdd-harness-bevy-adoption.md) explains the
+workspace-only test dependency and migration boundary. The
 [`rstest-bdd` v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) covers the
 framework's usage; the
 [v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md) records changes
