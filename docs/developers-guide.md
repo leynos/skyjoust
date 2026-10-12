@@ -18,10 +18,10 @@ The validator must stay synchronized with these source documents:
 [ADR 002](adr/002-crate-layout-and-public-api.md) is the source of truth for
 the workspace shape. The accepted decision is one runtime crate with strict
 internal modules, beside the separate `skyjoust_stateright_validator` crate;
-[ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds a
-third member crate, `rstest-bdd-harness-bevy`, as tooling in the same category
-as the validator exception. Maintainers should add new runtime functionality as
-a module inside the runtime crate, not as a new crate.
+[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
+a third member crate, `rstest-bdd-harness-bevy`, as tooling in the same
+category as the validator exception. Maintainers should add new runtime
+functionality as a module inside the runtime crate, not as a new crate.
 
 The runtime modules and their responsibilities follow the technical design's
 runtime ownership table: `game_app`, `core`, `sim`, `terrain`, `stategraphs`,
@@ -50,8 +50,8 @@ workspace members.
 
 The harness crate plugs a headless Bevy application into the `rstest-bdd`
 harness contract. Its boundary rule is stated in
-[ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) as an
-extension seam: *the profile type is the single extension seam. Every
+[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) as
+an extension seam: *the profile type is the single extension seam. Every
 game-specific plugin, resource, and cleanup hook lives in a downstream
 implementation of it, never in this crate.* Skyjoust and Lille each define a
 profile type outside the crate once the first deterministic runtime resources
@@ -72,11 +72,14 @@ one Bevy trap.
   `StepResult` and propagate `RefCell` borrow failures with `try_borrow` and
   `try_borrow_mut`, mapping errors instead of panicking. See
   `tests/headless_scenario.rs` for the pattern.
-- A feature-file-only edit does not invalidate a `cargo test` build: only
-  Rust sources and `include_str!` dependencies are fingerprinted. Bind the
-  feature file with `const _: &str = include_str!("features/...");` so a
-  changed scenario cannot pass stale against an old compiled step table. The
-  ExecPlan's Milestone 4 A/B test proved the guard load-bearing.
+- The integration test retains an explicit `include_str!` binding for its
+  feature file. Stable `rstest-bdd` 0.6.0 also tracks bound feature files as
+  Cargo rebuild dependencies. The stable freshness A/B confirmed that a
+  feature-only edit triggers recompilation and the expected `Step not found`
+  failure both with and without the declaration. Automatic macro tracking
+  provides the rebuild dependency; the explicit declaration remains because the
+  task contract requires it, as a documentary, belt-and-braces dependency. The
+  earlier beta3 A/B result is historical.
 - `googletest`'s `expect_that!` panics without a `#[gtest]` test context, so
   unit tests annotate `#[gtest]` above `#[rstest]`. `rstest-bdd` step functions
   have no such context and use `assert_that!`, which panics directly.

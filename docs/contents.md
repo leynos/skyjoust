@@ -7,7 +7,7 @@
 
 - [Skyjoust user's guide](users-guide.md) - operator and integrator workflows
   for running validator checks, opening the Stateright Explorer, and replaying
-  traces.
+  traces, with a headless Bevy test-helper example.
 - [Skyjoust Product Requirements Document (PRD)](skyjoust-product-requirements.md)
   - product vision, game modes, platform constraints, and player-facing scope.
 
@@ -46,6 +46,10 @@
   - dependency-injection guidance for deterministic and isolated tests.
 - [Effective, ergonomic, and dry doctests in Rust](rust-doctest-dry-guide.md)
   - doctest structure, reuse patterns, and anti-pattern avoidance.
+- [`rstest-bdd` v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) -
+  imported upstream usage guide for the published stable release.
+- [`rstest-bdd` v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md)
+  - imported upstream migration guidance from v0.5.0 to v0.6.0.
 
 ## Architecture decision records
 
@@ -67,9 +71,9 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 - [ADR 007: Adopt the Rust build standard in `.cargo/config.toml`](adr/007-adopt-the-rust-build-standard.md)
   - accepted decision to carry the estate build standard in the Cargo
   configuration, holding release and coverage off it.
-- [ADR 007: In-tree incubation of the Bevy BDD harness crate](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
-  - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and pin
-  the `rstest-bdd` family to `=0.6.0-beta3`.
+- [ADR 009: In-tree incubation of the Bevy BDD harness crate](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+  - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and adopt
+  the published `rstest-bdd` 0.6.0 family with implicit caret requirements.
 
 ## Execution plans
 

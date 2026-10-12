@@ -13,9 +13,10 @@ The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
 `docs/rstest-bdd-harness-bevy-design.md`,
 `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`, and the
-reference images in `ref/`. ADRs numbered 001–006 already exist in `docs/adr/`;
+reference images in `ref/`. ADRs numbered 001–009 are recorded in `docs/adr/`;
 early roadmap tasks create further narrow ADRs where the design still names
-unresolved choices.
+unresolved choices. ADR 009 records the Bevy harness crate decision. The
+accepted numbering includes main's ADR 007 and ADR 008.
 
 ## 0.5. Bevy behaviour-driven development harness spike
 
@@ -41,11 +42,31 @@ informs later runtime testing in Phase 1. See
 - [x] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
   - Keep the crate free of Skyjoust and Lille dependencies.
   - Use Bevy `0.19.1` with `default-features = false` and the `std` feature;
-    ordinary stable requirements use implicit caret syntax while the
-    `rstest-bdd` family remains exactly pinned to `=0.6.0-beta3`.
+    use published stable `rstest-bdd` 0.6.0 family requirements with implicit
+    caret syntax. See [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+    The imported [v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md)
+    and [users' guide](rstest-bdd-v0.6.0-users-guide.md) are sourced from the
+    upstream v0.6.0 tag; exact URLs are recorded in the ExecPlan.
   - See `docs/rstest-bdd-harness-bevy-design.md` §§3 and 9.
   - Success: the crate can later move to its own repository without deleting
     game-specific code.
+  - Validation: inverse dependency checks passed (Bevy `0.19.1`,
+    `rstest` `0.27.0`, and `rstest-bdd` `0.6.0`). The standalone manifest
+    crate suite passed (five unit, four boundary, one headless, one macro UI
+    runner with pass/fail fixtures, one property, and two doctests).
+    `make check-state-graphs` passed. On final candidate
+    `6d5babe714d45179c632935bfa7611062216d3ad`, in-scope `make test` passed
+    236/236 tests plus workspace doctests; check-fmt, markdownlint (0 errors),
+    typecheck, and nixie also passed. The in-scope `make lint` rerun failed at
+    `crates/skyjoust_stateright_validator/examples/serve_explorer.rs:12:4` with
+    cognitive complexity 15/9 (log:
+    `/tmp/lint-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-final4.out`).
+    The source is byte-identical to `origin/main` at base
+    `d177781a276012da013531e7b6b9642fc0a5e0b8`; the unpublished candidate is
+    `6d5babe714d45179c632935bfa7611062216d3ad`. Review, acceptance, and
+    publication remain pending; this task remains checked without claiming
+    acceptance. An earlier six-gate green run used a temporary edit to the
+    excluded validator crate and is not accepted as evidence.
 - [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.5.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,

@@ -96,15 +96,15 @@ with this decision.
 
 ### Addendum (accepted 2026-08-17): tooling crate exception
 
-[ADR 007](007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
+[ADR 009](adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
 `rstest-bdd-harness-bevy` as a third member crate — a tooling-facing test
 adapter in the same category as the validator exception recorded above. Its
-`skyjoust-test-macros` path dependency is development-only and is permitted by
-the test-tooling exception in ADRs 006 and 007; it does not add a runtime
+fixture-lint helper is a nested, crate-owned workspace member and is permitted
+by the test-tooling exception in ADRs 006 and 009; it does not add a runtime
 dependency or reopen this ADR's deferral of runtime splits.
 
-The path dependency must be rewired when the harness is extracted: this
-workspace-only arrangement does not claim standalone-source readiness. ADR 007
-remains authoritative for the harness boundary and extraction requirements.
-This addendum records the later tooling exception without changing the accepted
+The nested helper moves with the harness source when it is extracted, so the
+standalone test graph does not depend on Skyjoust or Lille. ADR 009 remains
+authoritative for the harness boundary and extraction requirements. This
+addendum records the later tooling exception without changing the accepted
 runtime crate decision above.

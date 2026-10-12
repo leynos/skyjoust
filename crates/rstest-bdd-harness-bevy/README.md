@@ -11,7 +11,7 @@ This milestone ships the scaffold and its profile functions: a headless Bevy
 `cargo test` harness. The harness types (`BevyScenario`, `BevyProfile`,
 `BevyHarness`, and their companions) belong to roadmap task `0.5.1.2`. See
 [the harness design](../../docs/rstest-bdd-harness-bevy-design.md) and
-[ADR 007](../../docs/adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+[ADR 009](../../docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
 
 ## Run the tests
 
@@ -19,17 +19,50 @@ This milestone ships the scaffold and its profile functions: a headless Bevy
 cargo test -p rstest-bdd-harness-bevy
 ```
 
-Thirteen tests pass: five unit tests for the profile functions, a Gherkin
-scenario that advances one headless update tick, a 32-case property test over
-tick counts, four extraction-contract tripwire tests, and two doctests. The
-behavioural scenario appears as `minimal_app_advances_one_tick`.
+The suite covers five unit cases for the profile functions, a Gherkin scenario
+that advances one headless update tick, a 32-case property test over tick
+counts, four extraction-contract tripwire tests, and two doctests. The
+behavioural scenario appears as `minimal_app_advances_one_tick`. The broader
+crate suite has not yet been rerun against stable `rstest-bdd` 0.6.0;
+compatibility and acceptance gates remain pending.
+
+Fixture lint handling is provided by the nested, test-only workspace member
+`rstest-bdd-harness-bevy-test-macros` package. It owns the
+`allow_fixture_expansion_lints` attribute used for `rstest` fixture expansion;
+it is not part of this library's runtime API and moves with the harness source.
+The `trybuild` pass fixture covers an `rstest` fixture and `rstest-bdd` step
+macros; it does not expand a valid `#[scenario]` or exercise `_app` implicit
+fixture normalization. The valid scenario binding remains compiled and
+exercised by `tests/headless_scenario.rs`. The compile-fail fixture binds a
+missing scenario feature file, testing the `rstest-bdd` contract rather than
+Rust's generic `include_str!` diagnostic. The focused `trybuild` target passed
+against stable 0.6.0; full crate compatibility and acceptance gates remain
+pending. The stable feature-file freshness A/B also passed: macro auto-tracking
+rebuilds after feature-only edits with or without the explicit declaration.
+
+The crate uses the published stable `rstest-bdd` 0.6.0 family with implicit
+caret requirements. Review the
+[v0.6.0 user's guide](../../docs/rstest-bdd-v0.6.0-users-guide.md) for
+framework usage and the
+[migration guide](../../docs/rstest-bdd-v0.6.0-migration-guide.md) for changes
+since v0.5.0. Their source is the upstream
+[user's guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/users-guide.md)
+and
+[migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md).
 
 ## Files
 
 - `src/profile.rs` — `add_minimal_plugins` and `minimal_app`, the two public
   functions of this milestone.
-- `tests/headless_scenario.rs` — the `rstest-bdd` binding with the
-  `include_str!` feature-file rebuild guard.
+- `test-macros/` — the private proc-macro package used to scope fixture
+  expansion lint handling to this crate's tests.
+- `tests/headless_scenario.rs` — the `rstest-bdd` binding and explicit
+  `include_str!` declaration. Stable 0.6.0 also tracks bound feature files as
+  Cargo rebuild dependencies. The completed stable A/B showed that edits
+  rebuild with or without the declaration; it remains because the task contract
+  requires the documentary, belt-and-braces dependency.
+- `tests/macro_ui.rs` and `tests/ui/` — compile-pass and compile-fail macro
+  contract fixtures.
 - `tests/features/headless_scenario.feature` — the Gherkin specification.
 - `tests/tick_properties.rs` — the frame-count tick invariant over `0..=32`.
 - `tests/extraction_boundary.rs` — the manifest tripwire that rejects game

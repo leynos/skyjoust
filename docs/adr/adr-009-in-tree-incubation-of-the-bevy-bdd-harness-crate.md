@@ -1,4 +1,4 @@
-# 007: In-tree incubation of the Bevy BDD harness crate
+# ADR 009: In-tree incubation of the Bevy BDD harness crate
 
 Status: Accepted
 
@@ -22,15 +22,14 @@ same `bevy::app::App` the harness drives, and roadmap `1.2.2` brings Bevy into
 the runtime. The harness crate therefore cannot make an independent Bevy
 version choice. The version it builds against is a workspace-wide coupling.
 
-The `rstest-bdd` version situation forces the dependency strategy. The
-`0.6.0-beta3` release was published to crates.io on 2026-07-07 and carries the
-harness API this work targets: `HarnessAdapter`, `ScenarioRunRequest`, and the
-reserved `rstest_bdd_harness_context` fixture key. Upstream `main` has since
-moved to an unpublished `0.6.0-beta4` that changes `StepContext::borrow_mut` to
-take `&self`, adds a `policy_conformance` module and a `testing` feature, and
-renames generated panic text from `initialise` to `initialize`. A caret
-requirement on the pre-release line admits `beta4`, so the workspace must pin
-exactly until a deliberate compatibility pass validates a later release.
+The initial implementation targeted the published `0.6.0-beta3` API and used
+exact prerelease pins because later beta versions could break compatibility.
+The published `0.6.0` final is now the target. Its migration guide records the
+custom harness return contract (`HarnessResult<T>`), fallible fixture and step
+behaviour, a Rust 1.88 minimum, and automatic Cargo rebuild tracking for bound
+feature files. The source and test suite must complete the compatibility pass
+and acceptance gates against this final before the implementation is reported
+accepted; the guide import alone is not validation.
 
 The harness crate must stay free of Skyjoust and Lille code so it can later
 move to its own repository. The roadmap names the extraction target as
@@ -61,12 +60,20 @@ extracted repository.
 
 ### Extraction contract and its true cost
 
-The crate must never depend on a Skyjoust gameplay crate or any Lille crate,
-directly or transitively. Test-only tooling is a separate category:
-`skyjoust_test_macros` is a permitted development dependency, on the same
-footing as `rstest`, and is deliberately excluded from the extracted
-repository. The boundary guard matches dependency *names* exactly rather than
-by substring, so the permitted `skyjoust-test-macros` near-match passes.
+The crate and its standalone test graph must not depend on any Skyjoust or
+Lille package, including test-only tooling. Fixture lint handling is owned
+inside the harness crate's extraction boundary by the nested workspace member
+`rstest-bdd-harness-bevy-test-macros`; it must not use the sibling
+`skyjoust-test-macros` path dependency. The manifest guard checks normal and
+development dependencies and retains a synthetic `skyjoust-test-macros`
+near-match canary to ensure matching remains exact. That canary does not
+declare the sibling as a dependency of the harness crate.
+
+Compile-time coverage for the `rstest-bdd` macros used by the integration test
+is part of this crate's acceptance scope: include representative compile-pass
+and compile-fail UI fixtures with checked diagnostics. This is distinct from a
+trybuild test for Rust's built-in `include_str!` missing-file error, which is
+not a crate-defined macro contract and is not required.
 
 Extraction is more than a directory move plus a dependency rewire. It also
 requires a *configuration transplant*, because workspace lint inheritance does
@@ -76,15 +83,13 @@ Dylint wiring copied out before it can pass the same gates.
 
 ### Dependency strategy
 
-- Depend on the published `rstest-bdd` family crates, not git dependencies
-  against `main`. `0.6.0-beta3` is published, so the roadmap's conditional
-  git-dependency instruction no longer applies.
-- Pin every `rstest-bdd` family crate exactly to `=0.6.0-beta3`, a
-  maintainer-approved temporary exception to the workspace's implicit-caret
-  mandate. A caret on a pre-release is not a pin: it admits `0.6.0-beta4`,
-  which upstream has made source-breaking, and Dependabot automerges daily here.
-  `Cargo.lock` is load-bearing for this family until an explicitly validated
-  `0.6.0` final returns the workspace to implicit caret syntax.
+- Depend on the published stable `rstest-bdd` 0.6.0 family, not git dependencies
+  against `main`.
+- Use implicit-caret requirements such as `"0.6.0"` for the stable family,
+  returning to the workspace's ordinary versioning policy. The former exact
+  `=0.6.0-beta3` pins were a temporary prerelease safeguard; they are retained
+  below as historical rationale, not the current decision. Compatibility and
+  acceptance evidence for the stable release remains pending.
 - Write ordinary stable requirements with implicit caret syntax, such as
   `bevy = { version = "0.19.1", default-features = false, features = ["std"] }`.
   The `std` feature is required: without it, `bevy_platform` selects a fallback
@@ -117,12 +122,12 @@ for everyone.
 
 ### Dependency-sourcing options
 
-| Source                                                        | Resolution                         | Stability                        | Risk                                   | Outcome                                         |
-| ------------------------------------------------------------- | ---------------------------------- | -------------------------------- | -------------------------------------- | ----------------------------------------------- |
-| Git dependency on `rstest-bdd` `main`                         | Unpinned head, `0.6.0-beta4` API   | Drifts with upstream commits     | Source-breaking changes; vendored GPUI | Rejected: `beta3` is published                  |
-| Caret `^0.6.0-beta3`                                          | Admits `beta4` and `0.6.0` final   | Depends on Dependabot behaviour  | Automerged breaking upgrade            | Rejected: a caret on a pre-release is not a pin |
-| Exact `=0.6.0-beta3` (**chosen**)                             | Pinned                             | Reproducible `Cargo.lock`        | Requires a deliberate upgrade pass     | Chosen until an explicitly validated `0.6.0`    |
-| Bevy `0.19.1` caret with `default-features = false` and `std` | One Bevy line across the workspace | Cargo lock keeps it reproducible | Workspace build cost                   | Chosen; the runtime couples to the same release |
+| Source / requirement                                          | Resolution                         | Stability                        | Risk                                   | Outcome                                                  |
+| ------------------------------------------------------------- | ---------------------------------- | -------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| Git dependency on `rstest-bdd` `main`                         | Unpinned head                      | Drifts with upstream commits     | Unreviewed API changes                 | Rejected: stable 0.6.0 is published                      |
+| Exact `=0.6.0-beta3` (historical)                             | Pinned prerelease                  | Reproducible lockfile            | Stays on prerelease API                | Superseded by 2026-10-12 decision; compatibility pending |
+| Implicit caret `0.6.0` (**chosen**)                           | Stable 0.6.x compatible releases   | Workspace versioning convention  | API changes need review and validation | Selected; acceptance gates remain pending                |
+| Bevy `0.19.1` caret with `default-features = false` and `std` | One Bevy line across the workspace | Cargo lock keeps it reproducible | Workspace build cost                   | Chosen; runtime couples to the same release              |
 
 *Table 1: Dependency-sourcing options for the `rstest-bdd` family and Bevy.*
 
@@ -138,11 +143,16 @@ recorded in the ExecPlan's `Outcomes & retrospective`.
 expect exactly two crates. That statement is superseded by this record, and a
 forward pointer is added there so the two documents do not disagree.
 
-The `rstest-bdd` family stays exactly pinned for now. A published `0.6.0` final
-is a migration trigger, not proof of compatibility: validate the whole
-behavioural suite against it before returning to implicit caret syntax. In the
-meantime, a bare `cargo update` or Dependabot automerge resolves nothing for a
-pinned pre-release, so `Cargo.lock` churn cannot admit the breaking `beta4`.
+The `rstest-bdd` family now targets stable `0.6.0` with implicit-caret
+requirements. The lockfile records the resolved versions but does not replace
+the compatibility pass or the pending gates. The imported
+[v0.6.0 user's guide](../rstest-bdd-v0.6.0-users-guide.md) describes the
+published API, and the
+[migration guide](../rstest-bdd-v0.6.0-migration-guide.md) records changes
+since v0.5.0. Their exact upstream sources are the
+[user's guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/users-guide.md)
+and
+[migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md).
 
 Roadmap task `0.5.1.1` delivers the crate scaffold and its first tests; the
 harness types themselves (`BevyScenario`, `BevyHarness`, `BevyProfile`, and

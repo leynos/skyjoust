@@ -209,4 +209,11 @@ fn advances_one_headless_frame() {
 
 For the crate's full test setup and extension guidance, see the
 [crate README](../crates/rstest-bdd-harness-bevy/README.md) and
-[harness design](rstest-bdd-harness-bevy-design.md).
+[harness design](rstest-bdd-harness-bevy-design.md). The
+[`rstest-bdd` v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) covers the
+framework's usage; the
+[v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md) records changes
+from v0.5.0. They were imported from the upstream
+[user's guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/users-guide.md)
+and
+[migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md).

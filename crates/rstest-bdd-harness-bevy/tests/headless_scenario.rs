@@ -7,11 +7,11 @@ use googletest::prelude::*;
 use rstest::fixture;
 use rstest_bdd::StepResult;
 use rstest_bdd_harness_bevy::minimal_app;
+use rstest_bdd_harness_bevy_test_macros::allow_fixture_expansion_lints;
 use rstest_bdd_macros::{given, scenario, then, when};
-use skyjoust_test_macros::allow_fixture_expansion_lints;
 
-/// Gives `rustc` a rebuild dependency on the feature file; feature-file-only
-/// edits do not otherwise invalidate the build.
+/// Keeps the feature-file rebuild contract explicit at this integration
+/// boundary; `rstest-bdd` 0.6.0 also tracks the bound file automatically.
 const _: &str = include_str!("features/headless_scenario.feature");
 
 /// Scenario-scoped headless application shared by the steps below.

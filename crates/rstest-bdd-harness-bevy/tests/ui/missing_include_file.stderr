@@ -1,0 +1,5 @@
+error: couldn't read `$DIR/tests/ui/features/missing.feature`: No such file or directory (os error 2)
+ --> tests/ui/missing_include_file.rs:3:17
+  |
+3 | const _: &str = include_str!("features/missing.feature");
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

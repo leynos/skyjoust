@@ -27,11 +27,19 @@ and `pixels` own windowing and presentation for the Minimum Viable Product
 
 `rstest-bdd` provides the harness extension points needed for this shape:
 `HarnessAdapter`, associated `Context`, `ScenarioRunRequest`, `ScenarioRunner`,
-`HarnessResult`, `ScenarioMetadata`, `AttributePolicy`, and `TestAttribute`. The
-`0.6.0-beta3` releases carrying that API were published to crates.io on
-2026-07-07; upstream `main` has since moved to an unpublished `0.6.0-beta4`. See
-[ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) for the
-dependency decision and its evidence.
+`HarnessResult`, `ScenarioMetadata`, `AttributePolicy`, and `TestAttribute`.
+The initial implementation used the published `0.6.0-beta3` releases. The
+published `0.6.0` final is now the selected family and uses implicit-caret
+requirements. Its imported [user's guide](rstest-bdd-v0.6.0-users-guide.md)
+documents framework usage, while the
+[migration guide](rstest-bdd-v0.6.0-migration-guide.md) records the changes
+relevant to compatibility review. The focused `macro_ui` target and stable
+feature-freshness A/B have passed; the full focused crate suite, compatibility
+validation, and acceptance gates remain pending. See
+[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
+the
+[ExecPlan](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+for the current decision and pending evidence.
 
 The design also needs to remain extractable. Skyjoust should incubate the crate
 in-tree because that keeps review and validation local while the first runtime
@@ -278,6 +286,8 @@ The Skyjoust incubation crate should use this layout:
 crates/rstest-bdd-harness-bevy/
 |-- Cargo.toml
 |-- README.md
+|-- test-macros/
+|   `-- Cargo.toml
 |-- src/
 |   |-- lib.rs
 |   |-- profile.rs
@@ -298,15 +308,16 @@ re-bound through the harness-selecting `#[scenario]` rather than copied.
 The compatibility line targets Bevy `0.19.1` with `default-features = false` and
 `features = ["std"]`: `bevy::prelude::*` is the natural import surface for
 downstream steps, the default harness must stay headless, and the `std` feature
-keeps the time plugin on wall-clock without enabling the renderer or window. All
-`rstest-bdd` family requirements are exact `=0.6.0-beta3` pins against the
-published crates; do not use git dependencies against `main`, whose unpublished
-`0.6.0-beta4` changes `StepContext` borrowing and adds a policy-conformance
-module and a `testing` feature absent from `beta3`. When a later beta or
-`0.6.0` final publishes, test the whole `rstest-bdd` family together before
-changing the exact pins; adopt the policy-conformance helper in `0.5.1.3` only
-after that compatibility pass. If `0.5.1.3` reaches the policy-conformance task
-first, escalate rather than adding a git dependency.
+keeps the time plugin on wall-clock without enabling the renderer or window. The
+`rstest-bdd` family now uses published stable `0.6.0` requirements with
+implicit-caret syntax. The historical exact `=0.6.0-beta3` pins avoided
+drifting across breaking beta releases; they are superseded by the stable
+release decision, but the full compatibility pass and acceptance gates against
+`0.6.0` remain pending. The migration guide notes that bound feature files are
+Cargo rebuild dependencies, a custom `HarnessAdapter::run` returns
+`HarnessResult<T>`, and Rust 1.88 is the minimum supported version. Review
+these changes against the current integration test and manifests before
+acceptance. Do not use git dependencies against upstream `main`.
 
 ## 10. Verification strategy
 
@@ -321,6 +332,16 @@ Skyjoust gameplay:
 - macro-shape coverage with `trybuild` proving that a type alias implementing
   `HarnessAdapter + Default` works under
   `#[scenario(harness = TestBevyHarness)]`;
+- compile-pass and compile-fail `trybuild` fixtures for the `rstest-bdd`
+  attribute-macro contract exercised by this crate's scenario tests, including
+  checked diagnostics for representative invalid declarations;
+- keep the missing-file behaviour of Rust's built-in `include_str!` out of
+  `trybuild`; stable `rstest-bdd` 0.6.0 automatically tracks bound feature
+  files as Cargo rebuild dependencies. The stable A/B confirmed that a
+  feature-only edit rebuilds and fails with `Step not found`, both with and
+  without explicit `include_str!`. Retain the explicit declaration because the
+  task contract requires it, not because it is load-bearing; the earlier beta3
+  result is historical;
 - panic diagnostic coverage proving feature path, scenario name, and scenario
   line survive the unwind path.
 
@@ -334,17 +355,27 @@ resources and validator trace capture, then advance the app with explicit
 The harness crate should be fork-ready from its first commit:
 
 - no dependency on `skyjoust` or `lille`;
+- no dependency on sibling `skyjoust-test-macros`, including in the test graph;
+- fixture lint handling stays crate-owned by the nested workspace member
+  `rstest-bdd-harness-bevy-test-macros` and limited to this crate's test
+  fixtures; it moves with the harness source, adds no public runtime API, and
+  is not a general-purpose macro utility;
+- retain the synthetic `skyjoust-test-macros` near-match canary in the direct
+  manifest boundary test; it protects exact-name matching but is not an actual
+  dependency of this crate;
 - no checked-in Skyjoust profile inside the harness crate;
 - public API names and module boundaries stable enough for a directory move;
 - examples and tests using toy Bevy resources rather than game modules;
+- compile-pass and compile-fail `trybuild` fixtures for the macro contracts the
+  crate uses, without a redundant `include_str!` compile-fail fixture;
 - dependency versions kept in one `Cargo.toml`.
 
 Extraction into `leynos/rstest-bdd-harness-bevy` should happen after Skyjoust
 and Lille each carry one headless behavioural scenario through their normal
-gates. The extracted repository should replace git/path `rstest-bdd`
-dependencies with published `0.6.0-beta3` crates, add continuous integration
-for format, Clippy, tests, and documentation, and keep Skyjoust consuming the
-crate by git dependency during the beta proving period.
+gates. The extracted repository should use published `rstest-bdd` 0.6.0
+requirements, add continuous integration for format, Clippy, tests, and
+documentation, and keep Skyjoust consuming the crate by git dependency during
+the proving period.
 
 ## 12. Risks
 
@@ -367,10 +398,14 @@ state resources unless they are represented as downstream profile code.
 
 ## 13. References
 
-- `rstest-bdd` 0.6.0-beta3 crate releases, published 2026-07-07:
+- Historical `rstest-bdd` 0.6.0-beta3 crate releases, published 2026-07-07:
   <https://crates.io/crates/rstest-bdd-harness/0.6.0-beta3>.
 - `rstest-bdd` third-party harness cookbook and GPUI harness documentation:
   <https://github.com/leynos/rstest-bdd/blob/main/docs/users-guide.md>.
+- Imported `rstest-bdd` v0.6.0 user's guide:
+  <https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/users-guide.md>.
+- `rstest-bdd` v0.6.0 migration guide:
+  <https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md>.
 - Bevy 0.19.1 `App` documentation:
   <https://docs.rs/bevy/0.19.1/bevy/app/struct.App.html>.
 - Bevy 0.19.1 `MinimalPlugins` documentation:
@@ -378,4 +413,4 @@ state resources unless they are represented as downstream profile code.
 - Skyjoust runtime ownership and testing constraints:
   [Project Skyjoust technical design](skyjoust-technical-design.md).
 - In-tree incubation and dependency decisions:
-  [ADR 007](adr/007-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+  [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
