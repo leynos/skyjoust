@@ -256,6 +256,25 @@ one, stop and escalate rather than working around it.
   caches together approach the cap, raise a follow-up to narrow the coverage
   job's cached path.
 
+- Risk: the shared coverage action's default Nextest slow timeout can stop
+  nested `trybuild` compilation before the UI-test binary completes. Hosted run
+  `38310809953` terminated `macro_ui` at 180.004 seconds in the coverage job.
+  Separately, the plain `cargo test` step measured `macro_ui` at 186.68
+  seconds; its log timestamps show the next UI target starting more than 195
+  seconds after its start. Another UI suite took 179.062 seconds. Cache misses
+  were high. These observations establish that 180 seconds is insufficient for
+  the observed cold UI run; they do not establish contention as the sole cause.
+  Severity: high. Likelihood: observed. Mitigation: preserve the 180-second
+  default slow timeout and 10-minute global timeout, serialize only binaries
+  matching `binary(/_ui$/)` in a `compile-ui` group with `max-threads = 1`, and
+  give that override a finite 60-second period with ten terminations and a
+  five-second grace period (600 seconds total slow-time budget). The config
+  contract tests and workspace group membership were locally validated, and the
+  bounded full workspace suite passed (Revision 26). This warm local run does
+  not establish that the cold hosted coverage timeout is resolved; coverage on
+  the updated candidate remains pending. Do not treat the hosted coverage
+  failure as resolved until that run passes.
+
 - Risk: `make fmt` runs `cargo +nightly fmt` (the floating nightly) while
   `make check-fmt` runs `cargo fmt` (the toolchain-file-pinned nightly). With
   `unstable_features`, `wrap_comments`, `format_strings`, and
@@ -282,18 +301,52 @@ one, stop and escalate rather than working around it.
 
 ## Progress
 
-Published PR #51 head `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` is based on
-`main` `d177781a276012da013531e7b6b9642fc0a5e0b8`. Its source tree is the
-locally validated `f9a72c93b026e796ff025e71803e1a47a45ac31a` tree
+Latest hosted result (2026-10-12): PR #51 candidate
+`06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based on `main`
+`d177781a276012da013531e7b6b9642fc0a5e0b8`, completed Actions run
+`38310809953`, attempt 1, job `115015810460`. The lint job passed. The
+`Test and Measure Coverage` job failed because Nextest terminated
+`rstest-bdd-harness-bevy::macro_ui` at 180.004 seconds; the run summary was 235
+passed and one timed out. In the separate plain `cargo test` step, `macro_ui`
+took 186.68 seconds: its log shows it starting at 21:36:59.603 and the next UI
+target starting at 21:40:14.773, more than 195 seconds after `macro_ui`
+started. In the coverage job, Nextest terminated `macro_ui` at 180.004 seconds;
+a concurrent `skyjoust-test-macros` UI suite took 179.062 seconds, and only 5
+of 2,147 Rust cache entries were hits. This shows the coverage timeout is below
+observed cold UI-test runtime. Build contention is plausible, but the logs do
+not prove it was the sole cause. The failure log is
+`/tmp/skyjoust-pr51-actions-38310809953.eqWQZH/run-38310809953-attempt-1/job-115015810460.log`.
+
+Provisional mitigation: preserve the shared action's default 180-second Nextest
+slow timeout and 10-minute global timeout; serialize only `binary(/_ui$/)`
+tests in a `compile-ui` group capped at one test, with a 60-second period, ten
+terminations, and five-second grace period. A draft configuration is present in
+`.config/nextest.toml`, and its contract test is present in
+`tests/nextest_policy.rs`. Actual Nextest group membership is verified for both
+UI binaries, with `max-threads = 1`. Current local validation and
+resource-pressure observations are recorded in Revisions 24-26 below. The
+non-test checks and the bounded full workspace test passed. This warm local run
+does not prove the cold hosted coverage timeout is resolved; hosted coverage
+remains pending. No claim is made that the coverage failure is fixed. The
+roadmap implementation item `0.5.1.1` remains checked complete, while PR
+acceptance remains pending. The separate user-facing adoption-guide finding is
+already addressed at this candidate: `docs/rstest-bdd-harness-bevy-adoption.md`
+documents setup and the headless/API boundary, `docs/contents.md` indexes it,
+and `docs/users-guide.md` links to it. No duplicate migration note is needed.
+
+Prior published status (before hosted run `38310809953`): PR #51 head
+`adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` was based on `main`
+`d177781a276012da013531e7b6b9642fc0a5e0b8`. Its source tree was the locally
+validated `f9a72c93b026e796ff025e71803e1a47a45ac31a` tree
 `515c4b3bac3c97cb776e10dd10eda54bfd89e112`; the published follow-up changed
 documentation only. Local formatter, documentation gates and acceptance checks
-passed as recorded below. The PR is ready but currently `BLOCKED` with review
-decision `CHANGES_REQUESTED`; build-test run `38309867260` was in progress at
-the latest status check. Review findings currently on record refer to the
-superseded `6b185eee6ee3d330585b08b2fa3d5a529754a536` head and require
-reconciliation. Run `38309867260` reports only the observed published head; a
-subsequent commit or push, including a status-only documentation change,
-requires fresh hosted status. Final PR acceptance remains pending.
+passed as recorded below. At that time, the PR was `BLOCKED` with review
+decision `CHANGES_REQUESTED`, and build-test run `38309867260` was in progress.
+Review findings referred to the superseded
+`6b185eee6ee3d330585b08b2fa3d5a529754a536` head and required reconciliation. Run
+`38309867260` reported only the observed published head. These observations
+are historical; the latest hosted result is recorded above. Final PR acceptance
+remains pending.
 
 Candidate-execution provenance: this accepted base is the refreshed current
 `origin/main`; PR #51's live author is `leynos`, the candidate commits are
@@ -853,6 +906,25 @@ remain pending as recorded above.
   snippet in this plan is amended to match.
 
 ## Decision log
+
+- Decision (provisional; draft present, validation pending): give only
+  compile-based Nextest UI test binaries matching `binary(/_ui$/)` a dedicated
+  `compile-ui` group with `max-threads = 1` and a finite 600-second slow-time
+  budget (`period = "60s"`, ten terminations, five-second grace). Preserve the
+  shared action's default 180-second slow timeout for other tests and its
+  10-minute global timeout. Drafts are present in `.config/nextest.toml` and
+  `tests/nextest_policy.rs`; group membership and the policy contract tests
+  passed locally, as did the bounded workspace test and other local gates.
+  These warm local results do not prove the cold hosted coverage timeout is
+  resolved. Rationale: hosted run `38310809953`, attempt 1, job `115015810460`,
+  passed lint but timed out `macro_ui` at 180.004 seconds; the separate plain
+  `cargo test` step measured that binary at 186.68 seconds, with the next UI
+  target starting more than 195 seconds after its start. A second UI suite took
+  179.062 seconds. Cache hits were 5/2,147. These observations show the default
+  is insufficient for the observed cold run; they do not prove contention as
+  the sole cause. A successful hosted coverage run is required before resolving
+  this finding or accepting the PR. Date/Author: 2026-10-13, maintainer
+  decision.
 
 - Historical decision: depend on published `rstest-bdd` `0.6.0-beta3` crates
   rather than git dependencies against `main`. Rationale: the roadmap's
@@ -2795,3 +2867,44 @@ review findings refer to old head `6b185ee`; they are not current-head review
 evidence and require reconciliation. Local gate and acceptance results remain
 local evidence only. The roadmap implementation item remains checked; hosted
 outcomes, current review, and final acceptance remain pending.
+
+Revision 24, 2026-10-13. Recorded the local validation after the Nextest policy
+Clippy fixes. `make check-fmt`, `make typecheck`, `make lint`,
+`make markdownlint`, and `make nixie` passed. `make test` did not exercise the
+test suite: Nextest could not spawn `validate_trace --list` and returned
+`EAGAIN` (OS error 11). This is an infrastructure/resource failure, not a
+product test assertion, so the test gate remains unpassed. In the first test
+attempt, separately, a nested test helper's `make` invocation could not spawn
+`uname` and `/bin/sh` under the same process pressure; that also was not a
+product test assertion. Read-only resource checks on 2026-10-13 observed
+`lody-daemon.service` at `TasksCurrent=8131` of `TasksMax=8192` and 8,776
+global threads. No process was interrupted. Workspace Nextest configuration
+inspection verified that both `macro_ui` and `fixture_expansion_lints_ui` are
+in the `compile-ui` group with `max-threads = 1`. This establishes group
+membership only: the full UI runtime and hosted coverage behaviour of the
+mitigation remain unvalidated. PR acceptance remains pending.
+
+Revision 25, 2026-10-13. The bounded isolated policy-test command
+
+```sh
+NEXTEST_TEST_THREADS=1 CARGO_BUILD_JOBS=1 RAYON_NUM_THREADS=1 \
+  make test TEST_FLAGS='--package skyjoust --test nextest_policy'
+```
+
+passed all three policy tests and workspace doctests in 16 seconds. Log:
+`/tmp/test-nextest-policy-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-pr51-repair.out`.
+Read-only service observations were `TasksCurrent=8131/8192` before and
+`8132/8192` after the run. This focused pass does not replace the full workspace
+`make test`, which remains blocked while Nextest lists tests because the
+service is at its task cap. The roadmap implementation item remains checked; PR
+acceptance remains pending.
+
+Revision 26, 2026-10-13. The bounded full-workspace command
+`NEXTEST_TEST_THREADS=1 CARGO_BUILD_JOBS=1 RAYON_NUM_THREADS=1 make test`
+passed in 18 seconds: 239/239 tests across 22 binaries plus workspace doctests.
+Log:
+`/tmp/test-workspace-constrained-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-pr51-repair.out`.
+`build-limits` was healthy; read-only `TasksCurrent` observations were
+8126/8192 before and 8123/8192 after. This is warm local validation and does
+not prove the cold hosted coverage timeout is resolved. The roadmap item
+remains checked, and PR acceptance remains pending.

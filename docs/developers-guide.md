@@ -90,6 +90,17 @@ one Bevy trap.
 The fixture-expansion lint trap is documented in §7.3; it applies to the
 behavioural fixture exactly as the search-based tests in that section describe.
 
+Compile-based UI test binaries run `trybuild`, which starts nested Cargo
+compilations. For Nextest-based coverage, binaries named with the `_ui` suffix
+use the dedicated `compile-ui` test group: that group runs one test at a time
+and gives each test a finite 10-minute slow-time budget. Other tests retain the
+default 180-second slow-time budget, and the workspace-wide timeout remains 10
+minutes. This policy is specific to Nextest; `cargo test` does not apply
+Nextest test groups or its per-test timeout settings. The longer scoped budget
+includes the nested Cargo compilation and any time spent waiting for Cargo's
+package-cache lock. It accounts for the observed cold UI-test runtime;
+contention may add time but was not established as the sole cause.
+
 ## 3. Validator module structure
 
 The `skyjoust-stateright-validator` crate keeps domain logic in small modules:
