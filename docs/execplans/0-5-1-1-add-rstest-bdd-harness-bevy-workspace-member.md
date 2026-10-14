@@ -12,17 +12,18 @@ treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. The implementation
-milestones are delivered, but review and acceptance remain open. The published
-candidate is `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800`, based on current `main`
-`d177781a276012da013531e7b6b9642fc0a5e0b8`; its source tree is the locally
-validated `f9a72c93b026e796ff025e71803e1a47a45ac31a` tree
-`515c4b3bac3c97cb776e10dd10eda54bfd89e112`, with documentation-only publication
-updates. PR #51 is ready, with merge state `BLOCKED` and review decision
-`CHANGES_REQUESTED`. Build-test run `38309867260` was in progress at the latest
-status check. Existing review findings refer to superseded head
-`6b185eee6ee3d330585b08b2fa3d5a529754a536`. Do not treat this plan as fully
-accepted until current hosted checks and review are reconciled and all
-acceptance conditions are recorded.
+milestones are delivered, but review and acceptance remain open. The latest
+published PR #51 head is `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based on
+`main` at `d177781a276012da013531e7b6b9642fc0a5e0b8`. Hosted run `38310809953`,
+attempt 1, failed when the coverage job timed out `macro_ui` at 180.004
+seconds. The rebased local candidate is
+`d0f2a794cb1256143b8885505e9473e5a8307431`, tree
+`bb621714865e3eca0d38c5ce6aebca5d2c80029e`, based on live `main`
+`afb8fbe09af5ec2b216105b7e6671a3490b9a1ba`; it has not yet been published. Its
+six sequential local gates passed, but this does not prove that cold hosted
+coverage succeeds. Push, hosted recheck, review, and acceptance remain pending.
+Do not treat this plan as fully accepted until current hosted checks and review
+are reconciled and all acceptance conditions are recorded.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -270,10 +271,10 @@ one, stop and escalate rather than working around it.
   give that override a finite 60-second period with ten terminations and a
   five-second grace period (600 seconds total slow-time budget). The config
   contract tests and workspace group membership were locally validated, and the
-  bounded full workspace suite passed (Revision 26). This warm local run does
-  not establish that the cold hosted coverage timeout is resolved; coverage on
-  the updated candidate remains pending. Do not treat the hosted coverage
-  failure as resolved until that run passes.
+  bounded full workspace suite passed (Revision 27). This local run does not
+  establish that the cold hosted coverage timeout is resolved; coverage on the
+  updated candidate remains pending. Do not treat the hosted coverage failure
+  as resolved until that run passes.
 
 - Risk: `make fmt` runs `cargo +nightly fmt` (the floating nightly) while
   `make check-fmt` runs `cargo fmt` (the toolchain-file-pinned nightly). With
@@ -323,16 +324,35 @@ tests in a `compile-ui` group capped at one test, with a 60-second period, ten
 terminations, and five-second grace period. A draft configuration is present in
 `.config/nextest.toml`, and its contract test is present in
 `tests/nextest_policy.rs`. Actual Nextest group membership is verified for both
-UI binaries, with `max-threads = 1`. Current local validation and
-resource-pressure observations are recorded in Revisions 24-26 below. The
-non-test checks and the bounded full workspace test passed. This warm local run
-does not prove the cold hosted coverage timeout is resolved; hosted coverage
-remains pending. No claim is made that the coverage failure is fixed. The
-roadmap implementation item `0.5.1.1` remains checked complete, while PR
-acceptance remains pending. The separate user-facing adoption-guide finding is
-already addressed at this candidate: `docs/rstest-bdd-harness-bevy-adoption.md`
-documents setup and the headless/API boundary, `docs/contents.md` indexes it,
-and `docs/users-guide.md` links to it. No duplicate migration note is needed.
+UI binaries, with `max-threads = 1`. The latest rebased local gates and earlier
+resource-pressure observations are recorded in Progress and Revisions 24-27
+below. The local full workspace test passed, but this does not prove the cold
+hosted coverage timeout is resolved; hosted coverage remains pending. No claim
+is made that the coverage failure is fixed. The roadmap implementation item
+`0.5.1.1` remains checked complete, while PR acceptance remains pending. The
+separate user-facing adoption-guide finding is already addressed at this
+candidate: `docs/rstest-bdd-harness-bevy-adoption.md` documents setup and the
+headless/API boundary, `docs/contents.md` indexes it, and `docs/users-guide.md`
+links to it. No duplicate migration note is needed.
+
+Latest local candidate validation (2026-10-14): after rebasing all 22 branch
+commits one-for-one onto live `main`, candidate
+`d0f2a794cb1256143b8885505e9473e5a8307431` (tree
+`bb621714865e3eca0d38c5ce6aebca5d2c80029e`) passed the six sequential gates:
+`make check-fmt`, `make lint`, `make typecheck`, `make test` (239/239 tests,
+zero skipped, plus workspace doctests), `make markdownlint` (35 files, zero
+errors), and `make nixie`. The test gate measured `macro_ui` at 75.440 seconds
+and `fixture_expansion_lints_ui` at 68.640 seconds. Nextest 0.9.133 resolved
+both binaries into `compile-ui` with `max-threads = 1` for
+`--workspace --all-targets --all-features`; the group listing is recorded in
+`/tmp/nextest-groups-pr51-d0f2a794-workspace.out`. Compilation was uncached;
+Cargo locking and compiler admission queued normally. These are local results
+on the rebased candidate, not hosted coverage evidence. The published PR still
+points to `06fac215a37a580a1a9281682bc5b2e0aa56d3f8` on base
+`d177781a276012da013531e7b6b9642fc0a5e0b8`, where hosted run `38310809953`
+failed on the 180.004-second `macro_ui` timeout. The rebased candidate has not
+yet been pushed; hosted recheck, review reconciliation, and PR acceptance
+remain pending.
 
 Prior published status (before hosted run `38310809953`): PR #51 head
 `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` was based on `main`
@@ -2908,3 +2928,21 @@ Log:
 8126/8192 before and 8123/8192 after. This is warm local validation and does
 not prove the cold hosted coverage timeout is resolved. The roadmap item
 remains checked, and PR acceptance remains pending.
+
+Revision 27, 2026-10-14. Recorded the six sequential gate results on rebased
+local candidate `d0f2a794cb1256143b8885505e9473e5a8307431`, tree
+`bb621714865e3eca0d38c5ce6aebca5d2c80029e`, based on live `main`
+`afb8fbe09af5ec2b216105b7e6671a3490b9a1ba`. All 22 branch commits replayed
+one-for-one. `make check-fmt`, `make lint`, `make typecheck`, `make test`
+(239/239, zero skipped, plus workspace doctests), `make markdownlint` (35
+files, zero errors), and `make nixie` passed sequentially. Nextest 0.9.133
+resolved both UI binaries into the serial `compile-ui` group under
+`--workspace --all-targets --all-features`; the tests took 75.440 and 68.640
+seconds. Compilation was uncached, and Cargo locking and compiler admission
+queued normally. This is local evidence on the rebased candidate; it does not
+establish that cold hosted coverage passes. The published PR remains at
+`06fac215a37a580a1a9281682bc5b2e0aa56d3f8` on base
+`d177781a276012da013531e7b6b9642fc0a5e0b8`, where run `38310809953` failed with
+the 180.004-second `macro_ui` timeout. The local candidate is not yet
+published; hosted recheck, review reconciliation, and PR acceptance remain
+pending.

@@ -80,14 +80,24 @@ informs later runtime testing in Phase 1. See
     archive without tracked edits. `make markdownlint` passed for 35 files
     with zero errors, and `make nixie` passed; exact logs and the initial
     stable-Cargo/wrong-nightly correction history are recorded in the
-    ExecPlan's current Progress. These are local results only. PR #51 is
-    published at `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` and is ready, but
-    merge state is `BLOCKED` and review decision is `CHANGES_REQUESTED`.
-    Build-test run `38309867260` was in progress at the latest status check.
-    Existing review findings refer to superseded head
-    `6b185eee6ee3d330585b08b2fa3d5a529754a536`; current hosted outcomes, review
-    reconciliation, and final PR acceptance remain pending. This roadmap item
-    remains checked for implementation completion, not PR acceptance.
+    ExecPlan's current Progress. These are local results only. The latest
+    published PR head remains `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based
+    on `d177781a276012da013531e7b6b9642fc0a5e0b8`; hosted run `38310809953`,
+    attempt 1, failed when `macro_ui` timed out at 180.004 seconds. The local
+    rebased candidate is `d0f2a794cb1256143b8885505e9473e5a8307431`, tree
+    `bb621714865e3eca0d38c5ce6aebca5d2c80029e`, based on live
+    `main` `afb8fbe09af5ec2b216105b7e6671a3490b9a1ba`. All six sequential
+    gates passed on that exact, not-yet-published tree: `make check-fmt`,
+    `make lint`, `make typecheck`, `make test` (239/239, zero skipped, and
+    workspace doctests), `make markdownlint` (35 files, zero errors), and
+    `make nixie`. Nextest 0.9.133 resolved both UI binaries into the serial
+    `compile-ui` group under `--workspace --all-targets --all-features`; the
+    `macro_ui` and `fixture_expansion_lints_ui` tests took 75.440 and 68.640
+    seconds. Compilation was uncached; Cargo locking and compiler admission
+    queued normally. This local run does not establish that cold hosted coverage
+    passes. Push, hosted recheck, review reconciliation, and final PR acceptance
+    remain pending. The roadmap item remains checked for implementation
+    completion, not PR acceptance.
 - [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.5.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,
