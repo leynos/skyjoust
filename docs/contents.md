@@ -7,7 +7,10 @@
 
 - [Skyjoust user's guide](users-guide.md) - operator and integrator workflows
   for running validator checks, opening the Stateright Explorer, and replaying
-  traces.
+  traces, with a headless Bevy test-helper example.
+- [Adopt the Bevy BDD helpers in Skyjoust](rstest-bdd-harness-bevy-adoption.md)
+  - workspace-only test dependency and migration guidance for the current
+  headless Bevy helpers.
 - [Skyjoust Product Requirements Document (PRD)](skyjoust-product-requirements.md)
   - product vision, game modes, platform constraints, and player-facing scope.
 
@@ -46,6 +49,10 @@
   - dependency-injection guidance for deterministic and isolated tests.
 - [Effective, ergonomic, and dry doctests in Rust](rust-doctest-dry-guide.md)
   - doctest structure, reuse patterns, and anti-pattern avoidance.
+- [`rstest-bdd` v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) -
+  imported upstream usage guide for the published stable release.
+- [`rstest-bdd` v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md)
+  - imported upstream migration guidance from v0.5.0 to v0.6.0.
 
 ## Architecture decision records
 
@@ -67,11 +74,16 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 - [ADR 007: Adopt the Rust build standard in `.cargo/config.toml`](adr/007-adopt-the-rust-build-standard.md)
   - accepted decision to carry the estate build standard in the Cargo
   configuration, holding release and coverage off it.
+- [ADR 009: In-tree incubation of the Bevy BDD harness crate](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+  - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and adopt
+  the published `rstest-bdd` 0.6.0 family with implicit caret requirements.
 
 ## Execution plans
 
 - [Record the initial runtime crate split as an ADR](execplans/1-1-1-record-runtime-crate-split-as-adr.md)
   - approval-gated plan for roadmap task `1.1.1`.
+- [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+  - execution plan for roadmap task `0.5.1.1`.
 
 ## State graph references and artefacts
 

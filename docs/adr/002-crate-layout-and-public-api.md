@@ -93,3 +93,18 @@ with named modules in the file tree, not a multi-crate workspace, until a later
 ADR records a specific extraction. Roadmap task `1.1.1`, the technical design's
 runtime ownership table, and the development plan's phase-2 entry all align
 with this decision.
+
+### Addendum (accepted 2026-08-17): tooling crate exception
+
+[ADR 009](adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
+`rstest-bdd-harness-bevy` as a third member crate — a tooling-facing test
+adapter in the same category as the validator exception recorded above. Its
+fixture-lint helper is a nested, crate-owned workspace member and is permitted
+by the test-tooling exception in ADRs 006 and 009; it does not add a runtime
+dependency or reopen this ADR's deferral of runtime splits.
+
+The nested helper moves with the harness source when it is extracted, so the
+standalone test graph does not depend on Skyjoust or Lille. ADR 009 remains
+authoritative for the harness boundary and extraction requirements. This
+addendum records the later tooling exception without changing the accepted
+runtime crate decision above.

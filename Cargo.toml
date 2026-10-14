@@ -6,6 +6,8 @@ edition = "2024"
 [workspace]
 members = [
     ".",
+    "crates/rstest-bdd-harness-bevy",
+    "crates/rstest-bdd-harness-bevy/test-macros",
     "crates/skyjoust_stateright_validator",
     "crates/skyjoust_test_macros",
 ]

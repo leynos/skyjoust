@@ -17,9 +17,11 @@ The validator must stay synchronized with these source documents:
 
 [ADR 002](adr/002-crate-layout-and-public-api.md) is the source of truth for
 the workspace shape. The accepted decision is one runtime crate with strict
-internal modules, beside the separate `skyjoust_stateright_validator` crate.
-Maintainers should add new runtime functionality as a module inside the runtime
-crate, not as a new crate.
+internal modules, beside the separate `skyjoust_stateright_validator` crate;
+[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
+a third member crate, `rstest-bdd-harness-bevy`, as tooling in the same
+category as the validator exception. Maintainers should add new runtime
+functionality as a module inside the runtime crate, not as a new crate.
 
 The runtime modules and their responsibilities follow the technical design's
 runtime ownership table: `game_app`, `core`, `sim`, `terrain`, `stategraphs`,
@@ -43,6 +45,61 @@ conditions holds:
 
 Record any such extraction in a follow-up ADR before changing `Cargo.toml`
 workspace members.
+
+### 2.1. The `rstest-bdd-harness-bevy` crate
+
+The harness crate plugs a headless Bevy application into the `rstest-bdd`
+harness contract. Its boundary rule is stated in
+[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) as
+an extension seam: *the profile type is the single extension seam. Every
+game-specific plugin, resource, and cleanup hook lives in a downstream
+implementation of it, never in this crate.* Skyjoust and Lille each define a
+profile type outside the crate once the first deterministic runtime resources
+exist (roadmap `0.5.1.4`); the crate itself never acquires game modules.
+
+The crate incubates here but keeps its extraction contract: no Skyjoust or
+Lille dependency, directly or transitively. `tests/extraction_boundary.rs`
+trips on a directly declared game crate, and
+`cargo tree -p rstest-bdd-harness-bevy -e normal,dev` remains the authority for
+the transitive half.
+
+Writing behavioural scenarios taught this task two estate-specific traps and
+one Bevy trap.
+
+- The `allow-expect-in-tests` setting covers `#[test]` functions only.
+  `rstest-bdd` step functions are macro-registered free functions, so
+  `.expect()` inside a step fails `make lint`. Fallible steps return
+  `StepResult` and propagate `RefCell` borrow failures with `try_borrow` and
+  `try_borrow_mut`, mapping errors instead of panicking. See
+  `tests/headless_scenario.rs` for the pattern.
+- The integration test retains an explicit `include_str!` binding for its
+  feature file. Stable `rstest-bdd` 0.6.0 also tracks bound feature files as
+  Cargo rebuild dependencies. The stable freshness A/B confirmed that a
+  feature-only edit triggers recompilation and the expected `Step not found`
+  failure both with and without the declaration. Automatic macro tracking
+  provides the rebuild dependency; the explicit declaration remains because the
+  task contract requires it, as a documentary, belt-and-braces dependency. The
+  earlier beta3 A/B result is historical.
+- `googletest`'s `expect_that!` panics without a `#[gtest]` test context, so
+  unit tests annotate `#[gtest]` above `#[rstest]`. `rstest-bdd` step functions
+  have no such context and use `assert_that!`, which panics directly.
+- Bevy's `MinimalPlugins` includes `ScheduleRunnerPlugin`, whose own `run`
+  method loops forever. Scenarios must call `App::update` explicitly (via the
+  fixture or a step) and must never let the schedule runner drive the loop.
+
+The fixture-expansion lint trap is documented in §7.3; it applies to the
+behavioural fixture exactly as the search-based tests in that section describe.
+
+Compile-based UI test binaries run `trybuild`, which starts nested Cargo
+compilations. For Nextest-based coverage, binaries named with the `_ui` suffix
+use the dedicated `compile-ui` test group: that group runs one test at a time
+and gives each test a finite 10-minute slow-time budget. Other tests retain the
+default 180-second slow-time budget, and the workspace-wide timeout remains 10
+minutes. This policy is specific to Nextest; `cargo test` does not apply
+Nextest test groups or its per-test timeout settings. The longer scoped budget
+includes the nested Cargo compilation and any time spent waiting for Cargo's
+package-cache lock. It accounts for the observed cold UI-test runtime;
+contention may add time but was not established as the sole cause.
 
 ## 3. Validator module structure
 

@@ -13,9 +13,10 @@ The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
 `docs/rstest-bdd-harness-bevy-design.md`,
 `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`, and the
-reference images in `ref/`. ADRs numbered 001–006 already exist in `docs/adr/`;
+reference images in `ref/`. ADRs numbered 001–009 are recorded in `docs/adr/`;
 early roadmap tasks create further narrow ADRs where the design still names
-unresolved choices.
+unresolved choices. ADR 009 records the Bevy harness crate decision. The
+accepted numbering includes main's ADR 007 and ADR 008.
 
 ## 0.5. Bevy behaviour-driven development harness spike
 
@@ -38,14 +39,61 @@ informs later runtime testing in Phase 1. See
 `docs/rstest-bdd-harness-bevy-design.md` §§4-10 and
 `docs/skyjoust-technical-design.md` §§4, 5, and 14.
 
-- [ ] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
+- [x] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
   - Keep the crate free of Skyjoust and Lille dependencies.
-  - Use Bevy `0.17.3` with `default-features = false`.
-  - Use git `rstest-bdd` dependencies against `main` until v0.6.0-beta3 is
-    published.
+  - Use Bevy `0.19.1` with `default-features = false` and the `std` feature;
+    use published stable `rstest-bdd` 0.6.0 family requirements with implicit
+    caret syntax. See [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+    The imported [v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md)
+    and [users' guide](rstest-bdd-v0.6.0-users-guide.md) are sourced from the
+    upstream v0.6.0 tag; exact URLs are recorded in the ExecPlan.
   - See `docs/rstest-bdd-harness-bevy-design.md` §§3 and 9.
   - Success: the crate can later move to its own repository without deleting
     game-specific code.
+  - Validation: inverse dependency checks passed (Bevy `0.19.1`,
+    `rstest` `0.27.0`, and `rstest-bdd` `0.6.0`). The standalone manifest
+    crate suite passed (five unit, four boundary, one headless, one macro UI
+    runner with pass/fail fixtures, one property, and two doctests).
+    The narrow, user-authorized helper extraction in
+    `crates/skyjoust_stateright_validator/examples/serve_explorer.rs` repairs
+    the inherited cognitive-complexity 15/9 finding without lint suppression
+    or a threshold change; it preserves tracing order and the checker lifetime.
+    Before the adoption-note follow-up, local candidate
+    `f9a72c93b026e796ff025e71803e1a47a45ac31a`, tree
+    `515c4b3bac3c97cb776e10dd10eda54bfd89e112`, passed the constrained focused
+    `macro_ui` run covered one compile-pass fixture, both compile-fail fixtures,
+    and Make's workspace doctests in 171 seconds (log:
+    `/tmp/test-macro-ui-focused-skyjoust-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928-followup1.out`).
+    The six sequential gates also passed: `make check-fmt`, `make test`
+    (236/236 plus workspace doctests), `make typecheck`, `make lint`
+    (documentation, Clippy, and Whitaker), `make markdownlint` (34 files,
+    zero errors), and `make nixie`; logs are under
+    `/tmp/{check-fmt,test,typecheck,lint,markdownlint,nixie}-skyjoust-final515c4b3-rebase-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member-20260928.out`.
+    Earlier trybuild unexpected-success and OS `EAGAIN` results are historical;
+    constrained and full reruns passed, but resource exhaustion was not proved
+    as their cause. These are local results, not hosted evidence. This roadmap
+    item remains checked for implementation completion. The post-documentation
+    scrutineer rerun passed the isolated
+    crate normal/development dependency graphs, workspace dependency graph,
+    isolated and workspace headless normal graphs, standalone and focused
+    crate tests, and stable feature-file freshness A/B from a disposable
+    archive without tracked edits. `make markdownlint` passed for 35 files
+    with zero errors, and `make nixie` passed; exact logs and the initial
+    stable-Cargo/wrong-nightly correction history are recorded in the
+    ExecPlan's current Progress. An earlier hosted coverage run timed out
+    `macro_ui` at 180.004 seconds; the failure and its evidence remain recorded
+    there as historical. The local acceptance checks and all six gates passed
+    on implementation source tree `d0f2a794`; later changes have been
+    documentation-only. The full workspace test passed 239/239 with no skipped
+    tests and doctests; Markdownlint passed for 35 files with zero errors, and
+    Nextest resolved both UI binaries into the serial `compile-ui` group. This
+    local evidence does not prove cold hosted coverage. Final acceptance
+    requires a successful hosted cold-coverage run and current review
+    reconciliation; hosted run `38549332394` passed cold coverage on the
+    published code candidate `f43787df774e9d50414d22e98de74eb913d2aefe`.
+    This status follow-up changes documentation only, so the live PR checks
+    must confirm the final head. The roadmap item remains checked for implementation
+    completion, not PR acceptance.
 - [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.5.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,

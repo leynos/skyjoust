@@ -25,12 +25,35 @@ design already assigns ECS schedules and state resources to Bevy, while `winit`
 and `pixels` own windowing and presentation for the Minimum Viable Product
 (MVP).
 
-`rstest-bdd` HEAD provides the harness extension points needed for this shape:
+`rstest-bdd` provides the harness extension points needed for this shape:
 `HarnessAdapter`, associated `Context`, `ScenarioRunRequest`, `ScenarioRunner`,
 `HarnessResult`, `ScenarioMetadata`, `AttributePolicy`, and `TestAttribute`.
-The public manifest still labels those workspace crates as `0.6.0-beta2`, but
-the branch head inspected for this design is commit `21b67a4`, which carries
-the v0.6.0-beta3 harness API targeted by this work.
+The initial implementation used the published `0.6.0-beta3` releases. The
+published `0.6.0` final is now the selected family and uses implicit-caret
+requirements. Its imported [user's guide](rstest-bdd-v0.6.0-users-guide.md)
+documents framework usage, while the
+[migration guide](rstest-bdd-v0.6.0-migration-guide.md) records the changes
+relevant to compatibility review. The focused `macro_ui` target and stable
+feature-freshness A/B passed, as did the full workspace test suite and six
+local gates on candidate `f9a72c93b026e796ff025e71803e1a47a45ac31a`. The
+Post-documentation `make markdownlint` and `make nixie` passed; the acceptance
+rerun also passed for the isolated/workspace dependency graphs, headless
+graphs, standalone and focused crate tests, and feature-freshness A/B. The
+standalone test required pinned nightly after stable Cargo rejected the
+development profile, and the A/B ran from a disposable archive without tracked
+edits. Exact logs and correction history are in the ExecPlan's current
+Progress. These are local results only. PR #51 is published at
+`adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` and is ready, but its merge state is
+`BLOCKED` and review decision is `CHANGES_REQUESTED`. Build-test run
+`38309867260` was in progress at the latest status check; existing review
+findings refer to superseded head `6b185eee6ee3d330585b08b2fa3d5a529754a536`.
+Hosted outcomes, current review reconciliation, and final acceptance remain
+pending. See
+[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
+the
+[ExecPlan](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+for the current decision and local evidence; it distinguishes that evidence
+from the remaining PR lifecycle work.
 
 The design also needs to remain extractable. Skyjoust should incubate the crate
 in-tree because that keeps review and validation local while the first runtime
@@ -81,11 +104,16 @@ when a step panics, and resumes unwinding with an augmented panic message. The
 Bevy harness should mirror the diagnostic pattern without inheriting GPUI's
 single-threaded runtime constraints.
 
-Bevy 0.17.3 documents `App` as the primary application API for plugin setup and
-the standard lifecycle. It documents `MinimalPlugins` as the minimal plugin
-group for a Bevy application, including task pools, time, frame count, and the
-schedule runner. That matches the headless behavioural test need better than a
-raw `World`.
+Bevy 0.19.1 documents `App` as the primary application API for plugin setup and
+the standard lifecycle, and `MinimalPlugins` as the minimal plugin group for a
+Bevy application, including task pools, time, frame count, and the schedule
+runner. That matches the headless behavioural test need better than a raw
+`World`. The harness declares Bevy with `default-features = false` plus
+`features = ["std"]`: under the earlier `0.17.3` probe, omitting `std` silently
+degraded the time plugin to a fallback clock running at the timestamp counter
+frequency, so `std` is load-bearing for real time without enabling the renderer
+or window. The same check is repeated against `0.19.1` in the ExecPlan's
+Milestone 0 follow-up.
 
 ## 4. Architecture
 
@@ -271,27 +299,41 @@ The Skyjoust incubation crate should use this layout:
 ```plaintext
 crates/rstest-bdd-harness-bevy/
 |-- Cargo.toml
+|-- README.md
+|-- test-macros/
+|   `-- Cargo.toml
 |-- src/
 |   |-- lib.rs
-|   |-- context.rs
-|   |-- harness.rs
-|   |-- panic.rs
-|   |-- policy.rs
-|   `-- profile.rs
+|   |-- profile.rs
+|   `-- profile_tests.rs
 `-- tests/
-    |-- bevy_scenario.rs
-    |-- panic_diagnostics.rs
-    |-- profile_hooks.rs
+    |-- extraction_boundary.rs
+    |-- headless_scenario.rs
+    |-- tick_properties.rs
     `-- features/
-        `-- bevy_scenario.feature
+        `-- headless_scenario.feature
 ```
 
-The first compatibility line should target Bevy 0.17.3 with
-`default-features = false`, because `bevy::prelude::*` is the natural import
-surface for downstream steps and the default harness must stay headless. Until
-`rstest-bdd` publishes v0.6.0-beta3, the harness crate should use git
-dependencies against `https://github.com/leynos/rstest-bdd` `main`. After
-publication, replace those with normal `0.6.0-beta3` crate dependencies.
+Roadmap task `0.5.1.1` establishes exactly the subset above. Task `0.5.1.2` adds
+`src/context.rs`, `src/harness.rs`, `src/panic.rs`, and `src/policy.rs` and
+their behavioural test pairs; the feature file `headless_scenario.feature` is
+re-bound through the harness-selecting `#[scenario]` rather than copied.
+
+The compatibility line targets Bevy `0.19.1` with `default-features = false` and
+`features = ["std"]`: `bevy::prelude::*` is the natural import surface for
+downstream steps, the default harness must stay headless, and the `std` feature
+keeps the time plugin on wall-clock without enabling the renderer or window. The
+`rstest-bdd` family now uses published stable `0.6.0` requirements with
+implicit-caret syntax. The historical exact `=0.6.0-beta3` pins avoided
+drifting across breaking beta releases; they are superseded by the stable
+release decision. The stable focused and workspace suites and six local gates
+passed on the source tree named in §1. PR #51 is published but `BLOCKED` with
+review decision `CHANGES_REQUESTED`; build-test run `38309867260` was in
+progress at the latest status check. Current hosted outcomes, review
+reconciliation, and PR acceptance remain pending. The migration guide notes
+that bound feature files are Cargo rebuild dependencies, a custom
+`HarnessAdapter::run` returns `HarnessResult<T>`, and Rust 1.88 is the minimum
+supported version. Do not use git dependencies against upstream `main`.
 
 ## 10. Verification strategy
 
@@ -306,6 +348,16 @@ Skyjoust gameplay:
 - macro-shape coverage with `trybuild` proving that a type alias implementing
   `HarnessAdapter + Default` works under
   `#[scenario(harness = TestBevyHarness)]`;
+- compile-pass and compile-fail `trybuild` fixtures for the `rstest-bdd`
+  attribute-macro contract exercised by this crate's scenario tests, including
+  checked diagnostics for representative invalid declarations;
+- keep the missing-file behaviour of Rust's built-in `include_str!` out of
+  `trybuild`; stable `rstest-bdd` 0.6.0 automatically tracks bound feature
+  files as Cargo rebuild dependencies. The stable A/B confirmed that a
+  feature-only edit rebuilds and fails with `Step not found`, both with and
+  without explicit `include_str!`. Retain the explicit declaration because the
+  task contract requires it, not because it is load-bearing; the earlier beta3
+  result is historical;
 - panic diagnostic coverage proving feature path, scenario name, and scenario
   line survive the unwind path.
 
@@ -319,17 +371,27 @@ resources and validator trace capture, then advance the app with explicit
 The harness crate should be fork-ready from its first commit:
 
 - no dependency on `skyjoust` or `lille`;
+- no dependency on sibling `skyjoust-test-macros`, including in the test graph;
+- fixture lint handling stays crate-owned by the nested workspace member
+  `rstest-bdd-harness-bevy-test-macros` and limited to this crate's test
+  fixtures; it moves with the harness source, adds no public runtime API, and
+  is not a general-purpose macro utility;
+- retain the synthetic `skyjoust-test-macros` near-match canary in the direct
+  manifest boundary test; it protects exact-name matching but is not an actual
+  dependency of this crate;
 - no checked-in Skyjoust profile inside the harness crate;
 - public API names and module boundaries stable enough for a directory move;
 - examples and tests using toy Bevy resources rather than game modules;
+- compile-pass and compile-fail `trybuild` fixtures for the macro contracts the
+  crate uses, without a redundant `include_str!` compile-fail fixture;
 - dependency versions kept in one `Cargo.toml`.
 
 Extraction into `leynos/rstest-bdd-harness-bevy` should happen after Skyjoust
 and Lille each carry one headless behavioural scenario through their normal
-gates. The extracted repository should replace git/path `rstest-bdd`
-dependencies with published `0.6.0-beta3` crates, add continuous integration
-for format, Clippy, tests, and documentation, and keep Skyjoust consuming the
-crate by git dependency during the beta proving period.
+gates. The extracted repository should use published `rstest-bdd` 0.6.0
+requirements, add continuous integration for format, Clippy, tests, and
+documentation, and keep Skyjoust consuming the crate by git dependency during
+the proving period.
 
 ## 12. Risks
 
@@ -352,13 +414,19 @@ state resources unless they are represented as downstream profile code.
 
 ## 13. References
 
-- `rstest-bdd` repository HEAD, commit `21b67a4`, inspected on
-  2026-06-27: <https://github.com/leynos/rstest-bdd>.
+- Historical `rstest-bdd` 0.6.0-beta3 crate releases, published 2026-07-07:
+  <https://crates.io/crates/rstest-bdd-harness/0.6.0-beta3>.
 - `rstest-bdd` third-party harness cookbook and GPUI harness documentation:
   <https://github.com/leynos/rstest-bdd/blob/main/docs/users-guide.md>.
-- Bevy 0.17.3 `App` documentation:
-  <https://docs.rs/bevy/0.17.3/bevy/app/struct.App.html>.
-- Bevy 0.17.3 `MinimalPlugins` documentation:
-  <https://docs.rs/bevy/0.17.3/bevy/prelude/struct.MinimalPlugins.html>.
+- Imported `rstest-bdd` v0.6.0 user's guide:
+  <https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/users-guide.md>.
+- `rstest-bdd` v0.6.0 migration guide:
+  <https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md>.
+- Bevy 0.19.1 `App` documentation:
+  <https://docs.rs/bevy/0.19.1/bevy/app/struct.App.html>.
+- Bevy 0.19.1 `MinimalPlugins` documentation:
+  <https://docs.rs/bevy/0.19.1/bevy/prelude/struct.MinimalPlugins.html>.
 - Skyjoust runtime ownership and testing constraints:
   [Project Skyjoust technical design](skyjoust-technical-design.md).
+- In-tree incubation and dependency decisions:
+  [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).

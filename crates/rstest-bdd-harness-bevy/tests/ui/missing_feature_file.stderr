@@ -1,0 +1,7 @@
+error: feature file not found: $WORKSPACE/target/tests/trybuild/rstest-bdd-harness-bevy/tests/ui/features/missing.feature
+ --> tests/ui/missing_feature_file.rs:5:1
+  |
+5 | #[scenario(path = "tests/ui/features/missing.feature", index = 0)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `scenario` (in Nightly builds, run with -Z macro-backtrace for more info)

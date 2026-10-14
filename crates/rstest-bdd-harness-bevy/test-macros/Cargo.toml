@@ -1,0 +1,19 @@
+[package]
+name = "rstest-bdd-harness-bevy-test-macros"
+version = "0.1.0"
+edition = "2024"
+description = "Test-only fixture lint helper for rstest-bdd-harness-bevy."
+publish = false
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true
+
+[dependencies]
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
+[dev-dependencies]
+rstest = "0.27"

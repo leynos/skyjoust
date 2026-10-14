@@ -178,3 +178,44 @@ standard error:
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace -- --verbose < trace.json
 ```
+
+## 4. Use the headless Bevy test helpers
+
+`rstest-bdd-harness-bevy` provides small helpers for tests that need a headless
+Bevy application. The crate is currently workspace-only (`publish = false`), so
+tests in this workspace's root package use a path development dependency:
+
+```toml
+[dev-dependencies]
+rstest-bdd-harness-bevy = { path = "crates/rstest-bdd-harness-bevy" }
+```
+
+The crate supports Bevy `0.19.1`. Its `add_minimal_plugins` function adds
+Bevy's minimal plugin set to an existing `App`; `minimal_app` creates a fresh
+application with that set already installed. Both avoid window, renderer,
+asset, and audio plugins. The schedule runner does not advance the app for a
+test: call `app.update()` explicitly whenever the scenario should advance.
+
+```rust
+use rstest_bdd_harness_bevy::{bevy::diagnostic::FrameCount, minimal_app};
+
+#[test]
+fn advances_one_headless_frame() {
+    let mut app = minimal_app();
+    app.update();
+    assert_eq!(app.world().resource::<FrameCount>().0, 1);
+}
+```
+
+For the crate's full test setup and extension guidance, see the
+[crate README](../crates/rstest-bdd-harness-bevy/README.md) and
+[harness design](rstest-bdd-harness-bevy-design.md). The
+[Skyjoust adoption note](rstest-bdd-harness-bevy-adoption.md) explains the
+workspace-only test dependency and migration boundary. The
+[`rstest-bdd` v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) covers the
+framework's usage; the
+[v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md) records changes
+from v0.5.0. They were imported from the upstream
+[user's guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/users-guide.md)
+and
+[migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md).
