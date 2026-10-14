@@ -5,25 +5,22 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: IMPLEMENTATION COMPLETE — REVIEW AND ACCEPTANCE PENDING
+Status: IMPLEMENTATION COMPLETE — PR ACCEPTANCE TRACKED SEPARATELY
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. The implementation
-milestones are delivered, but review and acceptance remain open. The latest
-published PR #51 head is `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based on
-`main` at `d177781a276012da013531e7b6b9642fc0a5e0b8`. Hosted run `38310809953`,
-attempt 1, failed when the coverage job timed out `macro_ui` at 180.004
-seconds. The rebased local candidate is
-`d0f2a794cb1256143b8885505e9473e5a8307431`, tree
-`bb621714865e3eca0d38c5ce6aebca5d2c80029e`, based on live `main`
-`afb8fbe09af5ec2b216105b7e6671a3490b9a1ba`; it has not yet been published. Its
-six sequential local gates passed, but this does not prove that cold hosted
-coverage succeeds. Push, hosted recheck, review, and acceptance remain pending.
-Do not treat this plan as fully accepted until current hosted checks and review
-are reconciled and all acceptance conditions are recorded.
+milestones are delivered. Final acceptance requires current hosted checks and
+review to be reconciled. The stable `rstest-bdd` 0.6.0 compatibility pass, all
+six local gates, and the local acceptance checks are complete on implementation
+source tree `d0f2a794`; that implementation is published, and subsequent
+changes have been documentation-only. Local success does not establish that
+cold hosted coverage succeeds. Read the current PR checks and reviews before
+treating delivery as accepted. Do not treat this plan as fully accepted until
+current hosted checks and review are reconciled and all acceptance conditions
+are recorded.
 
 Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -80,7 +77,8 @@ without escalating.
    Inverse dependency checks, the standalone crate suite, and all six workspace
    gates passed on the current source tree before the documentation-only
    follow-up; the follow-up's documentation and acceptance checks also passed.
-   Hosted checks, review, and final PR acceptance remain pending.
+   Hosted outcomes, review, and final PR acceptance are tracked on the live PR;
+   these local results do not establish them.
 4. `rstest-bdd` step functions are not `#[test]` functions, so the workspace's
    test allowance does not permit `.expect()` in them. Propagate fallible work
    through `Result` and `?`; where it stays clear, prefer functional
@@ -167,8 +165,9 @@ one, stop and escalate rather than working around it.
 - Bevy features: `default-features = false` with `features = ["std"]` is the
   agreed declaration. If a further feature proves necessary, stop and escalate.
 - `rstest-bdd` version: use the published stable `0.6.0` family with implicit
-  caret requirements. Do not substitute a git dependency on `main`; complete
-  and record the stable compatibility pass before acceptance.
+  caret requirements. Do not substitute a git dependency on `main`. The stable
+  compatibility pass is complete and recorded in `Progress`; PR acceptance
+  still depends on hosted checks and review.
 - Iterations: if a gate still fails after three fix attempts, stop and escalate
   with the log path recorded in `Progress`. Before counting an attempt, check
   whether two gates are contradicting one another — `check-fmt` and `lint` can
@@ -297,12 +296,12 @@ one, stop and escalate rather than working around it.
   `rstest-bdd 0.6.0-beta3` requirement. Later PRs advanced the root requirement
   to `0.27`; the harness now declares `rstest = "0.27"`. Current inverse
   dependency checks resolve Bevy `0.19.1`, `rstest` `0.27.0`, and `rstest-bdd`
-  `0.6.0`; the post-documentation acceptance checks passed, while final PR
-  acceptance remains pending.
+  `0.6.0`; the post-documentation acceptance checks passed. The live PR records
+  the hosted and review evidence required for final acceptance.
 
 ## Progress
 
-Latest hosted result (2026-10-12): PR #51 candidate
+Historical hosted failure (2026-10-12): PR #51 candidate
 `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based on `main`
 `d177781a276012da013531e7b6b9642fc0a5e0b8`, completed Actions run
 `38310809953`, attempt 1, job `115015810460`. The lint job passed. The
@@ -318,41 +317,47 @@ observed cold UI-test runtime. Build contention is plausible, but the logs do
 not prove it was the sole cause. The failure log is
 `/tmp/skyjoust-pr51-actions-38310809953.eqWQZH/run-38310809953-attempt-1/job-115015810460.log`.
 
-Provisional mitigation: preserve the shared action's default 180-second Nextest
+Current delivery status: the stable compatibility pass, all six local gates,
+and local acceptance checks are complete on implementation source tree
+`d0f2a794`. Subsequent changes have been documentation-only. The historical
+timeout above does not establish whether the candidate's hosted coverage run
+passes; consult the live PR checks and reviews before treating delivery as
+accepted.
+
+Candidate mitigation: preserve the shared action's default 180-second Nextest
 slow timeout and 10-minute global timeout; serialize only `binary(/_ui$/)`
 tests in a `compile-ui` group capped at one test, with a 60-second period, ten
-terminations, and five-second grace period. A draft configuration is present in
+terminations, and five-second grace period. The repository configuration is in
 `.config/nextest.toml`, and its contract test is present in
 `tests/nextest_policy.rs`. Actual Nextest group membership is verified for both
-UI binaries, with `max-threads = 1`. The latest rebased local gates and earlier
-resource-pressure observations are recorded in Progress and Revisions 24-27
-below. The local full workspace test passed, but this does not prove the cold
-hosted coverage timeout is resolved; hosted coverage remains pending. No claim
-is made that the coverage failure is fixed. The roadmap implementation item
-`0.5.1.1` remains checked complete, while PR acceptance remains pending. The
-separate user-facing adoption-guide finding is already addressed at this
-candidate: `docs/rstest-bdd-harness-bevy-adoption.md` documents setup and the
-headless/API boundary, `docs/contents.md` indexes it, and `docs/users-guide.md`
-links to it. No duplicate migration note is needed.
+UI binaries, with `max-threads = 1`. The local gates and acceptance checks are
+complete on the implementation source tree recorded in Progress and Revision
+27; subsequent changes have been documentation-only. The local full workspace
+test passed, but this does not prove the cold hosted coverage timeout is
+resolved. A successful hosted cold-coverage run is the acceptance evidence for
+the mitigation; consult the live PR for its status. The roadmap implementation
+item `0.5.1.1` remains checked complete. The separate user-facing
+adoption-guide finding is already addressed at this candidate:
+`docs/rstest-bdd-harness-bevy-adoption.md` documents setup and the headless/API
+boundary, `docs/contents.md` indexes it, and `docs/users-guide.md` links to it.
+No duplicate migration note is needed.
 
-Latest local candidate validation (2026-10-14): after rebasing all 22 branch
-commits one-for-one onto live `main`, candidate
-`d0f2a794cb1256143b8885505e9473e5a8307431` (tree
-`bb621714865e3eca0d38c5ce6aebca5d2c80029e`) passed the six sequential gates:
-`make check-fmt`, `make lint`, `make typecheck`, `make test` (239/239 tests,
-zero skipped, plus workspace doctests), `make markdownlint` (35 files, zero
-errors), and `make nixie`. The test gate measured `macro_ui` at 75.440 seconds
-and `fixture_expansion_lints_ui` at 68.640 seconds. Nextest 0.9.133 resolved
-both binaries into `compile-ui` with `max-threads = 1` for
-`--workspace --all-targets --all-features`; the group listing is recorded in
-`/tmp/nextest-groups-pr51-d0f2a794-workspace.out`. Compilation was uncached;
-Cargo locking and compiler admission queued normally. These are local results
-on the rebased candidate, not hosted coverage evidence. The published PR still
-points to `06fac215a37a580a1a9281682bc5b2e0aa56d3f8` on base
-`d177781a276012da013531e7b6b9642fc0a5e0b8`, where hosted run `38310809953`
-failed on the 180.004-second `macro_ui` timeout. The rebased candidate has not
-yet been pushed; hosted recheck, review reconciliation, and PR acceptance
-remain pending.
+Local candidate validation (2026-10-14): after rebasing all 22 branch commits
+one-for-one onto live `main`, implementation source tree `d0f2a794` passed the
+six sequential gates: `make check-fmt`, `make lint`, `make typecheck`,
+`make test` (239/239 tests, zero skipped, plus workspace doctests),
+`make markdownlint` (35 files, zero errors), and `make nixie`. The test gate
+measured `macro_ui` at 75.440 seconds and `fixture_expansion_lints_ui` at
+68.640 seconds. Nextest 0.9.133 resolved both binaries into `compile-ui` with
+`max-threads = 1` for `--workspace --all-targets --all-features`; the group
+listing is recorded in `/tmp/nextest-groups-pr51-d0f2a794-workspace.out`.
+Compilation was uncached; Cargo locking and compiler admission queued normally.
+The local acceptance checks also passed on this source tree; subsequent commits
+changed documentation only. These are local results, not hosted coverage
+evidence. An earlier hosted run failed on the 180.004-second `macro_ui`
+timeout, as recorded above. At the time of this entry, the mitigation's hosted
+result and current review status must be read from the live PR; local results
+are not hosted coverage evidence.
 
 Prior published status (before hosted run `38310809953`): PR #51 head
 `adfcb5c5e1bc435f6a58e8a0cdc5fa800fb23800` was based on `main`
@@ -1227,16 +1232,17 @@ approached. The scope trigger counted 14 changed files against Table 2's 22.
 **What `0.5.1.2` inherits.** Bevy `0.19.1` with implicit caret syntax,
 `rstest = "0.27"`, stable `rstest-bdd` 0.6.0 with implicit caret requirements,
 `StepResult`-returning steps, and the completed pull request #6 rebase. The
-stable-release compatibility pass remains pending. The `#[must_use = "..."]`
+stable-release compatibility pass is complete. The `#[must_use = "..."]`
 message form is needed because Bevy's `App` is already `#[must_use]`. Closure
 names in `rstest-bdd` steps must not shadow the step parameter
 (`clippy::shadow_reuse` is denied; `|shared|` and `|mut borrow|` are the
-adopted idiom). Recheck `include_str!` against stable 0.6.0: beta3 needed the
-guard, while the migration guide says the macro now registers bound feature
-files as Cargo rebuild dependencies. The headless `cargo tree` queries and the
-`bevy 0.19.1` single-line check are the extraction-contract baseline.
-`BevyScenario` will wrap the same `bevy::app::App` type this milestone's
-`minimal_app` returns, so the re-export and `std` feature remain load-bearing.
+adopted idiom). The stable 0.6.0 A/B confirmed that the macro registers bound
+feature files as Cargo rebuild dependencies; retain the explicit `include_str!`
+declaration as the task-required documentary dependency. The headless
+`cargo tree` queries and the `bevy 0.19.1` single-line check are the
+extraction-contract baseline. `BevyScenario` will wrap the same
+`bevy::app::App` type this milestone's `minimal_app` returns, so the re-export
+and `std` feature remain load-bearing.
 
 ## Conformance basis
 
@@ -2940,9 +2946,16 @@ resolved both UI binaries into the serial `compile-ui` group under
 `--workspace --all-targets --all-features`; the tests took 75.440 and 68.640
 seconds. Compilation was uncached, and Cargo locking and compiler admission
 queued normally. This is local evidence on the rebased candidate; it does not
-establish that cold hosted coverage passes. The published PR remains at
-`06fac215a37a580a1a9281682bc5b2e0aa56d3f8` on base
-`d177781a276012da013531e7b6b9642fc0a5e0b8`, where run `38310809953` failed with
-the 180.004-second `macro_ui` timeout. The local candidate is not yet
-published; hosted recheck, review reconciliation, and PR acceptance remain
-pending.
+establish that cold hosted coverage passes. At the time of this entry, the
+implementation candidate was not yet published. It has since been published
+with documentation-only follow-ups; the current hosted and review status is
+recorded in Progress. PR acceptance remains pending.
+
+Revision 28, 2026-10-14. Hosted run `38549332394`, attempt 1, passed on the
+published code candidate `f43787df774e9d50414d22e98de74eb913d2aefe`; required
+job `115803162509` passed, including the cold coverage step. This confirms the
+compile-heavy UI timeout policy for implementation source tree `d0f2a794`. The
+follow-up recorded in this revision changes only this ExecPlan, the crate
+README, and the roadmap; source code is unchanged. The new documentation head
+requires its own current-head check before merge. The PR review remains to be
+reconciled.

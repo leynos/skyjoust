@@ -80,23 +80,19 @@ informs later runtime testing in Phase 1. See
     archive without tracked edits. `make markdownlint` passed for 35 files
     with zero errors, and `make nixie` passed; exact logs and the initial
     stable-Cargo/wrong-nightly correction history are recorded in the
-    ExecPlan's current Progress. These are local results only. The latest
-    published PR head remains `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based
-    on `d177781a276012da013531e7b6b9642fc0a5e0b8`; hosted run `38310809953`,
-    attempt 1, failed when `macro_ui` timed out at 180.004 seconds. The local
-    rebased candidate is `d0f2a794cb1256143b8885505e9473e5a8307431`, tree
-    `bb621714865e3eca0d38c5ce6aebca5d2c80029e`, based on live
-    `main` `afb8fbe09af5ec2b216105b7e6671a3490b9a1ba`. All six sequential
-    gates passed on that exact, not-yet-published tree: `make check-fmt`,
-    `make lint`, `make typecheck`, `make test` (239/239, zero skipped, and
-    workspace doctests), `make markdownlint` (35 files, zero errors), and
-    `make nixie`. Nextest 0.9.133 resolved both UI binaries into the serial
-    `compile-ui` group under `--workspace --all-targets --all-features`; the
-    `macro_ui` and `fixture_expansion_lints_ui` tests took 75.440 and 68.640
-    seconds. Compilation was uncached; Cargo locking and compiler admission
-    queued normally. This local run does not establish that cold hosted coverage
-    passes. Push, hosted recheck, review reconciliation, and final PR acceptance
-    remain pending. The roadmap item remains checked for implementation
+    ExecPlan's current Progress. An earlier hosted coverage run timed out
+    `macro_ui` at 180.004 seconds; the failure and its evidence remain recorded
+    there as historical. The local acceptance checks and all six gates passed
+    on implementation source tree `d0f2a794`; later changes have been
+    documentation-only. The full workspace test passed 239/239 with no skipped
+    tests and doctests; Markdownlint passed for 35 files with zero errors, and
+    Nextest resolved both UI binaries into the serial `compile-ui` group. This
+    local evidence does not prove cold hosted coverage. Final acceptance
+    requires a successful hosted cold-coverage run and current review
+    reconciliation; hosted run `38549332394` passed cold coverage on the
+    published code candidate `f43787df774e9d50414d22e98de74eb913d2aefe`.
+    This status follow-up changes documentation only, so the live PR checks
+    must confirm the final head. The roadmap item remains checked for implementation
     completion, not PR acceptance.
 - [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.5.1.1.

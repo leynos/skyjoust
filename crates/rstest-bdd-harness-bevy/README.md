@@ -23,8 +23,10 @@ The suite covers five unit cases for the profile functions, a Gherkin scenario
 that advances one headless update tick, a 32-case property test over tick
 counts, four extraction-contract tripwire tests, and two doctests. The
 behavioural scenario appears as `minimal_app_advances_one_tick`. The broader
-crate suite has not yet been rerun against stable `rstest-bdd` 0.6.0;
-compatibility and acceptance gates remain pending.
+crate suite passed against stable `rstest-bdd` 0.6.0. The six local gates and
+acceptance checks passed on the implementation source tree; later changes were
+documentation-only. Final acceptance requires hosted CI, including a cold
+coverage run, and review.
 
 Fixture lint handling is provided by the nested, test-only workspace member
 `rstest-bdd-harness-bevy-test-macros` package. It owns the
@@ -36,9 +38,10 @@ fixture normalization. The valid scenario binding remains compiled and
 exercised by `tests/headless_scenario.rs`. The compile-fail fixture binds a
 missing scenario feature file, testing the `rstest-bdd` contract rather than
 Rust's generic `include_str!` diagnostic. The focused `trybuild` target passed
-against stable 0.6.0; full crate compatibility and acceptance gates remain
-pending. The stable feature-file freshness A/B also passed: macro auto-tracking
-rebuilds after feature-only edits with or without the explicit declaration.
+against stable 0.6.0 as part of the completed local validation. The stable
+feature-file freshness A/B also passed: macro auto-tracking rebuilds after
+feature-only edits with or without the explicit declaration. A hosted cold
+coverage run is required to confirm the timeout mitigation.
 
 The crate uses the published stable `rstest-bdd` 0.6.0 family with implicit
 caret requirements. Review the
