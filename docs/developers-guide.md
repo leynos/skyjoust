@@ -93,13 +93,49 @@ behavioural fixture exactly as the search-based tests in that section describe.
 Compile-based UI test binaries run `trybuild`, which starts nested Cargo
 compilations. For Nextest-based coverage, binaries named with the `_ui` suffix
 use the dedicated `compile-ui` test group: that group runs one test at a time
-and gives each test a finite 10-minute slow-time budget. Other tests retain the
-default 180-second slow-time budget, and the workspace-wide timeout remains 10
-minutes. This policy is specific to Nextest; `cargo test` does not apply
-Nextest test groups or its per-test timeout settings. The longer scoped budget
-includes the nested Cargo compilation and any time spent waiting for Cargo's
-package-cache lock. It accounts for the observed cold UI-test runtime;
-contention may add time but was not established as the sole cause.
+and gives each test a finite 20-minute slow-time budget. Other tests retain the
+default 180-second slow-time budget. The workspace-wide timeout is 45 minutes,
+which contains both serialized UI runners, their five-second termination grace
+periods, and an ordinary-test tail. The policy applies to development and
+coverage runs that use Nextest; `cargo test` does not apply Nextest groups or
+timeouts. The root `nextest_policy` suite guards the runner inventory, scoped
+limits, and containment by the CI watchdogs.
+
+`make test-prepare` runs `cargo fetch --locked` against the shared default
+Cargo cache before timed tests start. `make test` depends on that preparation
+and runs the test binaries and doctests offline, including nested trybuild
+processes. All trybuild dependencies come from workspace dependencies. The
+main-branch coverage workflow also prepares dependencies before invoking
+coverage. Offline execution avoids network delays; it does not eliminate
+Cargo's cache locks or compiler-admission waits. Cargo parallelism remains
+under caller control.
+
+Both CI coverage callers set a finite 3,600-second Cargo watchdog, allowing 15
+minutes for cold compilation beyond the 45-minute Nextest run. Their 75-minute
+step watchdogs leave time for cleanup and reporting; the ordinary test step has
+the same outer bound. These are conservative containment budgets following
+Cuprum's timeout treatment,[^cargo-queue-budgets] not measured execution-time
+guarantees. The failed local run reached its old 600-second limit while nested
+Cargo waited for package-cache access and compiled dependencies.
+
+The repository relies on the installed compiler wrappers for shared admission.
+A healthy pool can have every slot occupied and hundreds of requests queued.
+Start each gate once and let its compiler requests wait their turn; a busy pool
+does not require a quiet-window preflight or a duplicate build. Keep the shared
+default Cargo cache and leave Cargo parallelism under caller control. The
+compile-test budget includes nested compiler-admission and cache-lock waits.
+Separating allocation, preparation, and execution timing further would require
+a supported upstream workload-admission contract, as proposed in Cuprum's
+resource-coordination follow-up.[^build-resource-coordination]
+
+Cargo can cache a failed compiler-version probe in the effective target
+directory's `.rustc_info.json`. After admission recovers, an immediate retry
+can replay the cached `rustc -vV` failure, including old admission-wait
+messages. Inspect that generated file's `outputs` for an entry with
+`success: false` before treating those messages as a fresh failure. Preserve
+the failed metadata for diagnosis, remove only that generated file, and retry
+the gate through the normal compiler wrapper. Keep the shared Cargo cache and
+admission settings.
 
 ## 3. Validator module structure
 
@@ -486,3 +522,7 @@ run the target; `.github/cv005.toml` holds the repository name and nothing
 else. A Dependabot pull request merged by the automerge workflow fires no push
 event, so that merge publishes nothing until the next push to `main`
 (shared-actions #518 tracks the fix).
+
+[^cargo-queue-budgets]: [Cuprum PR #631: Raise test budgets for Cargo cache waits](https://github.com/leynos/cuprum/pull/631).
+
+[^build-resource-coordination]: [Cuprum issue #633: Control shared build resources before timed test workloads start](https://github.com/leynos/cuprum/issues/633).

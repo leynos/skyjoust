@@ -1,6 +1,6 @@
 .PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie \
 	check-diagrams generate-state-graphs check-state-graphs spelling
-.PHONY: test-workflow-contracts
+.PHONY: test-workflow-contracts test-prepare
 
 
 TARGET ?= skyjoust
@@ -94,12 +94,16 @@ clean: ## Remove build artefacts
 
 # Trybuild launches nested Cargo commands from test binaries, whose PATH may not
 # include Cargo's installation directory.
-test: ## Run tests with warnings treated as errors
-	CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+# Fetch before Nextest starts timing tests, including nested trybuild builds.
+test-prepare: ## Prepare locked workspace dependencies before timed tests
+	$(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" fetch --locked
+
+test: test-prepare ## Run tests with warnings treated as errors
+	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 	@# Doctests run whichever runner is selected: `--all-targets` excludes them,
 	@# so the plain `cargo test` branch needs the explicit run too.
 	@doc_test_log="$$(mktemp)"; \
-	if CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" test --doc --workspace --all-features 2> "$$doc_test_log"; then \
+	if CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" test --doc --workspace --all-features 2> "$$doc_test_log"; then \
 		rm -f "$$doc_test_log"; \
 	elif grep -q "no library targets found" "$$doc_test_log"; then \
 		cat "$$doc_test_log"; \
