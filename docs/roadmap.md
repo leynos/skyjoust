@@ -18,7 +18,7 @@ early roadmap tasks create further narrow ADRs where the design still names
 unresolved choices. ADR 009 records the Bevy harness crate decision. The
 accepted numbering includes main's ADR 007 and ADR 008.
 
-## 0.5. Bevy behaviour-driven development harness spike
+## 0. Bevy behaviour-driven development harness spike
 
 Idea: if Skyjoust proves a headless Bevy `rstest-bdd` harness before runtime
 resources harden, behavioural tests can drive fixed-tick entity-component
@@ -30,7 +30,7 @@ with a public API that remains extractable. It validates harness behaviour with
 toy Bevy resources first, then leaves the Skyjoust profile hook ready for the
 first runtime resources.
 
-### 0.5.1. Prove the reusable headless Bevy scenario boundary
+### 0.1. Prove the reusable headless Bevy scenario boundary
 
 This step answers whether a Bevy `App` wrapper gives scenario steps enough
 power to configure plugins, inspect resources, run schedules, and clean up
@@ -39,7 +39,7 @@ informs later runtime testing in Phase 1. See
 `docs/rstest-bdd-harness-bevy-design.md` §§4-10 and
 `docs/skyjoust-technical-design.md` §§4, 5, and 14.
 
-- [x] 0.5.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
+- [x] 0.1.1. Add `crates/rstest-bdd-harness-bevy` as a workspace member.
   - Keep the crate free of Skyjoust and Lille dependencies.
   - Use Bevy `0.19.1` with `default-features = false` and the `std` feature;
     use published stable `rstest-bdd` 0.6.0 family requirements with implicit
@@ -94,8 +94,8 @@ informs later runtime testing in Phase 1. See
     This status follow-up changes documentation only, so the live PR checks
     must confirm the final head. The roadmap item remains checked for implementation
     completion, not PR acceptance.
-- [ ] 0.5.1.2. Implement the reusable Bevy harness public API.
-  - Requires 0.5.1.1.
+- [ ] 0.1.2. Implement the reusable Bevy harness public API.
+  - Requires 0.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,
     `MinimalBevyProfile`, and `BevyAttributePolicy`.
   - Make `BevyScenario` wrap a Bevy `App`, not a raw `World`, and expose
@@ -104,17 +104,17 @@ informs later runtime testing in Phase 1. See
   - Success: generated scenarios can instantiate the harness through
     `<Harness as Default>::default()` and receive the wrapper through
     `rstest_bdd_harness_context`.
-- [ ] 0.5.1.3. Validate harness behaviour with unit, behavioural, panic, and
+- [ ] 0.1.3. Validate harness behaviour with unit, behavioural, panic, and
   macro-shape coverage.
-  - Requires 0.5.1.2.
+  - Requires 0.1.2.
   - Cover metadata retention, profile configure and cleanup hooks, Bevy
     `Update` ticks, cleanup after panic, and a `trybuild` compile-pass fixture
     for a harness type alias.
   - See `docs/rstest-bdd-harness-bevy-design.md` §§6, 7, and 10.
   - Success: the tests prove the reusable harness without depending on
     Skyjoust runtime modules.
-- [ ] 0.5.1.4. Add the Skyjoust smoke profile once runtime resources exist.
-  - Requires 0.5.1.3 and 1.3.1.
+- [ ] 0.1.4. Add the Skyjoust smoke profile once runtime resources exist.
+  - Requires 0.1.3 and 1.3.1.
   - Define `SkyjoustBevyProfile` outside the reusable harness crate.
   - Assert state graph resources and validator trace capture through
     `#[from(rstest_bdd_harness_context)] scenario: &BevyScenario`.
@@ -122,8 +122,8 @@ informs later runtime testing in Phase 1. See
   - Success: one headless scenario advances the app explicitly and exports a
     validator-observable trace without pulling Skyjoust code into the harness
     crate.
-- [ ] 0.5.1.5. Document adoption, validation, and extraction rules.
-  - Requires 0.5.1.2.
+- [ ] 0.1.5. Document adoption, validation, and extraction rules.
+  - Requires 0.1.2.
   - Document the reserved fixture key, third-party attribute-policy limitation,
     normal Skyjoust gates, and extraction path.
   - Keep all Skyjoust-specific setup in downstream profile code.

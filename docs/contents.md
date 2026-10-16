@@ -84,8 +84,8 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
 
 - [Record the initial runtime crate split as an ADR](execplans/1-1-1-record-runtime-crate-split-as-adr.md)
   - approval-gated plan for roadmap task `1.1.1`.
-- [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
-  - execution plan for roadmap task `0.5.1.1`.
+- [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+  - execution plan for roadmap task `0.1.1`.
 
 ## State graph references and artefacts
 

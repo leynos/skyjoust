@@ -30,8 +30,8 @@ in-source resolution.
 
 This is a known `rstest` issue rather than a defect in this repository. It will
 recur at every fixture the project writes, and Skyjoust is about to acquire
-many: roadmap phase 0.5 introduces behaviour-driven tests whose scenario state
-is supplied by fixtures.
+many: roadmap phase 0 introduces behaviour-driven tests whose scenario state is
+supplied by fixtures.
 
 [The developer's guide](../developers-guide.md) §7.3 already governs lint
 suppression, and it says to use `#[expect(...)]` and never `#[allow(...)]`. It

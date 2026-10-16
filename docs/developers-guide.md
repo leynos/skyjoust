@@ -55,7 +55,7 @@ an extension seam: *the profile type is the single extension seam. Every
 game-specific plugin, resource, and cleanup hook lives in a downstream
 implementation of it, never in this crate.* Skyjoust and Lille each define a
 profile type outside the crate once the first deterministic runtime resources
-exist (roadmap `0.5.1.4`); the crate itself never acquires game modules.
+exist (roadmap `0.1.4`); the crate itself never acquires game modules.
 
 The crate incubates here but keeps its extraction contract: no Skyjoust or
 Lille dependency, directly or transitively. `tests/extraction_boundary.rs`

@@ -50,8 +50,7 @@ findings refer to superseded head `6b185eee6ee3d330585b08b2fa3d5a529754a536`.
 Hosted outcomes, current review reconciliation, and final acceptance remain
 pending. See
 [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
-the
-[ExecPlan](execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
+the [ExecPlan](execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
 for the current decision and local evidence; it distinguishes that evidence
 from the remaining PR lifecycle work.
 
@@ -314,7 +313,7 @@ crates/rstest-bdd-harness-bevy/
         `-- headless_scenario.feature
 ```
 
-Roadmap task `0.5.1.1` establishes exactly the subset above. Task `0.5.1.2` adds
+Roadmap task `0.1.1` establishes exactly the subset above. Task `0.1.2` adds
 `src/context.rs`, `src/harness.rs`, `src/panic.rs`, and `src/policy.rs` and
 their behavioural test pairs; the feature file `headless_scenario.feature` is
 re-bound through the harness-selecting `#[scenario]` rather than copied.
