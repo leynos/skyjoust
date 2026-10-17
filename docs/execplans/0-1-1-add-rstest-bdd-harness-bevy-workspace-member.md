@@ -12,15 +12,14 @@ treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. The implementation
-milestones are delivered. Final acceptance requires current hosted checks and
-review to be reconciled. The stable `rstest-bdd` 0.6.0 compatibility pass, all
-six local gates, and the local acceptance checks are complete on implementation
-source tree `d0f2a794`; that implementation is published, and subsequent
-changes have been documentation-only. Local success does not establish that
-cold hosted coverage succeeds. Read the current PR checks and reviews before
-treating delivery as accepted. Do not treat this plan as fully accepted until
-current hosted checks and review are reconciled and all acceptance conditions
-are recorded.
+milestones are delivered. The stable `rstest-bdd` 0.6.0 compatibility pass and
+original implementation source tree `d0f2a794` are historical. Test
+preparation, timeout policy, documentation, and phase renumbering follow-ups
+are recorded in the revision log. Final acceptance is tracked separately on the
+live PR: read its current hosted checks and review feedback before treating
+delivery as accepted. Do not treat this plan as fully accepted until current
+checks, applicable assessments, and review are reconciled and all acceptance
+conditions are recorded.
 
 Roadmap task: `0.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
@@ -132,11 +131,11 @@ one, stop and escalate rather than working around it.
   `examples/serve_explorer.rs` that resolves cognitive complexity 15/9. Keep
   the tracing event order and checker lifetime; do not suppress the lint or
   change its threshold. No other edits in that crate are in scope. Do not modify
-  `src/` or `tests/makefile_contract.rs`.
-- Do not add or rename Makefile targets. `tests/makefile_contract.rs` asserts
-  that the `build`, `test`, `lint`, and `typecheck` recipes each pass
-  `--config tools/dev-fast/config.toml`; leaving the Makefile alone keeps that
-  contract intact.
+  `src/`. A later user-authorized test-preparation follow-up extends the
+  original scope narrowly to `Makefile` and `tests/makefile_contract.rs`: add
+  `test-prepare`, make `test` depend on it, fetch locked dependencies before
+  offline test and doctest invocations, and assert that ordering in the
+  Makefile contract. No other Makefile target or contract changes are in scope.
 - `typos.toml` is generated and must not be hand-edited, but it must be
   *regenerated* whenever `typos.local.toml` changes. `make spelling-config`
   checks the committed `typos.toml` against the sources and gates
@@ -256,8 +255,9 @@ one, stop and escalate rather than working around it.
   caches together approach the cap, raise a follow-up to narrow the coverage
   job's cached path.
 
-- Risk: the shared coverage action's default Nextest slow timeout can stop
-  nested `trybuild` compilation before the UI-test binary completes. Hosted run
+- Historical risk and interim policy (2026-10-14; superseded by Revision 31):
+  the shared coverage action's default Nextest slow timeout could stop nested
+  `trybuild` compilation before the UI-test binary completes. Hosted run
   `38310809953` terminated `macro_ui` at 180.004 seconds in the coverage job.
   Separately, the plain `cargo test` step measured `macro_ui` at 186.68
   seconds; its log timestamps show the next UI target starting more than 195
@@ -270,10 +270,10 @@ one, stop and escalate rather than working around it.
   give that override a finite 60-second period with ten terminations and a
   five-second grace period (600 seconds total slow-time budget). The config
   contract tests and workspace group membership were locally validated, and the
-  bounded full workspace suite passed (Revision 27). This local run does not
-  establish that the cold hosted coverage timeout is resolved; coverage on the
-  updated candidate remains pending. Do not treat the hosted coverage failure
-  as resolved until that run passes.
+  bounded full workspace suite passed (Revision 27). At this record's date, the
+  updated candidate's hosted coverage result remained pending. Revision 31
+  records the later policy correction and its successful current-head coverage
+  run.
 
 - Risk: `make fmt` runs `cargo +nightly fmt` (the floating nightly) while
   `make check-fmt` runs `cargo fmt` (the toolchain-file-pinned nightly). With
@@ -317,27 +317,19 @@ observed cold UI-test runtime. Build contention is plausible, but the logs do
 not prove it was the sole cause. The failure log is
 `/tmp/skyjoust-pr51-actions-38310809953.eqWQZH/run-38310809953-attempt-1/job-115015810460.log`.
 
-Current delivery status: the stable compatibility pass, all six local gates,
-and local acceptance checks are complete on implementation source tree
-`d0f2a794`. Subsequent changes have been documentation-only. The historical
-timeout above does not establish whether the candidate's hosted coverage run
-passes; consult the live PR checks and reviews before treating delivery as
-accepted.
+Historical delivery snapshot (2026-10-14): the stable compatibility pass, six
+local gates, and local acceptance checks were complete on implementation source
+tree `d0f2a794`. This snapshot predates the test-preparation and timeout-policy
+follow-ups. Consult the later revision entries and live PR checks for current
+candidate evidence.
 
-Candidate mitigation: preserve the shared action's default 180-second Nextest
-slow timeout and 10-minute global timeout; serialize only `binary(/_ui$/)`
-tests in a `compile-ui` group capped at one test, with a 60-second period, ten
-terminations, and five-second grace period. The repository configuration is in
-`.config/nextest.toml`, and its contract test is present in
-`tests/nextest_policy.rs`. Actual Nextest group membership is verified for both
-UI binaries, with `max-threads = 1`. The local gates and acceptance checks are
-complete on the implementation source tree recorded in Progress and Revision
-27; subsequent changes have been documentation-only. The local full workspace
-test passed, but this does not prove the cold hosted coverage timeout is
-resolved. A successful hosted cold-coverage run is the acceptance evidence for
-the mitigation; consult the live PR for its status. The roadmap implementation
-item `0.1.1` remains checked complete. The separate user-facing adoption-guide
-finding is already addressed at this candidate:
+Historical candidate mitigation (superseded by Revision 31): preserve the
+shared action's default 180-second Nextest slow timeout and 10-minute global
+timeout; serialize only `binary(/_ui$/)` tests in a `compile-ui` group capped
+at one test, with a 60-second period, ten terminations, and five-second grace
+period. The later published candidate changed these limits. The roadmap
+implementation item `0.1.1` remains checked complete. The separate user-facing
+adoption-guide finding was addressed at this candidate:
 `docs/rstest-bdd-harness-bevy-adoption.md` documents setup and the headless/API
 boundary, `docs/contents.md` indexes it, and `docs/users-guide.md` links to it.
 No duplicate migration note is needed.
@@ -864,8 +856,10 @@ remain pending as recorded above.
 - Observation: the CI coverage action builds with *default* features via
   `cargo llvm-cov nextest`, and nextest does not run doctests. Evidence: the
   `generate-coverage` action's Rust runner script in `leynos/shared-actions`.
-  Impact: doctests contribute nothing to the codecov figure. The patch target
-  is still met, but by the unit tests — the first draft gave the wrong reason.
+  Impact: doctests contribute nothing to that coverage figure. The PR workflow
+  runs the project's baseline ratchet; it does not upload a Codecov artefact or
+  establish the separate patch target in `codecov.yml`. Do not report the patch
+  target as met without a Codecov result.
 
 - Observation: `docs/rstest-bdd-users-guide.md` and
   `docs/ortho-config-users-guide.md`, cited in the earlier `1.1.1` execplan, do
@@ -932,24 +926,20 @@ remain pending as recorded above.
 
 ## Decision log
 
-- Decision (provisional; draft present, validation pending): give only
-  compile-based Nextest UI test binaries matching `binary(/_ui$/)` a dedicated
-  `compile-ui` group with `max-threads = 1` and a finite 600-second slow-time
-  budget (`period = "60s"`, ten terminations, five-second grace). Preserve the
-  shared action's default 180-second slow timeout for other tests and its
-  10-minute global timeout. Drafts are present in `.config/nextest.toml` and
-  `tests/nextest_policy.rs`; group membership and the policy contract tests
-  passed locally, as did the bounded workspace test and other local gates.
-  These warm local results do not prove the cold hosted coverage timeout is
-  resolved. Rationale: hosted run `38310809953`, attempt 1, job `115015810460`,
-  passed lint but timed out `macro_ui` at 180.004 seconds; the separate plain
-  `cargo test` step measured that binary at 186.68 seconds, with the next UI
-  target starting more than 195 seconds after its start. A second UI suite took
-  179.062 seconds. Cache hits were 5/2,147. These observations show the default
-  is insufficient for the observed cold run; they do not prove contention as
-  the sole cause. A successful hosted coverage run is required before resolving
-  this finding or accepting the PR. Date/Author: 2026-10-13, maintainer
-  decision.
+- Decision (accepted 2026-10-17): give only compile-based Nextest UI test
+  binaries matching `binary(/_ui$/)` a dedicated `compile-ui` group with
+  `max-threads = 1` and a finite 60-minute slow-time budget (`period = "60s"`,
+  sixty terminations, five-second grace). Preserve the shared action's default
+  180-second slow timeout for other tests and set the workspace limit to 130
+  minutes. The CI step watchdogs are 175 minutes; the coverage action's Cargo
+  watchdog is 9,600 seconds, leaving 30 minutes beyond Nextest plus time for
+  cleanup. The old 20-minute per-test limit expired during an uncached BDD pass
+  fixture after nested test dependencies rebuilt. The revised policy passed
+  locally on `ab0d071f`: `make test` passed 244/244 Nextest tests, including
+  the two UI fixtures in 546.460 and 581.624 seconds, plus all doctests. Hosted
+  run `39047593116`, attempt 1, passed its Cranelift test, workflow contracts,
+  and coverage steps on the same head. See Revision 31 for the full evidence
+  and current review status.
 
 - Historical decision: depend on published `rstest-bdd` `0.6.0-beta3` crates
   rather than git dependencies against `main`. Rationale: the roadmap's
@@ -1199,6 +1189,12 @@ here rather than blocking delivery. Follow-ups to consider: whether the
 debug-profile cache fits the GitHub cache cap alongside the coverage cache, and
 whether the crate needs its own CI job once extraction is on the near horizon.
 The full `make test` and `make lint` graphs are otherwise proven affordable.
+
+**Current worktree observation (2026-10-17).** After the candidate gates,
+`du -sh target/` reported 6.8 GB, exceeding the 6 GB tolerance by 0.8 GB; the
+root filesystem had 335 GB available. The prior warm `make all` timing remains
+historical and was not remeasured for this review follow-up. No build cache was
+cleaned or isolated.
 
 **Historical beta3 feature-file rebuild guard.** The Milestone 4 A/B test
 proved the explicit guard load-bearing against beta3: without `include_str!`, a
@@ -2021,11 +2017,15 @@ A reader who has never seen this repository can verify the change like this.
 - Boundary: `cargo tree` shows no `skyjoust`, no `lille`, and no Bevy
   rendering, windowing, asset, or audio crates, both for the crate alone and
   across the workspace.
-- Coverage: the 80% patch target in `codecov.yml` is met. Note that the CI
-  coverage action runs coverage through nextest with *default* features, and
-  nextest does not run doctests — so the doctests contribute nothing to the
-  figure. The five unit tests and the instrumented integration tests are what
-  cover the patch.
+- Coverage (current workflow policy): require the pinned
+  `generate-coverage` action's project-baseline ratchet to pass. The
+  pull-request workflow sets `with-ratchet: true`, disables artefact
+  publication, and runs Nextest with default features without doctests; run
+  `39047593116` measured 87.20% against the 87.36% baseline and passed the
+  ratchet. `codecov.yml` separately declares an 80% patch target, but this
+  workflow did not upload a Codecov artefact or produce a Codecov check, so
+  that target was not assessed. Do not infer patch coverage from the project
+  percentage; adding a Codecov upload/check remains a separate workflow change.
 - Cost: a warm `make all` completes within fifteen minutes and the build tree
   stays under 6 GB, per `Tolerances`. Record both.
 
@@ -2973,3 +2973,27 @@ changed zero packages; `Cargo.lock` remains identical to main's. The existing
 UI fixtures and timeout contracts provide the compatibility checks for these
 dependency updates while the branch retains dependency preparation and bounded
 test time limits.
+
+Revision 31, 2026-10-17. Reconciled the completeness assessment on published
+head `ab0d071f55394c09c99bf2f424fce21854cc5471` against comparison base
+`2b7d260692df41e9ef8e75e5871c2ae210f1b78c`
+([assessment comment](https://github.com/leynos/skyjoust/pull/135#issuecomment-6236551076)).
+The assessment found no functional correctness defect, but identified stale
+scope and timeout records and an unsupported claim that the Codecov patch
+target had passed. Updated the current constraints and decision to cover the
+user-authorized `test-prepare` target, the 60-minute UI limit, the 130-minute
+Nextest limit, and the outer watchdogs. The PR workflow's actual coverage gate
+is the project's baseline ratchet, not the separate 80% Codecov patch target;
+the latter was not evaluated because the workflow publishes no Codecov artefact
+and returns no Codecov check. The exact-head run measured 87.20% against an
+87.36% baseline and passed the ratchet.
+
+Local gates on that assessed head passed: `make check-fmt`, `make lint`,
+`make typecheck`, `make test` (244/244 Nextest tests and all doctests),
+`make markdownlint`, `make nixie`, `make spelling`, and
+`make test-workflow-contracts`. Hosted run `39047593116`, attempt 1, passed
+formatting, spelling, Markdown lint, lint, Cranelift tests, workflow contracts,
+and coverage on the same head. No formal proof or model checker was introduced;
+the proof assessment is not applicable as specified by the plan. PR acceptance
+and any assessment of the documentation-only reconciliation remain tracked on
+the live PR.
