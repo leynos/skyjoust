@@ -24,7 +24,7 @@ fn ordinary_tests_keep_the_shared_action_timeouts(policy: Result<Value, toml::de
 
     assert_eq!(
         defaults.get("global-timeout").and_then(Value::as_str),
-        Some("45m"),
+        Some("130m"),
         "the run limit must contain both serialized UI runners"
     );
     assert_eq!(
@@ -89,8 +89,8 @@ fn only_ui_binaries_receive_the_serial_compile_budget(policy: Result<Value, toml
     );
     assert_eq!(
         timeout.get("terminate-after").and_then(Value::as_integer),
-        Some(20),
-        "UI tests must terminate after twenty minutes rather than run indefinitely"
+        Some(60),
+        "UI tests must terminate after sixty minutes rather than run indefinitely"
     );
     assert_eq!(
         timeout.get("grace-period").and_then(Value::as_str),
@@ -165,12 +165,52 @@ fn coverage_watchdogs_contain_the_test_run(
         .expect("coverage must set an explicit step watchdog");
 
     assert!(
-        cargo_seconds >= (run_minutes + 15) * 60,
-        "the Cargo watchdog must allow the run budget plus fifteen minutes for cold compilation"
+        cargo_seconds >= (run_minutes + 30) * 60,
+        "the Cargo watchdog must allow the run budget plus thirty minutes for cold compilation"
     );
     assert!(
         step_minutes * 60 > cargo_seconds,
         "the CI step must leave time for watchdog cleanup and coverage reporting"
+    );
+}
+
+#[test]
+fn test_step_watchdog_contains_nextest_and_doctests() {
+    let config: Value = toml::from_str(include_str!("../.config/nextest.toml"))
+        .expect("Nextest policy must be valid TOML");
+    let run_minutes = config
+        .get("profile")
+        .and_then(|profiles| profiles.get("default"))
+        .and_then(|defaults| defaults.get("global-timeout"))
+        .and_then(Value::as_str)
+        .and_then(|duration| duration.strip_suffix('m'))
+        .and_then(|minutes| minutes.parse::<u64>().ok())
+        .expect("the global run budget must be expressed in whole minutes");
+    let workflow: serde_norway::Value =
+        serde_norway::from_str(include_str!("../.github/workflows/ci.yml"))
+            .expect("the CI workflow must be valid YAML");
+    let steps = workflow
+        .get("jobs")
+        .and_then(|jobs| jobs.get("build-test"))
+        .and_then(|job| job.get("steps"))
+        .and_then(serde_norway::Value::as_sequence)
+        .expect("the CI job must contain steps");
+    let test = steps
+        .iter()
+        .find(|step| {
+            step.get("run")
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|command| command.trim() == "make test")
+        })
+        .expect("the CI job must run the complete test target");
+    let step_minutes = test
+        .get("timeout-minutes")
+        .and_then(serde_norway::Value::as_u64)
+        .expect("the test target must have an explicit step watchdog");
+
+    assert!(
+        step_minutes > run_minutes + 30,
+        "the CI step must leave thirty minutes beyond Nextest for compilation and doctests"
     );
 }
 

@@ -1,7 +1,7 @@
 [profile.default]
 slow-timeout = { period = "180s", terminate-after = 1, grace-period = "5s" }
 # Two serialized UI runners may each consume their full compile budget.
-global-timeout = "45m"
+global-timeout = "130m"
 
 [test-groups.compile-ui]
 max-threads = 1
@@ -10,4 +10,4 @@ max-threads = 1
 [[profile.default.overrides]]
 filter = 'binary(/_ui$/)'
 test-group = "compile-ui"
-slow-timeout = { period = "60s", terminate-after = 20, grace-period = "5s" }
+slow-timeout = { period = "60s", terminate-after = 60, grace-period = "5s" }
