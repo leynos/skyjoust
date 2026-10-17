@@ -5,7 +5,8 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: IMPLEMENTATION COMPLETE — PR ACCEPTANCE TRACKED SEPARATELY
+Status: IMPLEMENTATION COMPLETE — COST ACCEPTANCE BLOCKED PENDING MAINTAINER
+DISPOSITION
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
@@ -300,6 +301,14 @@ one, stop and escalate rather than working around it.
   the hosted and review evidence required for final acceptance.
 
 ## Progress
+
+Cost acceptance check (2026-10-17, published head
+`0c7e4dcd1149e5457798660fe77769dbc6ac6174`): two sequential `make all` runs
+passed, but the measured criteria were not met. The warm run took 19m12s,
+exceeding the fifteen-minute tolerance, and `target/` measured 6.7 GB,
+exceeding the 6 GB limit. The cold run took 1h46m56s. The raw logs and
+directory measurements are recorded in Revision 32. Keep cost acceptance open
+and await a maintainer disposition; do not report the plan as fully accepted.
 
 Historical hosted failure (2026-10-12): PR #51 candidate
 `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based on `main`
@@ -1164,6 +1173,16 @@ remain pending as recorded above.
   must stay stable; this milestone emits none. The panic-diagnostic format in
   `0.1.3` is the artefact worth pinning. Date/Author: 2026-08-15, planning pass.
 
+- Decision (pending maintainer disposition, 2026-10-17): the repeated cost check
+  on head `0c7e4dcd` missed both the 15-minute warm `make all` tolerance and
+  the 6 GB target-size limit. Keep plan acceptance blocked. Options are to
+  authorize a scoped remediation that brings both measurements within their
+  limits, or to approve an explicit exception that records the measured CI cost
+  and build-tree size. Remediation may require a separate CI/cache or
+  extraction design and must not be improvised in this review follow-up; an
+  exception retains the higher resource cost. No option is approved yet.
+  Date/Author: 2026-10-17, review follow-up.
+
 ## Outcomes & retrospective
 
 Milestone 6 gate results are recorded in `Progress` as they are produced; the
@@ -1175,10 +1194,12 @@ compile of the full `0.19.1` graph and the `rstest-bdd` family took 40 seconds
 were seconds: Milestone 3's focused test 6 seconds, `cargo doc` 1.3 seconds,
 `cargo clippy` 0.5 seconds, and the Whitaker Dylint driver 30 seconds. The
 Milestone 6 gate sequence ran `check-fmt` in 3 seconds, `check-state-graphs` in
-5, `markdownlint` in 7, `lint` in 12, `test` in about 2 minutes, and `nixie` in
+5, `markdownlint` in 7, `lint` in 12, and `test` in about 2 minutes; `nixie`
+also passed.
 
-1. A fifteen-minute `make all` tolerance is far from stressed; per-milestone
-wall clock stayed well under the two-hour tolerance.
+The initial milestone runs were far below the two-hour work tolerance. Their
+observation that the fifteen-minute `make all` tolerance was not stressed is
+historical and is superseded by the cost acceptance measurements below.
 
 **Build-tree size.** `du -sh target/` measures 6.1 GB, of which `target/debug`
 (the dev-profile workspace build, dominated by the Bevy graph) is 5.1 GB and
@@ -1190,11 +1211,35 @@ debug-profile cache fits the GitHub cache cap alongside the coverage cache, and
 whether the crate needs its own CI job once extraction is on the near horizon.
 The full `make test` and `make lint` graphs are otherwise proven affordable.
 
-**Current worktree observation (2026-10-17).** After the candidate gates,
-`du -sh target/` reported 6.8 GB, exceeding the 6 GB tolerance by 0.8 GB; the
-root filesystem had 335 GB available. The prior warm `make all` timing remains
-historical and was not remeasured for this review follow-up. No build cache was
-cleaned or isolated.
+**Earlier worktree observation (2026-10-17; raw output not retained).** After
+the candidate gates, `du -sh target/` was recorded as 6.8 GB, exceeding the 6
+GB tolerance by 0.8 GB; the root filesystem had 335 GB available. The later
+verification below supersedes this unreproducible size reading. No build cache
+was cleaned or isolated.
+
+**Verified cost acceptance check (2026-10-17; head
+`0c7e4dcd1149e5457798660fe77769dbc6ac6174`).** Two sequential `make all` runs
+passed on the default worktree target with `CARGO_TARGET_DIR` unset. The cold
+run took 1h46m56s; its raw output is
+`/tmp/make-all-9dfa792c-48bf-4b13-a6d1-ebde7133695f-import-developer-standards-documentation-costcheck-1.out`.
+The warm run took 19m12s; its raw output is
+`/tmp/make-all-9dfa792c-48bf-4b13-a6d1-ebde7133695f-import-developer-standards-documentation-costcheck-2.out`.
+Both passed 244/244 Nextest tests with no skips, all 11 doctests, and all six
+workflow contract tests. The warm UI fixtures took 79.209 and 244.652 seconds.
+The warm duration exceeds the fifteen-minute tolerance.
+
+Immediately after each run, `du -sh target/` reported 6.7 GB. The first
+measurement showed `target/debug` at 3.7 GB, `target/dylint` at 923 MB,
+`target/tests` at 2.1 GB, `target/doc` at 5.3 MB, and `target/tmp` at 184 KB;
+the second showed the same sizes. The raw first and second measurements are
+`/tmp/make-all-cost-observation-9dfa792c-48bf-4b13-a6d1-ebde7133695f-import-developer-standards-documentation-1.out`
+and
+`/tmp/make-all-cost-observation-9dfa792c-48bf-4b13-a6d1-ebde7133695f-import-developer-standards-documentation-2.out`.
+The filesystem had 313 GB free after the cold run and 302 GB after the warm
+run. Both measurements exceed the 6 GB limit. Compilation ran without sccache
+and included Cargo lock and admission waits; record that context without
+subtracting it from the measured wall time. Cost acceptance remains open until
+the limits are met or a maintainer explicitly authorizes an exception.
 
 **Historical beta3 feature-file rebuild guard.** The Milestone 4 A/B test
 proved the explicit guard load-bearing against beta3: without `include_str!`, a
@@ -2026,8 +2071,11 @@ A reader who has never seen this repository can verify the change like this.
   workflow did not upload a Codecov artefact or produce a Codecov check, so
   that target was not assessed. Do not infer patch coverage from the project
   percentage; adding a Codecov upload/check remains a separate workflow change.
-- Cost: a warm `make all` completes within fifteen minutes and the build tree
-  stays under 6 GB, per `Tolerances`. Record both.
+- Cost: a warm `make all` must complete within fifteen minutes and the build
+  tree must stay under 6 GB, per `Tolerances`. The 2026-10-17 measurements on
+  head `0c7e4dcd` missed both conditions; see the verified cost acceptance
+  check above. Keep this acceptance item open pending remediation or explicit
+  maintainer disposition.
 
 ### Quality method (how we check)
 
@@ -2997,3 +3045,15 @@ and coverage on the same head. No formal proof or model checker was introduced;
 the proof assessment is not applicable as specified by the plan. PR acceptance
 and any assessment of the documentation-only reconciliation remain tracked on
 the live PR.
+
+Revision 32, 2026-10-17. Repeated the plan's cost measurements on published head
+`0c7e4dcd1149e5457798660fe77769dbc6ac6174` after the completeness assessment
+identified cost acceptance as unresolved
+([assessment comment](https://github.com/leynos/skyjoust/pull/135#issuecomment-6237928689)).
+Two sequential `make all` runs passed, but the warm run took 19m12s against
+the 15-minute tolerance and both target measurements were 6.7 GB against the 6
+GB limit. Recorded the exact durations, directory breakdown, available disk
+space, and raw log paths above. The plan status now marks cost acceptance
+blocked pending maintainer disposition; no exception or remediation was
+authorized by this record. The implementation remains functionally complete,
+but do not treat all acceptance conditions or PR readiness as satisfied.
