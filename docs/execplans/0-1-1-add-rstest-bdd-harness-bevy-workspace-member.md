@@ -2962,3 +2962,14 @@ Revision 29, 2026-10-16. Renumbered the harness spike as phase 0 at the
 maintainer's request. This plan is now named for task `0.1.1`; its forward
 instructions and document links use the new numbering. Historical log filenames
 retain their original names so the evidence remains locatable.
+
+Revision 30, 2026-10-17. Rebased the branch importing documentation and
+renumbering phase 0 onto `origin/main` at
+`2b7d260692df41e9ef8e75e5871c2ae210f1b78c`. All three branch commits replayed
+without conflicts or patch changes. Retained main's `syn` 3 requirement for the
+fixture-lint helper and its locked updates to `trybuild` 1.0.122 and `toml`
+1.1.8. Resolving the workspace with `cargo update --workspace --offline`
+changed zero packages; `Cargo.lock` remains identical to main's. The existing
+UI fixtures and timeout contracts provide the compatibility checks for these
+dependency updates while the branch retains dependency preparation and bounded
+test time limits.
