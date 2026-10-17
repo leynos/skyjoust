@@ -12,17 +12,16 @@ treat silence as approval. The five choices in
 `Decisions resolved before approval` are settled, but settling them does not
 itself authorize execution. The maintainer authorized execution on 2026-08-17
 by directing that the planned functionality be implemented. The implementation
-milestones are delivered. Final acceptance requires current hosted checks and
-review to be reconciled. The stable `rstest-bdd` 0.6.0 compatibility pass, all
-six local gates, and the local acceptance checks are complete on implementation
-source tree `d0f2a794`; that implementation is published, and subsequent
-changes have been documentation-only. Local success does not establish that
-cold hosted coverage succeeds. Read the current PR checks and reviews before
-treating delivery as accepted. Do not treat this plan as fully accepted until
-current hosted checks and review are reconciled and all acceptance conditions
-are recorded.
+milestones are delivered. The stable `rstest-bdd` 0.6.0 compatibility pass and
+original implementation source tree `d0f2a794` are historical. Test
+preparation, timeout policy, documentation, and phase renumbering follow-ups
+are recorded in the revision log. Final acceptance is tracked separately on the
+live PR: read its current hosted checks and review feedback before treating
+delivery as accepted. Do not treat this plan as fully accepted until current
+checks, applicable assessments, and review are reconciled and all acceptance
+conditions are recorded.
 
-Roadmap task: `0.5.1.1` in [the Skyjoust roadmap](../roadmap.md).
+Roadmap task: `0.1.1` in [the Skyjoust roadmap](../roadmap.md).
 
 ## Purpose / big picture
 
@@ -40,7 +39,7 @@ running tests — that the load-bearing dependency choices work together on this
 repository's pinned toolchain and its Cranelift build configuration. It stops
 short of the harness types themselves (`BevyScenario`, `BevyHarness`,
 `BevyProfile`, `BareBevyProfile`, `MinimalBevyProfile`, `BevyAttributePolicy`);
-the roadmap assigns those names to task `0.5.1.2`.
+the roadmap assigns those names to task `0.1.2`.
 
 After this change a developer can run one command and watch a headless Bevy
 application advance a fixed tick from inside a Gherkin scenario:
@@ -132,11 +131,11 @@ one, stop and escalate rather than working around it.
   `examples/serve_explorer.rs` that resolves cognitive complexity 15/9. Keep
   the tracing event order and checker lifetime; do not suppress the lint or
   change its threshold. No other edits in that crate are in scope. Do not modify
-  `src/` or `tests/makefile_contract.rs`.
-- Do not add or rename Makefile targets. `tests/makefile_contract.rs` asserts
-  that the `build`, `test`, `lint`, and `typecheck` recipes each pass
-  `--config tools/dev-fast/config.toml`; leaving the Makefile alone keeps that
-  contract intact.
+  `src/`. A later user-authorized test-preparation follow-up extends the
+  original scope narrowly to `Makefile` and `tests/makefile_contract.rs`: add
+  `test-prepare`, make `test` depend on it, fetch locked dependencies before
+  offline test and doctest invocations, and assert that ordering in the
+  Makefile contract. No other Makefile target or contract changes are in scope.
 - `typos.toml` is generated and must not be hand-edited, but it must be
   *regenerated* whenever `typos.local.toml` changes. `make spelling-config`
   checks the committed `typos.toml` against the sources and gates
@@ -159,7 +158,7 @@ one, stop and escalate rather than working around it.
   re-export block described in `Interfaces and dependencies`. Anything named in
   design §§4-7 — `BevyScenario`, `BevyHarness`, `BevyProfile`,
   `BareBevyProfile`, `MinimalBevyProfile`, `BevyAttributePolicy` — belongs to
-  roadmap task `0.5.1.2`; if one appears necessary here, stop and escalate.
+  roadmap task `0.1.2`; if one appears necessary here, stop and escalate.
 - Dependencies: the dependency set in `Interfaces and dependencies` is fixed.
   If any additional crate is required, stop and escalate.
 - Bevy features: `default-features = false` with `features = ["std"]` is the
@@ -174,7 +173,7 @@ one, stop and escalate rather than working around it.
   each reject the other's fix (see `Risks`).
 - Recurring cost: if a full `make all` on a warm cache exceeds fifteen minutes,
   or `target/` exceeds 6 GB, stop and escalate. The crate would then need its
-  own continuous integration (CI) job, or extraction sooner than `0.5.1.5`
+  own continuous integration (CI) job, or extraction sooner than `0.1.5`
   assumes.
 - Time: if any milestone exceeds two hours of work, stop and escalate. Time
   spent blocked on the shared Cargo package-cache lock does not count.
@@ -256,8 +255,9 @@ one, stop and escalate rather than working around it.
   caches together approach the cap, raise a follow-up to narrow the coverage
   job's cached path.
 
-- Risk: the shared coverage action's default Nextest slow timeout can stop
-  nested `trybuild` compilation before the UI-test binary completes. Hosted run
+- Historical risk and interim policy (2026-10-14; superseded by Revision 31):
+  the shared coverage action's default Nextest slow timeout could stop nested
+  `trybuild` compilation before the UI-test binary completes. Hosted run
   `38310809953` terminated `macro_ui` at 180.004 seconds in the coverage job.
   Separately, the plain `cargo test` step measured `macro_ui` at 186.68
   seconds; its log timestamps show the next UI target starting more than 195
@@ -270,10 +270,10 @@ one, stop and escalate rather than working around it.
   give that override a finite 60-second period with ten terminations and a
   five-second grace period (600 seconds total slow-time budget). The config
   contract tests and workspace group membership were locally validated, and the
-  bounded full workspace suite passed (Revision 27). This local run does not
-  establish that the cold hosted coverage timeout is resolved; coverage on the
-  updated candidate remains pending. Do not treat the hosted coverage failure
-  as resolved until that run passes.
+  bounded full workspace suite passed (Revision 27). At this record's date, the
+  updated candidate's hosted coverage result remained pending. Revision 31
+  records the later policy correction and its successful current-head coverage
+  run.
 
 - Risk: `make fmt` runs `cargo +nightly fmt` (the floating nightly) while
   `make check-fmt` runs `cargo fmt` (the toolchain-file-pinned nightly). With
@@ -317,27 +317,19 @@ observed cold UI-test runtime. Build contention is plausible, but the logs do
 not prove it was the sole cause. The failure log is
 `/tmp/skyjoust-pr51-actions-38310809953.eqWQZH/run-38310809953-attempt-1/job-115015810460.log`.
 
-Current delivery status: the stable compatibility pass, all six local gates,
-and local acceptance checks are complete on implementation source tree
-`d0f2a794`. Subsequent changes have been documentation-only. The historical
-timeout above does not establish whether the candidate's hosted coverage run
-passes; consult the live PR checks and reviews before treating delivery as
-accepted.
+Historical delivery snapshot (2026-10-14): the stable compatibility pass, six
+local gates, and local acceptance checks were complete on implementation source
+tree `d0f2a794`. This snapshot predates the test-preparation and timeout-policy
+follow-ups. Consult the later revision entries and live PR checks for current
+candidate evidence.
 
-Candidate mitigation: preserve the shared action's default 180-second Nextest
-slow timeout and 10-minute global timeout; serialize only `binary(/_ui$/)`
-tests in a `compile-ui` group capped at one test, with a 60-second period, ten
-terminations, and five-second grace period. The repository configuration is in
-`.config/nextest.toml`, and its contract test is present in
-`tests/nextest_policy.rs`. Actual Nextest group membership is verified for both
-UI binaries, with `max-threads = 1`. The local gates and acceptance checks are
-complete on the implementation source tree recorded in Progress and Revision
-27; subsequent changes have been documentation-only. The local full workspace
-test passed, but this does not prove the cold hosted coverage timeout is
-resolved. A successful hosted cold-coverage run is the acceptance evidence for
-the mitigation; consult the live PR for its status. The roadmap implementation
-item `0.5.1.1` remains checked complete. The separate user-facing
-adoption-guide finding is already addressed at this candidate:
+Historical candidate mitigation (superseded by Revision 31): preserve the
+shared action's default 180-second Nextest slow timeout and 10-minute global
+timeout; serialize only `binary(/_ui$/)` tests in a `compile-ui` group capped
+at one test, with a 60-second period, ten terminations, and five-second grace
+period. The later published candidate changed these limits. The roadmap
+implementation item `0.1.1` remains checked complete. The separate user-facing
+adoption-guide finding was addressed at this candidate:
 `docs/rstest-bdd-harness-bevy-adoption.md` documents setup and the headless/API
 boundary, `docs/contents.md` indexes it, and `docs/users-guide.md` links to it.
 No duplicate migration note is needed.
@@ -383,8 +375,8 @@ establish hosted validation or PR acceptance.
 The six implementation milestones are complete. Earlier pre-repair gate results
 and the inherited `serve_explorer.rs` lint failure are retained below as
 historical evidence; they are superseded by the authorized helper extraction
-and current-candidate results. The roadmap implementation item `0.5.1.1`
-remains checked complete, distinct from pending PR acceptance.
+and current-candidate results. The roadmap implementation item `0.1.1` remains
+checked complete, distinct from pending PR acceptance.
 
 Pre-repair candidate validation: `make test` passed 236/236 tests plus
 workspace doctests (log:
@@ -414,9 +406,9 @@ compile-pass fixture, both compile-fail fixtures, and Make's workspace doctests
 Earlier trybuild unexpected-success results and OS `EAGAIN` failures remain
 historical observations; the constrained focused and full reruns passed.
 Resource exhaustion was a plausible explanation for the earlier outcomes, not a
-proven cause. The roadmap implementation item `0.5.1.1` remains checked
-complete. The six-gate and focused results above predate this adoption-note
-follow-up. The planner's `make fmt` passed; the scrutineer then passed the
+proven cause. The roadmap implementation item `0.1.1` remains checked complete.
+The six-gate and focused results above predate this adoption-note follow-up.
+The planner's `make fmt` passed; the scrutineer then passed the
 post-documentation `make markdownlint`, `make nixie`, and acceptance checks:
 
 - Formatter log:
@@ -499,7 +491,7 @@ migration guide documents that a custom `HarnessAdapter::run` returns
 `HarnessResult<T>`, fallible result-like step aliases propagate errors, the
 minimum Rust version is 1.88, and scenario-bound feature files are automatic
 Cargo rebuild dependencies. The current crate remains the profile-helper
-scaffold for task `0.5.1.1`; the user-facing functions and test cases are
+scaffold for task `0.1.1`; the user-facing functions and test cases are
 documented in its README. The focused `macro_ui` target passed against stable
 0.6.0, as did the feature-file freshness A/B: after a warm pass, a feature-only
 edit with no Rust-source touch triggered recompilation and the expected
@@ -589,7 +581,7 @@ remain pending as recorded above.
   - [x] Crate `README.md` including the Bevy compatibility table.
   - [x] `docs/repository-layout.md`.
   - [x] `docs/developers-guide.md`.
-  - [x] `docs/roadmap.md` — tick `0.5.1.1`, correct the stale sub-bullet.
+  - [x] `docs/roadmap.md` — tick `0.1.1`, correct the stale sub-bullet.
 - [x] (2026-08-17) Milestone 6: full gate run, measurements, push, draft
       pull request.
   - [x] Full gate run green: `make check-fmt`, `make check-state-graphs`,
@@ -710,9 +702,9 @@ remain pending as recorded above.
   section documents the current workspace-only dev-dependency setup, the two
   public functions, Bevy `0.19.1`, and explicit headless schedule advancement.
   No n+1 migration document is warranted before there are downstream consumers;
-  broader adoption and extraction instructions remain roadmap `0.5.1.5`.
+  broader adoption and extraction instructions remain roadmap `0.1.5`.
 
-- Observation (2026-09-28): roadmap task `0.5.1.1` was already checked at
+- Observation (2026-09-28): roadmap task `0.1.1` was already checked at
   `docs/roadmap.md:41`; no roadmap edit was needed for this review follow-up.
 
 - Observation (2026-09-28 review verification): retain the exact
@@ -732,7 +724,7 @@ remain pending as recorded above.
   `HarnessAdapter::run` implementations return `HarnessResult<T>`, result-like
   step aliases propagate errors, bound feature files are Cargo rebuild
   dependencies, and the minimum Rust version is 1.88. The current crate remains
-  the task `0.5.1.1` profile-helper scaffold and does not define a custom
+  the task `0.1.1` profile-helper scaffold and does not define a custom
   `HarnessAdapter`; verify the step and include contract against the stable
   release. The current manifest uses implicit-caret `0.6.0` requirements, but
   the last inspected lockfile still resolved beta3 and must be regenerated.
@@ -784,9 +776,9 @@ remain pending as recorded above.
   exports `policy_conformance` and a feature-gated `FailingHarness`; the
   extracted `beta3` archive exports neither and has no features table at all.
   Impact: under `beta3`, requesting the `testing` feature will not resolve, and
-  the policy-conformance helper is unavailable. Neither is needed here;
-  `0.5.1.3` must plan around them. Recorded in the design document with an
-  explicit migration trigger.
+  the policy-conformance helper is unavailable. Neither is needed here; `0.1.3`
+  must plan around them. Recorded in the design document with an explicit
+  migration trigger.
 
 - Observation: in the earlier Bevy `0.17.3` probe,
   `default-features = false` alone silently degraded timekeeping.
@@ -810,7 +802,7 @@ remain pending as recorded above.
   holding the application directly. Its steps return `StepResult` and propagate
   `RefCell` borrow failures. Published `rstest-bdd 0.6.0-beta3` supports
   `Result`-returning steps, so this is the normal error path rather than a
-  workaround. The same trap will recur in `0.5.1.2`; it is documented in the
+  workaround. The same trap will recur in `0.1.2`; it is documented in the
   developer's guide.
 
 - Observation: a single-expression `#[fixture]` body trips `unused_braces`
@@ -864,8 +856,10 @@ remain pending as recorded above.
 - Observation: the CI coverage action builds with *default* features via
   `cargo llvm-cov nextest`, and nextest does not run doctests. Evidence: the
   `generate-coverage` action's Rust runner script in `leynos/shared-actions`.
-  Impact: doctests contribute nothing to the codecov figure. The patch target
-  is still met, but by the unit tests — the first draft gave the wrong reason.
+  Impact: doctests contribute nothing to that coverage figure. The PR workflow
+  runs the project's baseline ratchet; it does not upload a Codecov artefact or
+  establish the separate patch target in `codecov.yml`. Do not report the patch
+  target as met without a Codecov result.
 
 - Observation: `docs/rstest-bdd-users-guide.md` and
   `docs/ortho-config-users-guide.md`, cited in the earlier `1.1.1` execplan, do
@@ -932,24 +926,20 @@ remain pending as recorded above.
 
 ## Decision log
 
-- Decision (provisional; draft present, validation pending): give only
-  compile-based Nextest UI test binaries matching `binary(/_ui$/)` a dedicated
-  `compile-ui` group with `max-threads = 1` and a finite 600-second slow-time
-  budget (`period = "60s"`, ten terminations, five-second grace). Preserve the
-  shared action's default 180-second slow timeout for other tests and its
-  10-minute global timeout. Drafts are present in `.config/nextest.toml` and
-  `tests/nextest_policy.rs`; group membership and the policy contract tests
-  passed locally, as did the bounded workspace test and other local gates.
-  These warm local results do not prove the cold hosted coverage timeout is
-  resolved. Rationale: hosted run `38310809953`, attempt 1, job `115015810460`,
-  passed lint but timed out `macro_ui` at 180.004 seconds; the separate plain
-  `cargo test` step measured that binary at 186.68 seconds, with the next UI
-  target starting more than 195 seconds after its start. A second UI suite took
-  179.062 seconds. Cache hits were 5/2,147. These observations show the default
-  is insufficient for the observed cold run; they do not prove contention as
-  the sole cause. A successful hosted coverage run is required before resolving
-  this finding or accepting the PR. Date/Author: 2026-10-13, maintainer
-  decision.
+- Decision (accepted 2026-10-17): give only compile-based Nextest UI test
+  binaries matching `binary(/_ui$/)` a dedicated `compile-ui` group with
+  `max-threads = 1` and a finite 60-minute slow-time budget (`period = "60s"`,
+  sixty terminations, five-second grace). Preserve the shared action's default
+  180-second slow timeout for other tests and set the workspace limit to 130
+  minutes. The CI step watchdogs are 175 minutes; the coverage action's Cargo
+  watchdog is 9,600 seconds, leaving 30 minutes beyond Nextest plus time for
+  cleanup. The old 20-minute per-test limit expired during an uncached BDD pass
+  fixture after nested test dependencies rebuilt. The revised policy passed
+  locally on `ab0d071f`: `make test` passed 244/244 Nextest tests, including
+  the two UI fixtures in 546.460 and 581.624 seconds, plus all doctests. Hosted
+  run `39047593116`, attempt 1, passed its Cranelift test, workflow contracts,
+  and coverage steps on the same head. See Revision 31 for the full evidence
+  and current review status.
 
 - Historical decision: depend on published `rstest-bdd` `0.6.0-beta3` crates
   rather than git dependencies against `main`. Rationale: the roadmap's
@@ -1031,16 +1021,16 @@ remain pending as recorded above.
   Rationale: the ExecPlan bar is demonstrably working behaviour, not a crate
   that merely compiles. `add_minimal_plugins` has exactly the shape design §5's
   `configure` calls, so `MinimalBevyProfile::configure` becomes two lines that
-  call it in `0.5.1.2` — the carry-forward is real, not aspirational.
+  call it in `0.1.2` — the carry-forward is real, not aspirational.
   `minimal_app` is the harness-free entry point for tests that want an
   application without a scenario, which Skyjoust and Lille will both want at
-  `0.5.1.4`. Both stay public after `0.5.1.2`. Alternatives considered and
+  `0.1.4`. Both stay public after `0.1.2`. Alternatives considered and
   rejected: (a) a `bare_app` constructor alongside them — a plain `App::new()`
   needs no wrapper and `BareBevyProfile::configure` has an empty body, so it
   would seed nothing; (b) shipping the whole `BevyProfile` trait seam now — the
   roadmap explicitly assigns `BevyProfile`, `BareBevyProfile`, and
-  `MinimalBevyProfile` to task `0.5.1.2`, and this plan must not consume the
-  next task's named deliverables; (c) an empty library with `bevy` and
+  `MinimalBevyProfile` to task `0.1.2`, and this plan must not consume the next
+  task's named deliverables; (c) an empty library with `bevy` and
   `rstest-bdd-harness` moved to development dependencies — viable, and the
   behavioural scenario would still run, but it defers every signature-shaped
   risk in design §5 and leaves the crate root undocumentable. Date/Author:
@@ -1112,7 +1102,7 @@ remain pending as recorded above.
   extension point owned by `rstest-bdd`, not a port this crate defines against
   a domain it owns, and there is no local domain to invert dependencies around.
   The durable rule, and the one that will actually keep game code out at
-  `0.5.1.4`, is: *the profile type is the single extension seam; every
+  `0.1.4`, is: *the profile type is the single extension seam; every
   game-specific plugin, resource, and cleanup hook lives in a downstream
   implementation of it, never in this crate.* That is design §8 and §11 stated
   enforceably. The claim that the crate holds no domain logic survives as a
@@ -1125,10 +1115,10 @@ remain pending as recorded above.
   operators, and this crate was test tooling rather than runtime. The
   development plan and technical design still describe the runtime crate split
   accepted in ADR 002; "one runtime crate beside the validator crate" remains
-  accurate, and plan phase reconciliation remains in `0.5.1.5`. The
-  documentation style guide clarifies that library API consumers belong in the
-  user's guide, so a compact consumer section is now present. Date/Author:
-  2026-08-15, planning pass; superseded 2026-09-28.
+  accurate, and plan phase reconciliation remains in `0.1.5`. The documentation
+  style guide clarifies that library API consumers belong in the user's guide,
+  so a compact consumer section is now present. Date/Author: 2026-08-15,
+  planning pass; superseded 2026-09-28.
 
 - Historical decision (superseded): retain the sibling
   `skyjoust-test-macros` path dependency as test-only tooling. Review verified
@@ -1172,8 +1162,7 @@ remain pending as recorded above.
   property that holds by Bevy's own frame counter, with no `unsafe` code and no
   unbounded state. Snapshots earn their keep when a multivariant output format
   must stay stable; this milestone emits none. The panic-diagnostic format in
-  `0.5.1.3` is the artefact worth pinning. Date/Author: 2026-08-15, planning
-  pass.
+  `0.1.3` is the artefact worth pinning. Date/Author: 2026-08-15, planning pass.
 
 ## Outcomes & retrospective
 
@@ -1200,6 +1189,12 @@ here rather than blocking delivery. Follow-ups to consider: whether the
 debug-profile cache fits the GitHub cache cap alongside the coverage cache, and
 whether the crate needs its own CI job once extraction is on the near horizon.
 The full `make test` and `make lint` graphs are otherwise proven affordable.
+
+**Current worktree observation (2026-10-17).** After the candidate gates,
+`du -sh target/` reported 6.8 GB, exceeding the 6 GB tolerance by 0.8 GB; the
+root filesystem had 335 GB available. The prior warm `make all` timing remains
+historical and was not remeasured for this review follow-up. No build cache was
+cleaned or isolated.
 
 **Historical beta3 feature-file rebuild guard.** The Milestone 4 A/B test
 proved the explicit guard load-bearing against beta3: without `include_str!`, a
@@ -1229,7 +1224,7 @@ notes confirms automatic tracking in both arms.
 interface, dependency, feature, version, iteration, or time tolerance was
 approached. The scope trigger counted 14 changed files against Table 2's 22.
 
-**What `0.5.1.2` inherits.** Bevy `0.19.1` with implicit caret syntax,
+**What `0.1.2` inherits.** Bevy `0.19.1` with implicit caret syntax,
 `rstest = "0.27"`, stable `rstest-bdd` 0.6.0 with implicit caret requirements,
 `StepResult`-returning steps, and the completed pull request #6 rebase. The
 stable-release compatibility pass is complete. The `#[must_use = "..."]`
@@ -1246,7 +1241,7 @@ and `std` feature remain load-bearing.
 
 ## Conformance basis
 
-This plan implements roadmap task `0.5.1.1` from `docs/roadmap.md`. Its design
+This plan implements roadmap task `0.1.1` from `docs/roadmap.md`. Its design
 basis is `docs/rstest-bdd-harness-bevy-design.md`, especially §§3, 9, 10, and
 11, as read on 2026-08-15 and amended in Milestone 1. ADR 002 governs the
 existing workspace split; ADR 006 and ADR 009 govern fixture-lint support and
@@ -1257,7 +1252,7 @@ rules. No Terms of Reference document applies to this tooling change.
 
 The selective trace links are:
 
-- `EP-REQ-001`, headless execution: roadmap `0.5.1.1` and design §§9-10 map to
+- `EP-REQ-001`, headless execution: roadmap `0.1.1` and design §§9-10 map to
   Milestones 0, 2, 3, 4, and 6, discharged by the focused scenario, feature
   graph checks, and full gates.
 - `EP-REQ-002`, extraction independence: design §11 maps to Milestones 1, 4,
@@ -1416,13 +1411,13 @@ pub trait HarnessAdapter {
 
 The harness builds its context, runs the request with it, and cleans up
 afterwards. Step functions reach the context through the reserved fixture key
-`rstest_bdd_harness_context`. That is the machinery `0.5.1.2` will implement
-for Bevy. This milestone only establishes the crate that will hold it.
+`rstest_bdd_harness_context`. That is the machinery `0.1.2` will implement for
+Bevy. This milestone only establishes the crate that will hold it.
 
 **Where the design lives.**
 [The `rstest-bdd-harness-bevy` design](../rstest-bdd-harness-bevy-design.md) is
 the specification. §3 and §9 govern this task (prior art, constraints, crate
-layout, dependency strategy). §§4-7 specify the API that `0.5.1.2` builds. §10
+layout, dependency strategy). §§4-7 specify the API that `0.1.2` builds. §10
 specifies verification. §11 is the extraction contract this milestone must not
 compromise.
 
@@ -1517,8 +1512,8 @@ Documentation only.
      validation, lockfile resolution and acceptance gates against stable were
      pending; current evidence is recorded in `Progress`. Link the imported
      user's and migration guides.
-   - §9: update the layout block to the names `0.5.1.1` actually establishes,
-     so `0.5.1.2` does not create a near-identical second scenario pair beside
+   - §9: update the layout block to the names `0.1.1` actually establishes,
+     so `0.1.2` does not create a near-identical second scenario pair beside
      them.
    - §13: refresh the references, replacing the stale commit citation.
    - Add a pointer to ADR 009.
@@ -1597,10 +1592,9 @@ Make no other change in this step.
 
 1. Create `crates/rstest-bdd-harness-bevy/README.md`, following the shape of
    the validator crate's README: title, purpose, how-to-run commands, a files
-   map, an extending section pointing at `0.5.1.2` and the design document, and
-   a captioned Bevy compatibility table stating that a Bevy type appears in
-   this crate's public signatures, so a Bevy minor bump is a breaking change
-   here.
+   map, an extending section pointing at `0.1.2` and the design document, and a
+   captioned Bevy compatibility table stating that a Bevy type appears in this
+   crate's public signatures, so a Bevy minor bump is a breaking change here.
 2. Update [the repository layout](../repository-layout.md): add the crate to
    the tree sketch, add path-responsibility bullets for the crate, its source,
    and its tests, and update the bullet that currently names only two workspace
@@ -1621,9 +1615,9 @@ Make no other change in this step.
      forever — scenarios must call `update`. The fixture expansion trap is
      already documented in §7.3 by the layer beneath this one; cross-reference
      it rather than restating it.
-4. Update [the roadmap](../roadmap.md): mark `0.5.1.1` as done, and replace the
+4. Update [the roadmap](../roadmap.md): mark `0.1.1` as done, and replace the
    now-satisfied sub-bullet about git dependencies with the decision actually
-   taken. Leaving the stale instruction would misdirect `0.5.1.2`.
+   taken. Leaving the stale instruction would misdirect `0.1.2`.
 
 ### Stage G: gates and delivery (Milestone 6)
 
@@ -1657,7 +1651,7 @@ git branch --show-current
 Expected:
 
 ```plaintext
-0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member
+0-1-1-add-rstest-bdd-harness-bevy-workspace-member
 ```
 
 Check free space before Milestone 2; the discarded `0.17.3` probe reached
@@ -1684,7 +1678,7 @@ rebase workflow:
 git fetch origin main
 git merge-base --is-ancestor origin/main add-test-macro-for-fixture-lint-suppression
 git merge-base --is-ancestor add-test-macro-for-fixture-lint-suppression \
-  0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member
+  0-1-1-add-rstest-bdd-harness-bevy-workspace-member
 ```
 
 Both ancestry checks must exit zero after the rebases. Inspect the root
@@ -1720,7 +1714,7 @@ Record the Bevy BDD harness crate decision as ADR 009
 
 Add ADR 009 covering in-tree incubation of
 `rstest-bdd-harness-bevy`, the extraction contract, and the
-dependency decisions taken for roadmap task 0.5.1.1.
+dependency decisions taken for roadmap task 0.1.1.
 
 Amend the harness design document to adopt published stable
 `rstest-bdd` 0.6.0 with implicit-caret requirements. Record the
@@ -1906,12 +1900,12 @@ du -sh target
 Then push and open the draft pull request:
 
 ```bash
-git push -u origin 0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member
+git push -u origin 0-1-1-add-rstest-bdd-harness-bevy-workspace-member
 ```
 
 The title must carry the roadmap number in parentheses — for example
-`Add rstest-bdd-harness-bevy as a workspace member (0.5.1.1)` — and the body
-must mention this ExecPlan by path, summarize the five maintainer decisions in
+`Add rstest-bdd-harness-bevy as a workspace member (0.1.1)` — and the body must
+mention this ExecPlan by path, summarize the five maintainer decisions in
 `Decisions resolved before approval`, and end with a `## References` section
 linking the Lody session.
 
@@ -1949,7 +1943,7 @@ Before `tests/headless_scenario.rs` compiles,
 `cargo test -p rstest-bdd-harness-bevy --test headless_scenario` fails;
 afterwards it reports `test minimal_app_advances_one_tick ... ok`.
 
-Keep this specification synchronized with the implementation. In `0.5.1.2` the
+Keep this specification synchronized with the implementation. In `0.1.2` the
 same feature file should be re-bound through a harness-selecting `#[scenario]`
 with the steps taking the harness context through the reserved fixture key,
 replacing the fixture used here. The Gherkin text should not need to change —
@@ -2023,11 +2017,15 @@ A reader who has never seen this repository can verify the change like this.
 - Boundary: `cargo tree` shows no `skyjoust`, no `lille`, and no Bevy
   rendering, windowing, asset, or audio crates, both for the crate alone and
   across the workspace.
-- Coverage: the 80% patch target in `codecov.yml` is met. Note that the CI
-  coverage action runs coverage through nextest with *default* features, and
-  nextest does not run doctests — so the doctests contribute nothing to the
-  figure. The five unit tests and the instrumented integration tests are what
-  cover the patch.
+- Coverage (current workflow policy): require the pinned
+  `generate-coverage` action's project-baseline ratchet to pass. The
+  pull-request workflow sets `with-ratchet: true`, disables artefact
+  publication, and runs Nextest with default features without doctests; run
+  `39047593116` measured 87.20% against the 87.36% baseline and passed the
+  ratchet. `codecov.yml` separately declares an 80% patch target, but this
+  workflow did not upload a Codecov artefact or produce a Codecov check, so
+  that target was not assessed. Do not infer patch coverage from the project
+  percentage; adding a Codecov upload/check remains a separate workflow change.
 - Cost: a warm `make all` completes within fifteen minutes and the build tree
   stays under 6 GB, per `Tolerances`. Record both.
 
@@ -2177,7 +2175,7 @@ design §§4-5 is implementable without a git dependency:
 test harness_scenario ... ok
 ```
 
-This is evidence for `0.5.1.2`, not work to be repeated here.
+This is evidence for `0.1.2`, not work to be repeated here.
 
 ### Evidence: the two lint traps
 
@@ -2283,7 +2281,7 @@ Notes on each entry:
   requirement. Do not move it into development dependencies in the extracted
   crate; every downstream scenario would break.
 - `tracing` is direct so the re-export does not expose a version this crate
-  does not control. `0.5.1.2` needs it for design §6's diagnostic path.
+  does not control. `0.1.2` needs it for design §6's diagnostic path.
 - `rstest-bdd` and `rstest-bdd-macros` are development dependencies: the
   crate's own behavioural tests use them, the library does not.
 - `rstest = "0.27"` matches the rebased root manifest and is the current
@@ -2352,16 +2350,16 @@ pub fn add_minimal_plugins(app: &mut bevy::app::App);
 pub fn minimal_app() -> bevy::app::App;
 ```
 
-`add_minimal_plugins` has the shape design §5's `configure` calls, so in
-`0.5.1.2` `MinimalBevyProfile::configure` becomes two lines that call it.
-`minimal_app` is the harness-free entry point for tests that want an
-application without a scenario; both stay public. Remember that every type name
-in the doc comments needs backticks — `clippy::doc_markdown` is denied.
+`add_minimal_plugins` has the shape design §5's `configure` calls, so in `0.1.2`
+`MinimalBevyProfile::configure` becomes two lines that call it. `minimal_app`
+is the harness-free entry point for tests that want an application without a
+scenario; both stay public. Remember that every type name in the doc comments
+needs backticks — `clippy::doc_markdown` is denied.
 
 ### The file layout
 
 Design §9's layout is the destination. This milestone creates the subset it
-needs; `0.5.1.2` adds the context, harness, panic, and policy modules. Stage B
+needs; `0.1.2` adds the context, harness, panic, and policy modules. Stage B
 updates §9 to these names so the two do not diverge.
 
 ```plaintext
@@ -2488,7 +2486,7 @@ that generated step functions do not have. Finally, a step is not itself a
 the functional chains keep mutation and error conversion adjacent.
 
 The property test in `tests/tick_properties.rs` states the invariant that
-`0.5.1.2`'s `update_times` must preserve, with an explicit case count:
+`0.1.2`'s `update_times` must preserve, with an explicit case count:
 
 ```rust
 proptest! {
@@ -2558,7 +2556,7 @@ Automating the transitive check would need `cargo_metadata` as a development
 dependency and a nested `cargo` invocation inside `make test`; both are
 declined here as disproportionate, and the manual `cargo tree` step in
 `Behavioural acceptance` carries that half. Automating it is follow-up work for
-`0.5.1.5`.
+`0.1.5`.
 
 ### Files this plan creates or changes
 
@@ -2590,7 +2588,7 @@ declined here as disproportionate, and the manual `cargo tree` step in
 | `docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`    | Bevy harness ADR, numbered 009.                                |
 | `docs/contents.md`                                                        | Index current documents and remove stale deleted-path entries. |
 | `docs/developers-guide.md`                                                | Harness development conventions.                               |
-| `docs/execplans/0-5-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`  | Living implementation and acceptance record.                   |
+| `docs/execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`    | Living implementation and acceptance record.                   |
 | `docs/repository-layout.md`                                               | Workspace layout and package ownership.                        |
 | `docs/roadmap.md`                                                         | Task status, dependency decision, and validation summary.      |
 | `docs/rstest-bdd-harness-bevy-design.md`                                  | Harness design and extraction boundary.                        |
@@ -2733,7 +2731,7 @@ retaining the original ADR 007 number only in dated implementation history.
 Reconciled the developer and repository guides with stable 0.6.0's automatic
 feature-file rebuild tracking: the old beta3 A/B result remains historical, and
 the stable-version freshness A/B and compatibility gates remain pending. The
-roadmap item 0.5.1.1 remains checked complete.
+roadmap item 0.1.1 remains checked complete.
 
 Revision 8, 2026-10-12. Reconciled the live version-coherence invariant and
 historical root-`rstest` risk with the rebased `rstest = "0.27"` workspace and
@@ -2959,3 +2957,43 @@ follow-up recorded in this revision changes only this ExecPlan, the crate
 README, and the roadmap; source code is unchanged. The new documentation head
 requires its own current-head check before merge. The PR review remains to be
 reconciled.
+
+Revision 29, 2026-10-16. Renumbered the harness spike as phase 0 at the
+maintainer's request. This plan is now named for task `0.1.1`; its forward
+instructions and document links use the new numbering. Historical log filenames
+retain their original names so the evidence remains locatable.
+
+Revision 30, 2026-10-17. Rebased the branch importing documentation and
+renumbering phase 0 onto `origin/main` at
+`2b7d260692df41e9ef8e75e5871c2ae210f1b78c`. All three branch commits replayed
+without conflicts or patch changes. Retained main's `syn` 3 requirement for the
+fixture-lint helper and its locked updates to `trybuild` 1.0.122 and `toml`
+1.1.8. Resolving the workspace with `cargo update --workspace --offline`
+changed zero packages; `Cargo.lock` remains identical to main's. The existing
+UI fixtures and timeout contracts provide the compatibility checks for these
+dependency updates while the branch retains dependency preparation and bounded
+test time limits.
+
+Revision 31, 2026-10-17. Reconciled the completeness assessment on published
+head `ab0d071f55394c09c99bf2f424fce21854cc5471` against comparison base
+`2b7d260692df41e9ef8e75e5871c2ae210f1b78c`
+([assessment comment](https://github.com/leynos/skyjoust/pull/135#issuecomment-6236551076)).
+The assessment found no functional correctness defect, but identified stale
+scope and timeout records and an unsupported claim that the Codecov patch
+target had passed. Updated the current constraints and decision to cover the
+user-authorized `test-prepare` target, the 60-minute UI limit, the 130-minute
+Nextest limit, and the outer watchdogs. The PR workflow's actual coverage gate
+is the project's baseline ratchet, not the separate 80% Codecov patch target;
+the latter was not evaluated because the workflow publishes no Codecov artefact
+and returns no Codecov check. The exact-head run measured 87.20% against an
+87.36% baseline and passed the ratchet.
+
+Local gates on that assessed head passed: `make check-fmt`, `make lint`,
+`make typecheck`, `make test` (244/244 Nextest tests and all doctests),
+`make markdownlint`, `make nixie`, `make spelling`, and
+`make test-workflow-contracts`. Hosted run `39047593116`, attempt 1, passed
+formatting, spelling, Markdown lint, lint, Cranelift tests, workflow contracts,
+and coverage on the same head. No formal proof or model checker was introduced;
+the proof assessment is not applicable as specified by the plan. PR acceptance
+and any assessment of the documentation-only reconciliation remain tracked on
+the live PR.

@@ -50,13 +50,17 @@ jobs:
         # Coverage holds the development profile on LLVM, so it cannot show
         # that the whole suite passes under Cranelift; this step does.
         run: make test
+        timeout-minutes: 175
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Test and Measure Coverage
+        timeout-minutes: 175
         uses: leynos/shared-actions/.github/actions/generate-coverage@e693d81d176d2305e2b736a0be0f9038085dec7f
         with:
           output-path: lcov.info
           format: lcov
+          # Allows cold LLVM compilation before Nextest's 130-minute run.
+          cargo-wait-timeout: '9600'
           # The pull request measures coverage for its own ratchet check and
           # nothing else: it neither publishes the report nor contacts
           # CodeScene. Main owns both, in coverage-main.yml, and

@@ -4,7 +4,7 @@
 //! needs: `App` scaffolding with no window, renderer, asset, or audio stack.
 //! `add_minimal_plugins` has exactly the shape design §5's `configure` calls,
 //! so `MinimalBevyProfile::configure` becomes two lines that call it at
-//! `0.5.1.2`.
+//! `0.1.2`.
 
 use bevy::{app::App, prelude::MinimalPlugins};
 

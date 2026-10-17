@@ -53,4 +53,4 @@ tests on the harness's compatibility line. Use scenario and step attributes from
 `rstest-bdd-macros` and `StepResult` from `rstest-bdd`; the imported
 [v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) covers their usage.
 This milestone supplies headless profile helpers, not the later `BevyScenario`
-or profile-adapter API assigned to roadmap task `0.5.1.2`.
+or profile-adapter API assigned to roadmap task `0.1.2`.

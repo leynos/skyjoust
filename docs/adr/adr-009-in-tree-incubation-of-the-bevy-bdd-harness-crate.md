@@ -154,13 +154,13 @@ since v0.5.0. Their exact upstream sources are the
 and
 [migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md).
 
-Roadmap task `0.5.1.1` delivers the crate scaffold and its first tests; the
+Roadmap task `0.1.1` delivers the crate scaffold and its first tests; the
 harness types themselves (`BevyScenario`, `BevyHarness`, `BevyProfile`, and
-their companions) belong to task `0.5.1.2`. Extraction to
+their companions) belong to task `0.1.2`. Extraction to
 `leynos/rstest-bdd-harness-bevy` stays a directory move plus a dependency
 rewire, but only after the configuration transplant documented above, and only
 after Skyjoust and Lille each carry one headless scenario through their normal
-gates (roadmap `0.5.1.5`).
+gates (roadmap `0.1.5`).
 
 Downstream adoption: Skyjoust and Lille each define a profile type outside this
 crate that adds `MinimalPlugins` and their own plugins. Game-specific setup
