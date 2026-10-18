@@ -30,8 +30,8 @@ in-source resolution.
 
 This is a known `rstest` issue rather than a defect in this repository. It will
 recur at every fixture the project writes, and Skyjoust is about to acquire
-many: roadmap phase 0 introduces behaviour-driven tests whose scenario state is
-supplied by fixtures.
+many: roadmap phase 0.5 introduces behaviour-driven tests whose scenario state
+is supplied by fixtures.
 
 [The developer's guide](../developers-guide.md) §7.3 already governs lint
 suppression, and it says to use `#[expect(...)]` and never `#[allow(...)]`. It
@@ -115,3 +115,9 @@ The crate directory is `crates/skyjoust_test_macros`, matching the underscore
 convention of `crates/skyjoust_stateright_validator`. Crates destined for
 extraction to their own repositories instead take their published, hyphenated
 name as the directory name.
+
+### Addendum (accepted 2026-10-18): roadmap renumbering
+
+Roadmap phase `0.5` and task family `0.5.1.x` were renumbered to phase `0` and
+the corresponding `0.1.x` task family. This bookkeeping change does not alter
+the accepted decision or its context above.

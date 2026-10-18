@@ -49,8 +49,6 @@
   - dependency-injection guidance for deterministic and isolated tests.
 - [Effective, ergonomic, and dry doctests in Rust](rust-doctest-dry-guide.md)
   - doctest structure, reuse patterns, and anti-pattern avoidance.
-- [`rstest-bdd` user's guide](rtest-bdd-users-guide.md) - current upstream
-  usage guidance for the `rstest-bdd` framework.
 - [`rstest-bdd` v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) -
   imported upstream usage guide for the published stable release.
 - [`rstest-bdd` v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md)

@@ -61,7 +61,7 @@ from typing import Optional, Annotated
 
 import cyclopts
 from cyclopts import App, Parameter
-from cuprum import Program, ProgramCatalogue, ProjectSettings, scoped, sh
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, scoped, sh
 
 # Map INPUT_<PARAM> → function parameter without additional glue
 app = App(config=cyclopts.config.Env("INPUT_", command=False))
@@ -113,7 +113,9 @@ def default(
         noise_rules=(),
     ),))
     with scoped(allowlist=catalogue.allowlist):
-        result = sh.make(tofu, catalogue=catalogue)("plan", cwd=build_dir).run_sync()
+        result = sh.make(tofu, catalogue=catalogue)("plan").run_sync(
+            context=ExecutionContext(cwd=build_dir)
+        )
         if result.exit_code != 0:
             raise SystemExit(result.exit_code)
 
@@ -249,7 +251,7 @@ with scoped(allowlist=CATALOGUE.allowlist):
 
 ```python
 from pathlib import Path
-from cuprum import Program, ProgramCatalogue, ProjectSettings, scoped, sh
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, scoped, sh
 
 GIT = Program("git")
 CATALOGUE = ProgramCatalogue(projects=(ProjectSettings(
@@ -263,15 +265,18 @@ repo_dir = Path(__file__).resolve().parents[1]
 with scoped(allowlist=CATALOGUE.allowlist):
     git = sh.make(GIT, catalogue=CATALOGUE)
 
-    # Working directory via cwd parameter
-    result = git("tag", "--list", cwd=repo_dir).run_sync()
+    # Working directory via the execution context
+    result = git("tag", "--list").run_sync(
+        context=ExecutionContext(cwd=repo_dir)
+    )
     tags = result.stdout
 
-    # Read-only environment-sensitive command via env parameter
-    result = git(
-        "var", "GIT_AUTHOR_IDENT",
-        env={"GIT_AUTHOR_NAME": "CI", "GIT_AUTHOR_EMAIL": "ci@example.org"},
-    ).run_sync()
+    # Read-only environment-sensitive command via the execution context
+    result = git("var", "GIT_AUTHOR_IDENT").run_sync(
+        context=ExecutionContext(
+            env={"GIT_AUTHOR_NAME": "CI", "GIT_AUTHOR_EMAIL": "ci@example.org"}
+        )
+    )
 ```
 
 ### Keyword arguments as flags
@@ -531,7 +536,7 @@ from typing import Optional, Annotated
 
 import cyclopts
 from cyclopts import App, Parameter
-from cuprum import Program, ProgramCatalogue, ProjectSettings, scoped, sh
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, scoped, sh
 
 GIT = Program("git")
 CATALOGUE = ProgramCatalogue(projects=(ProjectSettings(
@@ -560,17 +565,21 @@ def main(
         with scoped(allowlist=CATALOGUE.allowlist):
             git = sh.make(GIT, catalogue=CATALOGUE)
             tag = f"v{version}"
-            result = git("tag", tag, cwd=project_root).run_sync()
+            result = git("tag", tag).run_sync(
+                context=ExecutionContext(cwd=project_root)
+            )
             if result.exit_code != 0:
-                head = git("rev-parse", "HEAD", cwd=project_root).run_sync()
+                head = git("rev-parse", "HEAD").run_sync(
+                    context=ExecutionContext(cwd=project_root)
+                )
                 # Resolve the peeled ref: a bare tag name returns the tag
                 # object for an annotated tag, not the commit it points at,
                 # so the comparison below would never match. The explicit
                 # `refs/tags/` namespace also stops a same-named branch from
                 # shadowing the tag.
                 tagged = git(
-                    "rev-parse", f"refs/tags/{tag}^{{}}", cwd=project_root
-                ).run_sync()
+                    "rev-parse", f"refs/tags/{tag}^{{}}"
+                ).run_sync(context=ExecutionContext(cwd=project_root))
                 tag_matches_head = (
                     head.exit_code == 0
                     and tagged.exit_code == 0
@@ -644,7 +653,7 @@ pytest_plugins = ("cmd_mox.pytest_plugin",)
 ```
 
 ```python
-from cuprum import Program, ProgramCatalogue, ProjectSettings, scoped, sh
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, scoped, sh
 
 GIT = Program("git")
 CATALOGUE = ProgramCatalogue(projects=(ProjectSettings(
@@ -663,7 +672,9 @@ def test_git_tag_happy_path(cmd_mox, tmp_path):
     # Run the code under test while shims are active
     cmd_mox.replay()
     with scoped(allowlist=CATALOGUE.allowlist):
-        sh.make(GIT, catalogue=CATALOGUE)("tag", "v1.2.3", cwd=tmp_path).run_sync()
+        sh.make(GIT, catalogue=CATALOGUE)("tag", "v1.2.3").run_sync(
+            context=ExecutionContext(cwd=tmp_path)
+        )
     cmd_mox.verify()
 
 
@@ -673,7 +684,9 @@ def test_git_tag_failure_surface_error(cmd_mox, tmp_path):
 
     cmd_mox.replay()
     with scoped(allowlist=CATALOGUE.allowlist):
-        result = sh.make(GIT, catalogue=CATALOGUE)("tag", "v1.2.3", cwd=tmp_path).run_sync()
+        result = sh.make(GIT, catalogue=CATALOGUE)("tag", "v1.2.3").run_sync(
+            context=ExecutionContext(cwd=tmp_path)
+        )
         assert result.exit_code == 1
         assert "denied" in result.stderr
     cmd_mox.verify()
@@ -682,7 +695,7 @@ def test_git_tag_failure_surface_error(cmd_mox, tmp_path):
 ### Spies and passthrough capture (turn real calls into fixtures)
 
 ```python
-from cuprum import Program, ProgramCatalogue, ProjectSettings, scoped, sh
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, scoped, sh
 
 ECHO = Program("echo")
 CATALOGUE = ProgramCatalogue(projects=(ProjectSettings(
@@ -700,7 +713,9 @@ def test_spy_and_record(cmd_mox, tmp_path):
 
     cmd_mox.replay()
     with scoped(allowlist=CATALOGUE.allowlist):
-        sh.make(ECHO, catalogue=CATALOGUE)("hello world", cwd=tmp_path).run_sync()
+        sh.make(ECHO, catalogue=CATALOGUE)("hello world").run_sync(
+            context=ExecutionContext(cwd=tmp_path)
+        )
     cmd_mox.verify()
 
     # Inspect what happened
@@ -761,10 +776,10 @@ existing error handling logic.
 6. Non‑raising execution: replace `.run(retcode=None)` patterns with
    `run_sync()` and check `result.exit_code` explicitly. Note that this is now
    the default behaviour, not a special case.
-7. Working directory: replace `with local.cwd(path):` context manager with
-   `cwd=path` parameter on the command.
-8. Environment: replace `with local.env(VAR=value):` with `env={"VAR": value}`
-   parameter on the command.
+7. Working directory: replace `with local.cwd(path):` with
+   `command.run_sync(context=ExecutionContext(cwd=path))`.
+8. Environment: replace `with local.env(VAR=value):` with
+   `command.run_sync(context=ExecutionContext(env={"VAR": value}))`.
 9. Pipelines: the `|` operator works identically; ensure both commands are
    constructed via `sh.make()`.
 10. Error handling: replace `CommandNotFound` with cuprum's

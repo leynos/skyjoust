@@ -8,6 +8,7 @@ name: CI
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       contents: read
     env:
@@ -53,6 +54,28 @@ jobs:
         timeout-minutes: 240
       - name: Workflow contract tests
         run: make test-workflow-contracts
+
+  # Keep the bounded Rust workloads in sequential jobs, each with its own
+  # six-hour hosted-job limit.
+  coverage-ratchet:
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+      BUILD_PROFILE: debug
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup Rust
+        uses: leynos/shared-actions/.github/actions/setup-rust@e693d81d176d2305e2b736a0be0f9038085dec7f
+        with:
+          install-mold: 'true'
+          install-clang-lld: 'true'
+      - name: Prepare test dependencies
+        run: make test-prepare
+        timeout-minutes: 15
       - name: Test and Measure Coverage
         timeout-minutes: 240
         uses: leynos/shared-actions/.github/actions/generate-coverage@e693d81d176d2305e2b736a0be0f9038085dec7f

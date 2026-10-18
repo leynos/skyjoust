@@ -104,24 +104,31 @@ limits, and containment by the CI watchdogs.
 `make test-prepare` runs `cargo fetch --locked` against the shared default
 Cargo cache before timed tests start. `make test` depends on that preparation
 and runs the test binaries and doctests offline, including nested trybuild
-processes. All trybuild dependencies come from workspace dependencies. The
-main-branch coverage workflow also prepares dependencies before invoking
-coverage. Offline execution avoids network delays; it does not eliminate
-Cargo's cache locks or compiler-admission waits. Cargo parallelism remains
-under caller control.
+processes. All trybuild dependencies come from workspace dependencies. Both the
+pull-request coverage job and main-branch coverage workflow prepare
+dependencies before invoking coverage. Offline execution avoids network delays;
+it does not eliminate Cargo's cache locks or compiler-admission waits. Cargo
+parallelism remains under caller control.
 
 Both CI coverage callers set a finite 13,200-second Cargo watchdog, allowing 30
 minutes for cold compilation beyond the 190-minute Nextest run. Their
-240-minute step watchdogs leave time for cleanup and reporting; the ordinary
-test step has the same outer bound. These are conservative containment budgets
-following Cuprum's timeout treatment,[^cargo-queue-budgets] not measured
-execution-time guarantees. Earlier local runs reached the 600-second and
-20-minute limits while nested Cargo waited for package-cache access and
-compiled dependencies. A later run passed under the 60-minute UI budget, but a
-cold run still timed out after 60 minutes: trybuild spent 49m21s compiling its
-first pass fixture while Cargo reported cache-lock waits and compiler queues of
-up to 464. The 90-minute per-test budget retains a finite bound while covering
-that measured cold compile and additional admission waits.
+240-minute step watchdogs leave time for cleanup and reporting. The ordinary
+test step has the same outer bound. On pull requests, the `coverage-ratchet`
+job depends on `build-test`, so coverage runs after the Cranelift suite in a
+separate job with its own explicit 360-minute timeout. This keeps the two
+240-minute step budgets within separate six-hour job limits; setup, lint, and
+reporting still use time within their respective job budgets. GitHub terminates
+a hosted job at six hours
+([Actions limits](https://docs.github.com/en/enterprise-cloud@latest/actions/reference/limits)).
+These are conservative containment budgets following Cuprum's timeout
+treatment,[^cargo-queue-budgets] not measured execution-time guarantees.
+Earlier local runs reached the 600-second and 20-minute limits while nested
+Cargo waited for package-cache access and compiled dependencies. A later run
+passed under the 60-minute UI budget, but a cold run still timed out after 60
+minutes: trybuild spent 49m21s compiling its first pass fixture while Cargo
+reported cache-lock waits and compiler queues of up to 464. The 90-minute
+per-test budget retains a finite bound while covering that measured cold
+compile and additional admission waits.
 
 The repository relies on the installed compiler wrappers for shared admission.
 A healthy pool can have every slot occupied and hundreds of requests queued.

@@ -962,12 +962,16 @@ remain pending as recorded above.
   workspace limit to 190 minutes, allowing both UI tests their full budgets
   plus a 10-minute ordinary-test tail. Set the test and coverage CI watchdogs
   to 240 minutes; set coverage Cargo's watchdog to 13,200 seconds, 30 minutes
-  beyond Nextest. `tests/nextest_policy.rs` guards the changed limits and their
-  containment. This extends the bounded policy to cover the observed cold
-  compile and admission waits; it does not waive a gate. Revision 35 records
-  successful local gates on the revised candidate, and hosted run 39102919735
-  passed on published head `58317635a67eefdbf11e19307e26ee4cf8210649`.
-  Date/Author: 2026-10-18, review follow-up.
+  beyond Nextest. Keep pull-request coverage in the dependent
+  `coverage-ratchet` job, after `build-test`; each job has an explicit
+  360-minute hosted-job timeout, so the two 240-minute step budgets do not
+  accumulate within one job. `tests/nextest_policy.rs` guards the changed
+  limits, preparation ordering, and separate job budgets. This extends the
+  bounded policy to cover the observed cold compile and admission waits; it
+  does not waive a gate. Revision 35 records successful local gates on the
+  revised candidate, and hosted run 39102919735 passed on published head
+  `58317635a67eefdbf11e19307e26ee4cf8210649`. Date/Author: 2026-10-18, review
+  follow-up.
 
 - Historical decision: depend on published `rstest-bdd` `0.6.0-beta3` crates
   rather than git dependencies against `main`. Rationale: the roadmap's
@@ -3127,3 +3131,12 @@ delivery-only cost exception remains recorded above. Updated the stale
 statements; the `0.17.3` observations remain historical. This entry records no
 new gate result. See the
 [CodeRabbit assessment](https://github.com/leynos/skyjoust/pull/135#issuecomment-6246583135).
+
+Revision 37, 2026-10-18. Addressed the current-head PR review findings recorded
+on `6731096f1df8657bf3abc2e201810cd4af3352d7`: isolate pull-request coverage in
+a dependent job; contract-test its six-hour job budget and both coverage jobs'
+15-minute dependency preparation; restore accepted ADR text and add dated
+roadmap-renumbering addenda; and correct the imported guide examples identified
+in review. This revision records the remediation scope, not validation or merge
+evidence. At the time of this entry, the resulting candidate still requires
+current-head gates, review, and hosted CI.

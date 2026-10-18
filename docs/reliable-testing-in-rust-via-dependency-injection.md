@@ -30,19 +30,24 @@ ______________________________________________________________________
 ### 1. Add `mockable`
 
 `Env` and `DefaultEnv` are used from production code, not only from tests, so
-`mockable` and `chrono` belong under normal dependencies. `assert_cmd`, used
-later for end-to-end process tests, belongs under development dependencies.
+`mockable` and `chrono` belong under normal dependencies. Test builds enable
+`mockable`'s `mock` feature through the development dependency, and
+`assert_cmd`, used later for end-to-end process tests, also belongs under
+development dependencies.
 
 ```toml
 [dependencies]
 mockable = { version = "3", default-features = false, features = [
     "clock",
-    "mock",
 ] }
 chrono = "0.4"
 
 [dev-dependencies]
 assert_cmd = "2"
+mockable = { version = "3", default-features = false, features = [
+    "clock",
+    "mock",
+] }
 ```
 
 ### 2. The untestable code (before)
@@ -163,17 +168,42 @@ rather than mutating or relying on the harness process's own environment:
 // building an integration test or benchmark, never for a unit test or
 // doctest, so this snippet must live in a file under `tests/`, not in a
 // `#[cfg(test)]` module inside the crate.
-let program_under_test = env!("CARGO_BIN_EXE_my_app");
-let isolated_home = "/tmp/test-home";
-let controlled_path = "/usr/bin:/bin";
-let config_path = "/tmp/test-home/config.toml";
+use std::error::Error;
+use std::path::Path;
+#[cfg(windows)]
+use std::path::PathBuf;
 
-let mut command = assert_cmd::Command::new(program_under_test);
-command
-    .env_clear()
-    .env("HOME", isolated_home)
-    .env("PATH", controlled_path)
-    .env("APP_CONFIG_PATH", config_path);
+fn configure_child() -> Result<(), Box<dyn Error>> {
+    let program_under_test = env!("CARGO_BIN_EXE_my_app");
+    let isolated_home = std::env::temp_dir().join("test-home");
+    let config_path = isolated_home.join("config.toml");
+    let executable_dir = Path::new(program_under_test).parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "the Cargo-built executable path has no parent",
+        )
+    })?;
+    let mut path_entries = vec![executable_dir.to_path_buf()];
+    #[cfg(windows)]
+    if let Some(system_root) = std::env::var_os("SystemRoot") {
+        path_entries.push(PathBuf::from(system_root).join("System32"));
+    }
+    let controlled_path = std::env::join_paths(path_entries)?;
+
+    let mut command = assert_cmd::Command::new(program_under_test);
+    command
+        .env_clear()
+        .env("HOME", &isolated_home)
+        .env("PATH", controlled_path)
+        .env("APP_CONFIG_PATH", &config_path);
+    #[cfg(windows)]
+    command.env("USERPROFILE", &isolated_home);
+    #[cfg(windows)]
+    if let Some(system_root) = std::env::var_os("SystemRoot") {
+        command.env("SystemRoot", system_root);
+    }
+    Ok(())
+}
 ```
 
 Configuring a spawned command's environment this way affects only the child

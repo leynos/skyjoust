@@ -154,15 +154,23 @@ since v0.5.0. Their exact upstream sources are the
 and
 [migration guide](https://github.com/leynos/rstest-bdd/blob/v0.6.0/docs/v0-6-0-migration-guide.md).
 
-Roadmap task `0.1.1` delivers the crate scaffold and its first tests; the
+Roadmap task `0.5.1.1` delivers the crate scaffold and its first tests; the
 harness types themselves (`BevyScenario`, `BevyHarness`, `BevyProfile`, and
-their companions) belong to task `0.1.2`. Extraction to
+their companions) belong to task `0.5.1.2`. Extraction to
 `leynos/rstest-bdd-harness-bevy` stays a directory move plus a dependency
 rewire, but only after the configuration transplant documented above, and only
 after Skyjoust and Lille each carry one headless scenario through their normal
-gates (roadmap `0.1.5`).
+gates (roadmap `0.5.1.5`).
 
 Downstream adoption: Skyjoust and Lille each define a profile type outside this
 crate that adds `MinimalPlugins` and their own plugins. Game-specific setup
 therefore never reaches the reusable crate, and the single Bevy release line is
 the only coupling the extracted repository inherits.
+
+### Addendum (accepted 2026-10-18): roadmap renumbering
+
+Roadmap phase `0.5` and task family `0.5.1.x` were renumbered to phase `0` and
+the corresponding `0.1.x` task family. The scaffold, harness-types, and
+extraction milestones now use roadmap tasks `0.1.1`, `0.1.2`, and `0.1.5`. This
+bookkeeping change updates roadmap references only; it does not alter the
+accepted crate boundary, dependency decisions, or extraction contract above.

@@ -123,12 +123,12 @@ libraries. This convention prevents testing utilities from being included in
 production binaries, which helps keep them small while reducing compile times
 for non-test builds.
 
-When leveraging Tokio's test utilities—for example `tokio::time::pause`—enable
-the `time` and `test-util` features via a dev-only dependency:
+When using Tokio's test utilities—for example `tokio::time::pause`—enable the
+`macros`, `rt`, `time`, and `test-util` features via a dev-only dependency:
 
 ```toml
 [dev-dependencies]
-tokio = { version = "1", default-features = false, features = ["time", "test-util"] }
+tokio = { version = "1", default-features = false, features = ["macros", "rt", "time", "test-util"] }
 rstest = "0.27.0"
 ```
 
@@ -871,6 +871,12 @@ async fn test_operation_exceeds_timeout() {
     assert_eq!(potentially_long_operation(Duration::from_millis(100)).await, 42);
 }
 ```
+
+A synchronous test body runs on a worker thread. If its timeout expires,
+`rstest` reports the timeout but cannot forcibly stop that thread, so the body
+continues until it returns. Avoid relying on timeout to cancel blocking work or
+to undo side effects; use a cancellation-aware operation or isolate such work
+in a child process when it must be stopped.
 
 A default timeout for `rstest` tests can also be set using the `RSTEST_TIMEOUT`
 environment variable. Its value is in seconds and is evaluated at test compile

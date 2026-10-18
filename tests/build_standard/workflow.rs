@@ -290,22 +290,6 @@ impl<'a> Job<'a> {
         Ok(found)
     }
 
-    /// Returns the offset of the first unconditional step whose `uses:` value
-    /// names `action` (its path, before the `@` of the pin).
-    pub fn action_offset(&self, action: &str) -> Option<usize> {
-        (0..self.lines.len())
-            .filter(|&at| {
-                let line = Text(self.lines.get(at).copied().unwrap_or_default());
-                !line.is_inert()
-                    && line
-                        .key_text()
-                        .strip_prefix("uses:")
-                        .is_some_and(|value| value.trim().split('@').next() == Some(action))
-                    && !self.is_conditional(at)
-            })
-            .min()
-    }
-
     /// Returns the offset of the first installation of mold: an `apt` install
     /// command the job runs, or setup-rust's `install-mold` input set to true,
     /// in a step with no `if:` condition.
