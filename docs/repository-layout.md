@@ -92,7 +92,7 @@ _Figure 1: Simplified repository tree for contributor orientation._
 - `crates/rstest-bdd-harness-bevy/src/`: headless plugin configuration.
   `profile.rs` owns `add_minimal_plugins` and `minimal_app`; `profile_tests.rs`
   holds the sibling unit tests. The harness types arrive with roadmap task
-  `0.5.1.2`.
+  `0.1.2`.
 - `crates/rstest-bdd-harness-bevy/tests/`: integration coverage for the
   scaffold — the Gherkin scenario binding, tick-count property test,
   extraction-contract tripwire, and `trybuild` macro cases. Stable `rstest-bdd`

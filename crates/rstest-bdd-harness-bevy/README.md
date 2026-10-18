@@ -9,7 +9,7 @@ each consumer.
 This milestone ships the scaffold and its profile functions: a headless Bevy
 `0.19.1` application driven from a Gherkin scenario through the ordinary
 `cargo test` harness. The harness types (`BevyScenario`, `BevyProfile`,
-`BevyHarness`, and their companions) belong to roadmap task `0.5.1.2`. See
+`BevyHarness`, and their companions) belong to roadmap task `0.1.2`. See
 [the harness design](../../docs/rstest-bdd-harness-bevy-design.md) and
 [ADR 009](../../docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
 
@@ -77,7 +77,7 @@ source archive when the crate is published after extraction.
 
 ## Extending
 
-Task `0.5.1.2` adds `BevyScenario`, `BevyProfile`, `BevyHarness`,
+Task `0.1.2` adds `BevyScenario`, `BevyProfile`, `BevyHarness`,
 `BareBevyProfile`, `MinimalBevyProfile`, and `BevyAttributePolicy`. The profile
 type is the single extension seam: every game-specific plugin, resource, and
 cleanup hook lives in a downstream implementation of it, never in this crate.

@@ -27,6 +27,54 @@ const MAKEFILE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Makefi
 /// configuration fragment the wired targets pass via `--config`.
 const DEV_FAST_CONFIG_PATH: &str = "tools/dev-fast/config.toml";
 
+#[rstest::rstest]
+#[case::nextest("nextest run")]
+#[case::cargo_test_fallback("test")]
+fn test_dependencies_are_prepared_before_offline_execution(#[case] runner: &str) {
+    let output = std::process::Command::new("make")
+        .args([
+            "--dry-run",
+            "test",
+            "CARGO=probe-cargo",
+            "CARGO_EXECUTABLE=probe-cargo",
+            &format!("TEST_CMD={runner}"),
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("make must be available to inspect the test recipe");
+    assert!(
+        output.status.success(),
+        "the test recipe must expand successfully: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let plan = String::from_utf8_lossy(&output.stdout);
+    let prepare = plan
+        .lines()
+        .position(|line| line.contains("fetch --locked"))
+        .expect("locked dependency preparation must be scheduled");
+    let offline_runs: Vec<_> = plan
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.contains("CARGO_NET_OFFLINE=true"))
+        .collect();
+    assert_eq!(
+        offline_runs.len(),
+        2,
+        "the selected runner and doctests must both run offline"
+    );
+    assert!(
+        offline_runs.iter().all(|(position, _)| *position > prepare),
+        "dependency preparation must precede every offline test invocation"
+    );
+    assert!(
+        offline_runs.iter().any(|(_, line)| line.contains(runner))
+            && offline_runs
+                .iter()
+                .any(|(_, line)| line.contains("test --doc")),
+        "the selected test runner and doctests must retain coverage"
+    );
+}
+
 /// One standard development target and the name of the Makefile rule
 /// whose recipe text actually carries the dev-fast wiring.
 ///

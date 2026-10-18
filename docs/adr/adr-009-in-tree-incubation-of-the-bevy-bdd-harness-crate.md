@@ -166,3 +166,11 @@ Downstream adoption: Skyjoust and Lille each define a profile type outside this
 crate that adds `MinimalPlugins` and their own plugins. Game-specific setup
 therefore never reaches the reusable crate, and the single Bevy release line is
 the only coupling the extracted repository inherits.
+
+### Addendum (accepted 2026-10-18): roadmap renumbering
+
+Roadmap phase `0.5` and task family `0.5.1.x` were renumbered to phase `0` and
+the corresponding `0.1.x` task family. The scaffold, harness-types, and
+extraction milestones now use roadmap tasks `0.1.1`, `0.1.2`, and `0.1.5`. This
+bookkeeping change updates roadmap references only; it does not alter the
+accepted crate boundary, dependency decisions, or extraction contract above.

@@ -115,3 +115,9 @@ The crate directory is `crates/skyjoust_test_macros`, matching the underscore
 convention of `crates/skyjoust_stateright_validator`. Crates destined for
 extraction to their own repositories instead take their published, hyphenated
 name as the directory name.
+
+### Addendum (accepted 2026-10-18): roadmap renumbering
+
+Roadmap phase `0.5` and task family `0.5.1.x` were renumbered to phase `0` and
+the corresponding `0.1.x` task family. This bookkeeping change does not alter
+the accepted decision or its context above.

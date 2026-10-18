@@ -6,6 +6,11 @@ use cap_std::{ambient_authority, fs::Dir};
 use rstest::{fixture, rstest};
 use toml::Value;
 
+// GitHub-hosted jobs terminate after six hours:
+// https://docs.github.com/en/enterprise-cloud@latest/actions/reference/limits
+const GITHUB_HOSTED_JOB_TIMEOUT_MINUTES: u64 = 360;
+const COVERAGE_ACTION_PREFIX: &str = "leynos/shared-actions/.github/actions/generate-coverage@";
+
 #[fixture]
 fn policy() -> Result<Value, toml::de::Error> {
     toml::from_str(include_str!("../.config/nextest.toml"))
@@ -24,8 +29,8 @@ fn ordinary_tests_keep_the_shared_action_timeouts(policy: Result<Value, toml::de
 
     assert_eq!(
         defaults.get("global-timeout").and_then(Value::as_str),
-        Some("10m"),
-        "the shared action's global run limit must remain unchanged"
+        Some("190m"),
+        "the run limit must contain both serialized UI runners"
     );
     assert_eq!(
         timeout.get("period").and_then(Value::as_str),
@@ -89,13 +94,268 @@ fn only_ui_binaries_receive_the_serial_compile_budget(policy: Result<Value, toml
     );
     assert_eq!(
         timeout.get("terminate-after").and_then(Value::as_integer),
-        Some(10),
-        "UI tests must terminate after ten minutes rather than run indefinitely"
+        Some(90),
+        "UI tests must terminate after ninety minutes rather than run indefinitely"
     );
     assert_eq!(
         timeout.get("grace-period").and_then(Value::as_str),
         Some("5s"),
         "UI tests must retain a bounded termination grace period"
+    );
+
+    let run_minutes = config
+        .get("profile")
+        .and_then(|profiles| profiles.get("default"))
+        .and_then(|defaults| defaults.get("global-timeout"))
+        .and_then(Value::as_str)
+        .and_then(|duration| duration.strip_suffix('m'))
+        .and_then(|minutes| minutes.parse::<i64>().ok())
+        .expect("the global run budget must be expressed in whole minutes");
+    let compile_periods = timeout
+        .get("terminate-after")
+        .and_then(Value::as_integer)
+        .expect("the UI compile budget must be finite");
+    // The inventory test below fixes two UI runners. Include both grace
+    // periods and one full ordinary-test tail after the serialized group.
+    assert!(
+        run_minutes * 60 > 2 * (compile_periods * 60 + 5) + 180 + 5,
+        "the global budget must contain both UI runners and an ordinary-test tail"
+    );
+}
+
+#[rstest]
+#[case(include_str!("../.github/workflows/ci.yml"), "coverage-ratchet")]
+#[case(include_str!("../.github/workflows/coverage-main.yml"), "coverage-upload")]
+fn coverage_watchdogs_contain_the_test_run(
+    policy: Result<Value, toml::de::Error>,
+    #[case] source: &str,
+    #[case] job_name: &str,
+) {
+    let config = policy.expect("Nextest policy must be valid TOML");
+    let run_minutes = config
+        .get("profile")
+        .and_then(|profiles| profiles.get("default"))
+        .and_then(|defaults| defaults.get("global-timeout"))
+        .and_then(Value::as_str)
+        .and_then(|duration| duration.strip_suffix('m'))
+        .and_then(|minutes| minutes.parse::<u64>().ok())
+        .expect("the global run budget must be expressed in whole minutes");
+    let workflow: serde_norway::Value =
+        serde_norway::from_str(source).expect("the workflow must be valid YAML");
+    let steps = workflow
+        .get("jobs")
+        .and_then(|jobs| jobs.get(job_name))
+        .and_then(|job| job.get("steps"))
+        .and_then(serde_norway::Value::as_sequence)
+        .expect("the coverage job must contain steps");
+    let coverage = steps
+        .iter()
+        .find(|step| {
+            step.get("uses")
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|uses| uses.starts_with(COVERAGE_ACTION_PREFIX))
+        })
+        .expect("the workflow must invoke the coverage action");
+    let cargo_seconds = coverage
+        .get("with")
+        .and_then(|inputs| inputs.get("cargo-wait-timeout"))
+        .and_then(serde_norway::Value::as_str)
+        .and_then(|seconds| seconds.parse::<u64>().ok())
+        .expect("coverage must set an explicit finite Cargo watchdog");
+    let step_minutes = coverage
+        .get("timeout-minutes")
+        .and_then(serde_norway::Value::as_u64)
+        .expect("coverage must set an explicit step watchdog");
+
+    assert!(
+        cargo_seconds >= (run_minutes + 30) * 60,
+        "the Cargo watchdog must allow the run budget plus thirty minutes for cold compilation"
+    );
+    assert!(
+        step_minutes * 60 > cargo_seconds,
+        "the CI step must leave time for watchdog cleanup and coverage reporting"
+    );
+}
+
+#[test]
+fn pull_request_coverage_has_an_independent_job_budget() {
+    let workflow: serde_norway::Value =
+        serde_norway::from_str(include_str!("../.github/workflows/ci.yml"))
+            .expect("the CI workflow must be valid YAML");
+    let jobs = workflow
+        .get("jobs")
+        .expect("the CI workflow must define jobs");
+    let build_test = jobs
+        .get("build-test")
+        .expect("the CI workflow must define the build-test job");
+    let coverage_job = jobs
+        .get("coverage-ratchet")
+        .expect("the CI workflow must define the coverage-ratchet job");
+    for (name, job) in [
+        ("build-test", build_test),
+        ("coverage-ratchet", coverage_job),
+    ] {
+        let timeout = job
+            .get("timeout-minutes")
+            .and_then(serde_norway::Value::as_u64)
+            .expect("each CI job must set an explicit finite job timeout");
+        assert_eq!(
+            timeout, GITHUB_HOSTED_JOB_TIMEOUT_MINUTES,
+            "the {name} budget must match GitHub-hosted job limits"
+        );
+    }
+
+    assert_eq!(
+        coverage_job
+            .get("needs")
+            .and_then(serde_norway::Value::as_str),
+        Some("build-test"),
+        "coverage must wait for the Cranelift test job to finish"
+    );
+
+    let build_steps = build_test
+        .get("steps")
+        .and_then(serde_norway::Value::as_sequence)
+        .expect("the build-test job must contain steps");
+    assert!(
+        !build_steps.iter().any(|step| {
+            step.get("uses")
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|uses| uses.starts_with(COVERAGE_ACTION_PREFIX))
+        }),
+        "coverage must not consume time from the Cranelift test job"
+    );
+}
+
+#[rstest]
+#[case::complete_test_target("build-test", "run", "make test")]
+#[case::coverage_action("coverage-ratchet", "uses", COVERAGE_ACTION_PREFIX)]
+fn coverage_step_timeouts_fit_their_job_budgets(
+    #[case] job_name: &str,
+    #[case] field: &str,
+    #[case] expected: &str,
+) {
+    let workflow: serde_norway::Value =
+        serde_norway::from_str(include_str!("../.github/workflows/ci.yml"))
+            .expect("the CI workflow must be valid YAML");
+    let job = workflow
+        .get("jobs")
+        .and_then(|jobs| jobs.get(job_name))
+        .expect("the CI workflow must define the budgeted job");
+    let job_timeout = job
+        .get("timeout-minutes")
+        .and_then(serde_norway::Value::as_u64)
+        .expect("the CI job must set an explicit finite job timeout");
+    let steps = job
+        .get("steps")
+        .and_then(serde_norway::Value::as_sequence)
+        .expect("the CI job must contain steps");
+    let step = steps
+        .iter()
+        .find(|step| {
+            step.get(field)
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|value| match field {
+                    "run" => value.trim() == expected,
+                    "uses" => value.starts_with(expected),
+                    _ => false,
+                })
+        })
+        .expect("the CI job must contain the budgeted step");
+    let step_timeout = step
+        .get("timeout-minutes")
+        .and_then(serde_norway::Value::as_u64)
+        .expect("the CI step must set an explicit finite step timeout");
+
+    assert!(
+        step_timeout < job_timeout,
+        "the {job_name} step timeout must fit within its own job budget"
+    );
+}
+
+#[rstest]
+#[case(include_str!("../.github/workflows/ci.yml"), "coverage-ratchet")]
+#[case(include_str!("../.github/workflows/coverage-main.yml"), "coverage-upload")]
+fn coverage_jobs_prepare_dependencies_before_coverage(
+    #[case] source: &str,
+    #[case] job_name: &str,
+) {
+    let workflow: serde_norway::Value =
+        serde_norway::from_str(source).expect("the coverage workflow must be valid YAML");
+    let steps = workflow
+        .get("jobs")
+        .and_then(|jobs| jobs.get(job_name))
+        .and_then(|job| job.get("steps"))
+        .and_then(serde_norway::Value::as_sequence)
+        .expect("the coverage job must contain steps");
+    let preparation_index = steps
+        .iter()
+        .position(|step| {
+            step.get("run")
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|command| command.trim() == "make test-prepare")
+        })
+        .expect("coverage must prepare locked dependencies");
+    let preparation = steps
+        .get(preparation_index)
+        .expect("the preparation step index must identify a workflow step");
+    assert_eq!(
+        preparation
+            .get("timeout-minutes")
+            .and_then(serde_norway::Value::as_u64),
+        Some(15),
+        "dependency preparation must keep its bounded 15-minute timeout"
+    );
+    let coverage_index = steps
+        .iter()
+        .position(|step| {
+            step.get("uses")
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|uses| uses.starts_with(COVERAGE_ACTION_PREFIX))
+        })
+        .expect("coverage workflow must invoke the coverage action");
+    assert!(
+        preparation_index < coverage_index,
+        "coverage must prepare dependencies before its timed action starts"
+    );
+}
+
+#[rstest]
+fn test_step_watchdog_contains_nextest_and_doctests(policy: Result<Value, toml::de::Error>) {
+    let config = policy.expect("Nextest policy must be valid TOML");
+    let run_minutes = config
+        .get("profile")
+        .and_then(|profiles| profiles.get("default"))
+        .and_then(|defaults| defaults.get("global-timeout"))
+        .and_then(Value::as_str)
+        .and_then(|duration| duration.strip_suffix('m'))
+        .and_then(|minutes| minutes.parse::<u64>().ok())
+        .expect("the global run budget must be expressed in whole minutes");
+    let workflow: serde_norway::Value =
+        serde_norway::from_str(include_str!("../.github/workflows/ci.yml"))
+            .expect("the CI workflow must be valid YAML");
+    let steps = workflow
+        .get("jobs")
+        .and_then(|jobs| jobs.get("build-test"))
+        .and_then(|job| job.get("steps"))
+        .and_then(serde_norway::Value::as_sequence)
+        .expect("the CI job must contain steps");
+    let test = steps
+        .iter()
+        .find(|step| {
+            step.get("run")
+                .and_then(serde_norway::Value::as_str)
+                .is_some_and(|command| command.trim() == "make test")
+        })
+        .expect("the CI job must run the complete test target");
+    let step_minutes = test
+        .get("timeout-minutes")
+        .and_then(serde_norway::Value::as_u64)
+        .expect("the test target must have an explicit step watchdog");
+
+    assert!(
+        step_minutes > run_minutes + 30,
+        "the CI step must leave thirty minutes beyond Nextest for compilation and doctests"
     );
 }
 
