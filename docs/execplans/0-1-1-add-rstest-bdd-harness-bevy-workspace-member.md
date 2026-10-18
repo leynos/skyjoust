@@ -65,8 +65,9 @@ without escalating.
 
 1. Target Bevy `0.19.1`. The harness and the future Skyjoust runtime must use
    the same release because Bevy types cross the harness boundary. The earlier
-   `0.17.3` probes remain historical evidence only; Milestone 0 must repeat the
-   compatibility and cost probes against `0.19.1` before implementation.
+   `0.17.3` probes remain historical evidence only. The Milestone 0 follow-up
+   completed the `0.19.1` API, feature-graph, headless, test, and cost checks;
+   evidence and the remaining source-inspection limit are recorded below.
 2. Write ordinary stable dependency requirements using Cargo's implicit caret
    syntax, for example `0.19.1`, never the redundant spelling `^0.19.1`.
 3. Historical decision (2026-08-17): pin every `rstest-bdd` family crate to
@@ -196,16 +197,15 @@ one, stop and escalate rather than working around it.
   and [the developer's guide](../developers-guide.md) §7.3. Verified clean
   under both gates.
 
-- Risk: in the `0.17.3` probe, omitting Bevy's `std` feature replaced
+- Historical risk: in the `0.17.3` probe, omitting Bevy's `std` feature replaced
   `std::time::Instant` with `bevy_platform::time::fallback::Instant`, whose
   x86-64 getter reads `core::arch::x86_64::_rdtsc()` and passes the raw tick
   count to `Duration::from_nanos`. `Time<Real>` then advances at roughly the
   timestamp counter frequency rather than wall-clock, and `Time<Virtual>` and
-  `Time<Fixed>` derive from it. Severity: high. Likelihood: not yet measured for
-  `0.19.1`. Mitigation: begin with `features = ["std"]`, then repeat the
-  clock-source and resolved-feature checks against `0.19.1`. The decision is
-  discharged only if real time remains correct without enabling rendering,
-  windowing, or the multi-threaded executor.
+  `Time<Fixed>` derive from it. The `0.19.1` resolved feature graph and focused
+  API tests are recorded below. No separate source-level audit of the `0.19.1`
+  clock implementation is recorded, so that remains an inspection limit rather
+  than an outstanding implementation task.
 
 - Risk: `clippy::expect_used` is denied estate-wide, and
   `allow-expect-in-tests = true` in `clippy.toml` does **not** cover free
@@ -235,16 +235,17 @@ one, stop and escalate rather than working around it.
   load-bearing rebuild guard. The prior stable compatibility and local gates
   passed; post-documentation acceptance checks also passed.
 
-- Risk: the crate adds a large graph to every workspace build. The discarded
-  Bevy `0.17.3` baseline resolved 139 crates for normal dependencies and 279
-  including development dependencies; the `0.19.1` cost is not yet measured.
-  `make lint` compiles it three times (`cargo doc`, `cargo clippy`, and the
-  Whitaker Dylint driver, the last under its own toolchain with no Cranelift),
-  and `make test` a fourth. CI caches no Cargo artefacts beyond the two
-  shared-action caches. Severity: low, revised down after measurement.
-  Likelihood: certain. Mitigation: repeat the measurements against `0.19.1`
-  during the Milestone 0 follow-up and record the equivalent figures for the
-  real workspace in `Outcomes & retrospective`.
+- Historical risk: the crate adds a large graph to every workspace build. The
+  discarded Bevy `0.17.3` baseline resolved 139 crates for normal dependencies
+  and 279 including development dependencies. The `0.19.1` measurements and
+  approved delivery-only exception are recorded in `Progress`. `make lint`
+  compiles it three times (`cargo doc`, `cargo clippy`, and the Whitaker Dylint
+  driver, the last under its own toolchain with no Cranelift), and `make test`
+  a fourth. CI caches no Cargo artefacts beyond the two shared-action caches.
+  The `0.19.1` workspace graph and build cost were measured; the warm
+  `make all` time and target size exceeded the stated tolerances. A
+  delivery-only exception was approved and recorded in Progress; the tolerances
+  remain in force for future work.
 
 - Risk: under the discarded `0.17.3` baseline, `target/` reached 2.2 GB for
   this crate alone. Both CI caches — the `setup-rust` debug-target cache and
@@ -963,8 +964,10 @@ remain pending as recorded above.
   to 240 minutes; set coverage Cargo's watchdog to 13,200 seconds, 30 minutes
   beyond Nextest. `tests/nextest_policy.rs` guards the changed limits and their
   containment. This extends the bounded policy to cover the observed cold
-  compile and admission waits; it does not waive a gate. Validation on this
-  revised candidate remains pending. Date/Author: 2026-10-18, review follow-up.
+  compile and admission waits; it does not waive a gate. Revision 35 records
+  successful local gates on the revised candidate, and hosted run 39102919735
+  passed on published head `58317635a67eefdbf11e19307e26ee4cf8210649`.
+  Date/Author: 2026-10-18, review follow-up.
 
 - Historical decision: depend on published `rstest-bdd` `0.6.0-beta3` crates
   rather than git dependencies against `main`. Rationale: the roadmap's
@@ -1010,18 +1013,20 @@ remain pending as recorded above.
   `features = ["std"]`. Rationale: disabling default features is what the
   roadmap and design require, and the `0.17.3` probe showed that `std` was
   necessary to avoid fallback timekeeping without enabling the renderer or
-  window. The declaration remains the intended `0.19.1` starting point, but
-  Milestone 0 must reconfirm its feature graph and clock implementation before
-  treating the decision as discharged. Determinism is explicitly *not* part of
-  this rationale: nothing in this milestone has ambiguous system ordering.
-  Date/Author: 2026-08-15, planning pass.
+  window. The `0.19.1` feature graph and focused application behaviour were
+  checked; see `Surprises & discoveries` and `Progress`. No separate
+  source-level audit of the `0.19.1` clock implementation is recorded.
+  Determinism is explicitly *not* part of this rationale: nothing in this
+  milestone has ambiguous system ordering. Date/Author: 2026-08-15, planning
+  pass.
 
 - Decision: target Bevy `0.19.1` for both the harness and the future Skyjoust
   runtime. Rationale: Bevy types cross the harness boundary, so the harness
   cannot make an independent version choice. The roadmap's earlier `0.17.3`
-  text is stale and must be updated in Milestone 1. Because the completed
-  probes used `0.17.3`, repeat their compatibility, feature, and cost checks
-  before code work begins. Date/Author: 2026-08-17, maintainer decision.
+  text is stale and was updated in Milestone 1. The Milestone 0 follow-up
+  repeated compatibility, feature-graph, and cost checks against `0.19.1`
+  before implementation; evidence is recorded in `Surprises & discoveries` and
+  `Progress`. Date/Author: 2026-08-17, maintainer decision.
 
 - Decision: propagate errors from `rstest-bdd` step functions and prefer
   functional transformations where they remain readable. Rationale: step
@@ -1374,8 +1379,10 @@ passing generator.
 `0.27.0`, and stable `rstest-bdd` `0.6.0`. The manifests use implicit-caret
 stable requirements. An earlier unscoped inverse query failed because it
 queried the workspace root package rather than the harness package; that was a
-query-scope error, not a dependency failure. Workspace-wide acceptance remains
-pending.
+query-scope error, not a dependency failure. Workspace-wide local gates passed
+on the final policy candidate (Revision 35), and hosted CI run
+[39102919735](https://github.com/leynos/skyjoust/actions/runs/39102919735)
+passed on published head `58317635a67eefdbf11e19307e26ee4cf8210649`.
 
 `EP-INV-005` is feature-file freshness. The Milestone 4 A/B test first removes
 the `include_str!` dependency and then restores it. In the stable 0.6.0 A/B,
@@ -1384,8 +1391,8 @@ triggered recompilation and the expected `Step not found` failure in both arms.
 This discharges freshness and proves the macro automatically tracks the bound
 feature. The explicit declaration remains because the task contract requires
 it; it is documentary, not load-bearing. The stable A/B passed on the
-pre-documentation candidate; repeat it as part of the post-documentation
-acceptance checklist in `Progress` before final acceptance.
+post-documentation candidate recorded in `Progress`; no repeat is outstanding
+for this invariant.
 
 `EP-INV-006` is fallible-step error handling. Stable `rstest-bdd` 0.6.0
 supports result-returning steps. The standalone focused suite passed with the
@@ -1412,11 +1419,14 @@ follow-up above. The distinct feature-freshness A/B is recorded under
 The remaining external axioms are Cargo's documented caret resolution and
 workspace feature unification, the selected Rust toolchain and Cranelift
 configuration, and Bevy `0.19.1`'s actual application, time, and plugin APIs.
-The first two are exercised through metadata and the repository gates. The Bevy
-axiom is not yet discharged: the Milestone 0 follow-up must compile the target
-API, inspect its resolved features and clock path, run the focused test shape,
-and measure its cost before implementation approval. No formal proof or model
-checker is proportionate here: repository-owned logic is limited to small
+The Milestone 0 follow-up compiled and exercised the target API, checked the
+resolved feature and headless graphs, ran the focused test shape, and measured
+workspace cost; evidence is recorded in `Surprises & discoveries` and
+`Progress`. The tests and feature graph support the selected `std`
+configuration, but no separate source-level audit of the `0.19.1` clock
+implementation is recorded. That inspection limit is not evidence of a
+functional defect or a pending compatibility implementation. No formal proof or
+model checker is proportionate here: repository-owned logic is limited to small
 constructors and test predicates, while the non-trivial bounded transition
 property is covered by the property test and seeded fault.
 
@@ -1444,10 +1454,10 @@ object that owns the ECS world, the plugin list, and the schedules; its
 schedule. `MinimalPlugins` is Bevy's smallest useful plugin group —
 `TaskPoolPlugin`, `FrameCountPlugin`, `TimePlugin`, and
 `ScheduleRunnerPlugin` — with no window and no renderer under the earlier
-`0.17.3` probe. The Milestone 0 follow-up must confirm the exact `0.19.1`
-composition. That probe must also re-check whether `App::new()` still installs
-`MainSchedulePlugin` before the plan relies on updating an unconfigured
-application.
+`0.17.3` probe. The `0.19.1` unit tests confirm the relevant plugin behaviour:
+`App::new()` omits `TimePlugin`, and `MinimalPlugins` includes
+`FrameCountPlugin`. See `Surprises & discoveries` for the evidence. The
+separate source-level clock inspection limit is recorded above.
 
 **What `rstest-bdd` is.** A behaviour-driven development framework for Rust
 that runs Gherkin scenarios through the ordinary `cargo test` harness. Gherkin
@@ -1528,11 +1538,12 @@ Load the `rust-router` skill to reach the Rust skills; `rust-unit-testing`,
 
 ### Stage A: understand and propose (no code changes)
 
-The original pass is complete, with evidence in `Surprises & discoveries` and
-`Artefacts and notes`. Before approval, finish the Milestone 0 follow-up: wait
-for pull request #6 to automerge, rebase the stack onto `main`, and repeat the
-load-bearing probes against Bevy `0.19.1`. Do not carry the `0.17.3` probe
-results forward as though they verified the selected version.
+The original pass and Milestone 0 follow-up are complete, with evidence in
+`Surprises & discoveries`, `Artefacts and notes`, and `Progress`. PR `#6` was
+merged, the stack was rebased, and the load-bearing API, feature-graph,
+headless, test, and cost probes were repeated against Bevy `0.19.1`. Do not
+carry the `0.17.3` probe results forward as though they verified the selected
+version.
 
 ### Stage B: record the decision (Milestone 1)
 
@@ -3106,3 +3117,13 @@ seconds. `make check-state-graphs`, `make markdownlint`, `make nixie`,
 ledger. This records local validation only, not hosted CI or current-head PR
 review. This plan-only record requires a fresh gate run on its final candidate
 before commit.
+
+Revision 36, 2026-10-18. Reconciled stale status language against the recorded
+Milestone 0 `0.19.1` evidence, Revision 35's workspace gates, and hosted CI run
+[39102919735](https://github.com/leynos/skyjoust/actions/runs/39102919735)
+on published head `58317635a67eefdbf11e19307e26ee4cf8210649`. The user's
+delivery-only cost exception remains recorded above. Updated the stale
+`EP-INV-004`, `EP-INV-005`, timeout-decision, and Bevy compatibility
+statements; the `0.17.3` observations remain historical. This entry records no
+new gate result. See the
+[CodeRabbit assessment](https://github.com/leynos/skyjoust/pull/135#issuecomment-6246583135).
