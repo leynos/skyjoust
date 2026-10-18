@@ -24,7 +24,7 @@ fn ordinary_tests_keep_the_shared_action_timeouts(policy: Result<Value, toml::de
 
     assert_eq!(
         defaults.get("global-timeout").and_then(Value::as_str),
-        Some("130m"),
+        Some("190m"),
         "the run limit must contain both serialized UI runners"
     );
     assert_eq!(
@@ -89,8 +89,8 @@ fn only_ui_binaries_receive_the_serial_compile_budget(policy: Result<Value, toml
     );
     assert_eq!(
         timeout.get("terminate-after").and_then(Value::as_integer),
-        Some(60),
-        "UI tests must terminate after sixty minutes rather than run indefinitely"
+        Some(90),
+        "UI tests must terminate after ninety minutes rather than run indefinitely"
     );
     assert_eq!(
         timeout.get("grace-period").and_then(Value::as_str),

@@ -5,8 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: IMPLEMENTATION COMPLETE — COST ACCEPTANCE BLOCKED PENDING MAINTAINER
-DISPOSITION
+Status: IMPLEMENTATION COMPLETE — COST EXCEPTION APPROVED; PR REVIEW PENDING
 
 Approval gate: this plan must be approved before implementation begins. Do not
 treat silence as approval. The five choices in
@@ -307,8 +306,10 @@ Cost acceptance check (2026-10-17, published head
 passed, but the measured criteria were not met. The warm run took 19m12s,
 exceeding the fifteen-minute tolerance, and `target/` measured 6.7 GB,
 exceeding the 6 GB limit. The cold run took 1h46m56s. The raw logs and
-directory measurements are recorded in Revision 32. Keep cost acceptance open
-and await a maintainer disposition; do not report the plan as fully accepted.
+directory measurements are recorded in Revision 32. The maintainer approved a
+documented exception on 2026-10-18. Acceptance is by exception for this task;
+the measurements remain above the stated limits, which are unchanged for future
+work.
 
 Historical hosted failure (2026-10-12): PR #51 candidate
 `06fac215a37a580a1a9281682bc5b2e0aa56d3f8`, based on `main`
@@ -935,20 +936,35 @@ remain pending as recorded above.
 
 ## Decision log
 
-- Decision (accepted 2026-10-17): give only compile-based Nextest UI test
-  binaries matching `binary(/_ui$/)` a dedicated `compile-ui` group with
-  `max-threads = 1` and a finite 60-minute slow-time budget (`period = "60s"`,
-  sixty terminations, five-second grace). Preserve the shared action's default
-  180-second slow timeout for other tests and set the workspace limit to 130
-  minutes. The CI step watchdogs are 175 minutes; the coverage action's Cargo
-  watchdog is 9,600 seconds, leaving 30 minutes beyond Nextest plus time for
-  cleanup. The old 20-minute per-test limit expired during an uncached BDD pass
-  fixture after nested test dependencies rebuilt. The revised policy passed
-  locally on `ab0d071f`: `make test` passed 244/244 Nextest tests, including
-  the two UI fixtures in 546.460 and 581.624 seconds, plus all doctests. Hosted
-  run `39047593116`, attempt 1, passed its Cranelift test, workflow contracts,
-  and coverage steps on the same head. See Revision 31 for the full evidence
-  and current review status.
+- Historical decision (accepted 2026-10-17; superseded 2026-10-18): give only
+  compile-based Nextest UI test binaries matching `binary(/_ui$/)` a dedicated
+  `compile-ui` group with `max-threads = 1` and a finite 60-minute slow-time
+  budget (`period = "60s"`, sixty terminations, five-second grace). Preserve
+  the shared action's default 180-second slow timeout for other tests and set
+  the workspace limit to 130 minutes. The CI step watchdogs were 175 minutes;
+  the coverage action's Cargo watchdog was 9,600 seconds. The prior policy
+  passed locally on `ab0d071f`: `make test` passed 244/244 Nextest tests,
+  including the two UI fixtures in 546.460 and 581.624 seconds, plus all
+  doctests. Hosted run `39047593116`, attempt 1, passed its Cranelift test,
+  workflow contracts, and coverage steps on the same head. See Revision 31 for
+  that candidate's evidence.
+
+- Decision (2026-10-18): widen the bounded compile-test budgets after the
+  sequential `make test` on published head
+  `eb037d276de922724f84c5a39946f4484a543dda` plus the ExecPlan-only cost
+  exception record timed out one UI contract at 3,600.070 seconds. Nextest ran
+  243 of 244 tests: 242 passed and one timed out. The nested trybuild Cargo
+  process spent 49m21s compiling its first pass fixture while reporting
+  package-cache lock waits and compiler-admission queues up to 464; the test
+  had not completed at its 60-minute limit. No source diagnostic was reported.
+  Set each serialized UI test's finite budget to 90 minutes and Nextest's
+  workspace limit to 190 minutes, allowing both UI tests their full budgets
+  plus a 10-minute ordinary-test tail. Set the test and coverage CI watchdogs
+  to 240 minutes; set coverage Cargo's watchdog to 13,200 seconds, 30 minutes
+  beyond Nextest. `tests/nextest_policy.rs` guards the changed limits and their
+  containment. This extends the bounded policy to cover the observed cold
+  compile and admission waits; it does not waive a gate. Validation on this
+  revised candidate remains pending. Date/Author: 2026-10-18, review follow-up.
 
 - Historical decision: depend on published `rstest-bdd` `0.6.0-beta3` crates
   rather than git dependencies against `main`. Rationale: the roadmap's
@@ -1173,15 +1189,14 @@ remain pending as recorded above.
   must stay stable; this milestone emits none. The panic-diagnostic format in
   `0.1.3` is the artefact worth pinning. Date/Author: 2026-08-15, planning pass.
 
-- Decision (pending maintainer disposition, 2026-10-17): the repeated cost check
+- Decision (maintainer-approved exception, 2026-10-18): the repeated cost check
   on head `0c7e4dcd` missed both the 15-minute warm `make all` tolerance and
-  the 6 GB target-size limit. Keep plan acceptance blocked. Options are to
-  authorize a scoped remediation that brings both measurements within their
-  limits, or to approve an explicit exception that records the measured CI cost
-  and build-tree size. Remediation may require a separate CI/cache or
-  extraction design and must not be improvised in this review follow-up; an
-  exception retains the higher resource cost. No option is approved yet.
-  Date/Author: 2026-10-17, review follow-up.
+  the 6 GB target-size limit. The maintainer approved accepting those measured
+  costs for this task after the cold run took 1h46m56s, the warm run took
+  19m12s, and `target/` measured 6.7 GB twice. This exception applies only to
+  this delivery; it does not change the tolerances for future work or claim
+  either threshold was met. Record the evidence in Revision 32 and the approval
+  in Revision 33. Date/Author: 2026-10-18, maintainer approval.
 
 ## Outcomes & retrospective
 
@@ -2073,9 +2088,10 @@ A reader who has never seen this repository can verify the change like this.
   percentage; adding a Codecov upload/check remains a separate workflow change.
 - Cost: a warm `make all` must complete within fifteen minutes and the build
   tree must stay under 6 GB, per `Tolerances`. The 2026-10-17 measurements on
-  head `0c7e4dcd` missed both conditions; see the verified cost acceptance
-  check above. Keep this acceptance item open pending remediation or explicit
-  maintainer disposition.
+  head `0c7e4dcd` missed both conditions; the maintainer approved an explicit
+  exception for this delivery on 2026-10-18. Acceptance is by exception, not
+  because the measurements met either threshold; see the verified cost check
+  and Decision log above.
 
 ### Quality method (how we check)
 
@@ -3057,3 +3073,36 @@ space, and raw log paths above. The plan status now marks cost acceptance
 blocked pending maintainer disposition; no exception or remediation was
 authorized by this record. The implementation remains functionally complete,
 but do not treat all acceptance conditions or PR readiness as satisfied.
+
+Revision 33, 2026-10-18. The maintainer approved a documented exception for the
+cost acceptance gap recorded in Revision 32. Acceptance is by exception for
+this delivery only: the 19m12s warm run and 6.7 GB build tree remain above the
+15-minute and 6 GB limits. The general tolerances remain unchanged. The plan
+records the approval in the Decision log and marks PR review as pending; this
+does not establish current-head review or readiness.
+
+Revision 34, 2026-10-18. The candidate `make test` recorded in the delivery
+ledger timed out its macro UI contract after 3,600.070 seconds: 242/244
+completed Nextest tests passed, while the nested trybuild pass fixture was
+still running after 49m21s of compilation amid Cargo cache-lock waits and
+compiler-admission queues up to 464. No source diagnostic was reported. Raised
+the finite per-UI limit from 60 to 90 minutes, the Nextest global limit from
+130 to 190 minutes, and the CI test and coverage watchdogs from 175 to 240
+minutes. Coverage's Cargo watchdog now allows 13,200 seconds, 30 minutes beyond
+the Nextest limit. The timeout contract and developer guidance record these
+limits. This is a bounded budget adjustment, not a gate waiver; the revised
+candidate must pass the sequential validation gates before publication and
+current-head review.
+
+Revision 35, 2026-10-18. The six-file policy candidate based on published head
+`eb037d276de922724f84c5a39946f4484a543dda`, with binary diff SHA-256
+`6b3444d0ddaa937b5db17e612747d1ec748255d3ad0520fddff62fb993c225b8`, passed the
+full sequential local gate set. `make check-fmt`, `make lint`,
+`make typecheck`, and `make test` all passed; Nextest passed 244/244 and all 11
+doctests passed. Both serialized UI tests passed in 1,084.639 and 914.398
+seconds. `make check-state-graphs`, `make markdownlint`, `make nixie`,
+`make spelling`, `make test-workflow-contracts` (six tests), and
+`git diff --check` also passed. The per-gate logs are recorded in the delivery
+ledger. This records local validation only, not hosted CI or current-head PR
+review. This plan-only record requires a fresh gate run on its final candidate
+before commit.

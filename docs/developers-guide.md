@@ -93,8 +93,8 @@ behavioural fixture exactly as the search-based tests in that section describe.
 Compile-based UI test binaries run `trybuild`, which starts nested Cargo
 compilations. For Nextest-based coverage, binaries named with the `_ui` suffix
 use the dedicated `compile-ui` test group: that group runs one test at a time
-and gives each test a finite 60-minute slow-time budget. Other tests retain the
-default 180-second slow-time budget. The workspace-wide timeout is 130 minutes,
+and gives each test a finite 90-minute slow-time budget. Other tests retain the
+default 180-second slow-time budget. The workspace-wide timeout is 190 minutes,
 which contains both serialized UI runners, their five-second termination grace
 periods, and an ordinary-test tail. The policy applies to development and
 coverage runs that use Nextest; `cargo test` does not apply Nextest groups or
@@ -110,17 +110,18 @@ coverage. Offline execution avoids network delays; it does not eliminate
 Cargo's cache locks or compiler-admission waits. Cargo parallelism remains
 under caller control.
 
-Both CI coverage callers set a finite 9,600-second Cargo watchdog, allowing 30
-minutes for cold compilation beyond the 130-minute Nextest run. Their
-175-minute step watchdogs leave time for cleanup and reporting; the ordinary
+Both CI coverage callers set a finite 13,200-second Cargo watchdog, allowing 30
+minutes for cold compilation beyond the 190-minute Nextest run. Their
+240-minute step watchdogs leave time for cleanup and reporting; the ordinary
 test step has the same outer bound. These are conservative containment budgets
 following Cuprum's timeout treatment,[^cargo-queue-budgets] not measured
-execution-time guarantees. The failed local run reached its old 600-second
-limit while nested Cargo waited for package-cache access and compiled
-dependencies. A later uncached run reached the 20-minute limit during its first
-BDD pass fixture, after rebuilding the nested test dependencies; the larger
-bounded allowance provides time for those fixture compilations and shared
-compiler-admission waits.
+execution-time guarantees. Earlier local runs reached the 600-second and
+20-minute limits while nested Cargo waited for package-cache access and
+compiled dependencies. A later run passed under the 60-minute UI budget, but a
+cold run still timed out after 60 minutes: trybuild spent 49m21s compiling its
+first pass fixture while Cargo reported cache-lock waits and compiler queues of
+up to 464. The 90-minute per-test budget retains a finite bound while covering
+that measured cold compile and additional admission waits.
 
 The repository relies on the installed compiler wrappers for shared admission.
 A healthy pool can have every slot occupied and hundreds of requests queued.

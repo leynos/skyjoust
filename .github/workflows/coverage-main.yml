@@ -63,13 +63,13 @@ jobs:
         run: make test-prepare
         timeout-minutes: 15
       - name: Test and Measure Coverage
-        timeout-minutes: 175
+        timeout-minutes: 240
         uses: leynos/shared-actions/.github/actions/generate-coverage@e693d81d176d2305e2b736a0be0f9038085dec7f
         with:
           output-path: lcov.info
           format: lcov
-          # Allows cold LLVM compilation before Nextest's 130-minute run.
-          cargo-wait-timeout: '9600'
+          # Allows cold LLVM compilation before Nextest's 190-minute run.
+          cargo-wait-timeout: '13200'
           with-ratchet: 'true'
       - name: Upload coverage data to CodeScene
         if: github.ref == 'refs/heads/main'
