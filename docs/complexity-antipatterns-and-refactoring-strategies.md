@@ -745,9 +745,8 @@ behaviour changes depending on its internal state.[^30] Instead of using large
 conditionals based on state variables, each state is encapsulated in its own
 object. The context object delegates behaviour to its current state object.
 Transitions involve changing the context's state object. This is particularly
-effective for refactoring state machines implemented with complex
-
-`if/else` or `switch` statements.[^30]
+effective for refactoring state machines implemented with complex `if/else` or
+`switch` statements.[^30]
 
 Thoughtfully apply these refactoring strategies to significantly reduce
 cognitive complexity, and to create codebases that are more understandable,

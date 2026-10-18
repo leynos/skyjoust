@@ -573,9 +573,14 @@ When using `#[once]`, there are critical warnings:
    and cannot be generic functions (neither with generic type parameters nor
    using `impl Trait` in arguments or return types).
 3. **Attribute Propagation:** `rstest` macros currently drop `#[expect]`
-   attributes from fixtures and test functions. If a test relies on a lint
-   expectation, use `#[allow]` instead and note the workaround in a comment
-   referencing this upstream limitation.
+   attributes from fixtures and test functions. Track upstream support for
+   propagating these attributes; do not replace a dropped expectation with a
+   handwritten `#[allow]`. The project's `allow_fixture_expansion_lints` macro
+   addresses only `unused_braces` from fixture expansion; it is not a general
+   fix for attribute propagation. See the
+   [developer guide](developers-guide.md#73-silencing-a-lint) and
+   [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md) for that
+   project-specific macro.
 
 The "never dropped" behaviour arises because `rstest` typically creates a
 `static` variable to hold the result of the `#[once]` fixture. `static`
