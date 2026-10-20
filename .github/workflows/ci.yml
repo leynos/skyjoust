@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/setup-rust@126d02e32a07c2b049e8b68fff09298526e5971a
         with:
           install-mold: 'true'
           install-clang-lld: 'true'
@@ -31,7 +31,7 @@ jobs:
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@126d02e32a07c2b049e8b68fff09298526e5971a
         with:
           version: "0.6.1"
 
@@ -44,7 +44,7 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install the Whitaker Dylint suite
-        uses: leynos/shared-actions/.github/actions/install-whitaker@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/install-whitaker@126d02e32a07c2b049e8b68fff09298526e5971a
       - name: Lint
         run: make lint
       - name: Test under Cranelift
@@ -69,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/setup-rust@126d02e32a07c2b049e8b68fff09298526e5971a
         with:
           install-mold: 'true'
           install-clang-lld: 'true'
@@ -78,7 +78,7 @@ jobs:
         timeout-minutes: 15
       - name: Test and Measure Coverage
         timeout-minutes: 240
-        uses: leynos/shared-actions/.github/actions/generate-coverage@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/generate-coverage@126d02e32a07c2b049e8b68fff09298526e5971a
         with:
           output-path: lcov.info
           format: lcov
