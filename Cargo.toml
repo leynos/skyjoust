@@ -19,7 +19,7 @@ resolver = "3"
 serde_norway = "0.9.42"
 cap-std = "4.0.3"
 toml = "1.1.3"
-rstest = "0.27"
+rstest = "0.28"
 
 [lints]
 workspace = true
