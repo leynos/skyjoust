@@ -84,6 +84,8 @@ The current Architecture Decision Records (ADRs) live under `docs/adr/`.
   - approval-gated plan for roadmap task `1.1.1`.
 - [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
   - execution plan for roadmap task `0.1.1`.
+- [Implement the reusable Bevy harness public API](execplans/0-1-2-bevy-harness-public-api.md)
+  - approval-gated plan for roadmap task `0.1.2`.
 
 ## State graph references and artefacts
 
