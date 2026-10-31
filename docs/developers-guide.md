@@ -424,6 +424,14 @@ and `cargo clippy` both run under the pinned nightly automatically; rustup
 resolves the toolchain from `rust-toolchain.toml` without an explicit
 `+nightly-...` argument.
 
+The development profile follows the dev-build footprint standard: it sets
+`incremental = false` and `debug = 0`, and `.cargo/config.toml` sets the native
+Cargo key `[unstable] embed-metadata = false`, which `nightly-2026-07-31` and
+later pins use to avoid duplicated metadata in `.rlib` files; Cargo still
+produces the corresponding `.rmeta` metadata. Do not replace it with a raw
+`rustc` metadata flag; those broke build scripts.
+`tests/dev_build_footprint.rs` holds the three settings.
+
 ## 8. Fast development builds
 
 `make dev-build` and `make dev-test` offer an opt-in, faster iteration loop for
