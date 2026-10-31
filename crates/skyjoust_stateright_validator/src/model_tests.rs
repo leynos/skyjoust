@@ -21,7 +21,7 @@ fn actions_empty_at_depth_boundary() {
 
     model.actions(&state, &mut actions);
 
-    assert_eq!(actions.len(), 0);
+    assert_eq!(actions.as_slice(), &[] as &[SkyAction]);
 }
 
 #[test]

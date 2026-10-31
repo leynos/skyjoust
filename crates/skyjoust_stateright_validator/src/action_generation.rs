@@ -357,7 +357,7 @@ mod tests {
 
         push_live_match_actions(&state, &mut actions);
 
-        assert_eq!(actions.len(), 0);
+        assert_eq!(actions.as_slice(), &[] as &[SkyAction]);
     }
 
     #[test]
