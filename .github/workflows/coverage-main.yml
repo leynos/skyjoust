@@ -71,6 +71,9 @@ jobs:
           # Allows cold LLVM compilation before Nextest's 190-minute run.
           cargo-wait-timeout: '13200'
           with-ratchet: 'true'
+          # Reset after the nightly-2026-10-30 bump lowered measured coverage:
+          # a new path misses the restored baseline cache entry.
+          baseline-rust-file: .coverage-baseline-v2.rust
       - name: Upload coverage data to CodeScene
         if: github.ref == 'refs/heads/main'
         uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@872f59f53717b5bebe8e24b2f4a7496b089a939a
