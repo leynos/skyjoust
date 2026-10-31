@@ -158,8 +158,7 @@ impl<'a> Job<'a> {
         Self {
             lines: bounds
                 .and_then(|range| lines.get(range))
-                .map(<[&str]>::to_vec)
-                .unwrap_or_default(),
+                .map_or_else(Vec::new, <[&str]>::to_vec),
         }
     }
 

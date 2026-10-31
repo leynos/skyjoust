@@ -20,7 +20,7 @@ fn valid_trace_prints_pretty_json_and_exits_zero() -> Result<(), Box<dyn Error>>
     )?;
 
     assert!(output.status.success());
-    assert!(stderr_text(&output)?.is_empty());
+    assert_eq!(stderr_text(&output)?, "");
     let stdout = stdout_text(&output)?;
     let json: Value = serde_json::from_str(stdout)?;
     assert_eq!(field(&json, "ok")?, &Value::Bool(true));
@@ -58,7 +58,7 @@ fn invalid_trace_exits_two_and_prints_failure_json() -> Result<(), Box<dyn Error
     let output = run_validate_trace(&[], r#"["AssetsLoaded","StartSkirmish","CommitRewards"]"#)?;
 
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr_text(&output)?.is_empty());
+    assert_eq!(stderr_text(&output)?, "");
     let json: Value = serde_json::from_str(stdout_text(&output)?)?;
     assert_eq!(field(&json, "ok")?, &Value::Bool(false));
     let final_state = field(&json, "final_state")?;

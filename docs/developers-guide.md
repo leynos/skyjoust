@@ -416,12 +416,13 @@ not in shared, non-test helpers.
 
 ### 7.5. Toolchain
 
-`rust-toolchain.toml` pins a dated nightly channel and requires it to supply the
-`rustfmt`, `clippy`, and `rust-analyzer` components (a repository may carry
-additional components beyond these three, such as an opt-in Cranelift codegen
-backend for `tools/dev-fast/config.toml`). `cargo fmt` and `cargo clippy` both
-run under the pinned nightly automatically; rustup resolves the toolchain from
-`rust-toolchain.toml` without an explicit `+nightly-...` argument.
+`rust-toolchain.toml` pins the dated nightly channel `nightly-2026-10-30` and
+requires it to supply the `rustfmt`, `clippy`, and `rust-analyzer` components
+(a repository may carry additional components beyond these three, such as an
+opt-in Cranelift codegen backend for `tools/dev-fast/config.toml`). `cargo fmt`
+and `cargo clippy` both run under the pinned nightly automatically; rustup
+resolves the toolchain from `rust-toolchain.toml` without an explicit
+`+nightly-...` argument.
 
 ## 8. Fast development builds
 
@@ -522,6 +523,16 @@ reaches the uploader only through its `access-token` input, never an `env`.
 When the repository has no `CS_ACCESS_TOKEN` (no CodeScene project yet) the
 uploader records a `CodeScene upload skipped` notice and a step-summary line
 and the run still succeeds.
+
+Both coverage callers (`ci.yml` and `coverage-main.yml`) set
+`baseline-rust-file: .coverage-baseline-v2.rust`. The ratchet restores its
+baseline from a cache keyed by that path, so a new path starts from the
+committed figure instead of the cached one. The file was introduced when the
+bump to `nightly-2026-10-30` lowered measured coverage from 87.36% to 86.17%
+with every test unchanged, and holds the new measurement rounded down to one
+decimal place (86.1). To reset the baseline after a similar toolchain change,
+commit the new figure under a new suffix (`.coverage-baseline-v3.rust`) and
+point both callers at it.
 
 `make test-workflow-contracts` checks that shape. It runs the shared
 `cv005-contracts check --repository .` from the commit named by
