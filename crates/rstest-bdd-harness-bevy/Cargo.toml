@@ -11,7 +11,7 @@ readme = "README.md"
 workspace = true
 
 [dependencies]
-bevy = { version = "0.19.1", default-features = false, features = ["std"] }
+bevy = { version = "0.20.0", default-features = false, features = ["std"] }
 rstest-bdd-harness = "0.6.0"
 tracing = "0.1"
 
