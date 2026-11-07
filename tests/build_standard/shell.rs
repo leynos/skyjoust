@@ -18,6 +18,31 @@ const WRAPPERS: [&str; 10] = [
 #[derive(Clone, Copy)]
 pub struct Line<'a>(pub &'a str);
 
+/// Returns the quote that opens a value without closing it, so the value runs on
+/// into the next words.
+fn opening_quote(value: &str) -> Option<char> {
+    let quote = value.chars().next().filter(|c| matches!(c, '"' | '\''))?;
+    (value.matches(quote).count() == 1).then_some(quote)
+}
+
+/// Returns whether a cargo command is `cargo [options] fetch ...`, which resolves and
+/// downloads dependencies but compiles nothing, so it takes no `RUSTFLAGS` of the
+/// standard. An option that takes a value (`--config FILE`) is skipped with it.
+fn is_cargo_fetch(command: &str) -> bool {
+    let mut words = command.split_whitespace().skip(1);
+    while let Some(word) = words.next() {
+        if matches!(word, "--config" | "-Z" | "--manifest-path") {
+            // The value may be a quoted path with spaces in it: skip to its close.
+            if let Some(quote) = words.next().and_then(opening_quote) {
+                words.find(|part| part.ends_with(quote));
+            }
+        } else if !word.starts_with(['-', '+']) {
+            return word == "fetch";
+        }
+    }
+    false
+}
+
 /// One leading `NAME=value` assignment of a simple command.
 pub struct Assigned<'a> {
     /// The variable name.
@@ -279,7 +304,7 @@ impl<'a> Line<'a> {
             )
         };
         if is_tool(first) {
-            return Ok(true);
+            return Ok(!is_cargo_fetch(rest));
         }
         let wrapper = first.rsplit('/').next().unwrap_or(first);
         let names_a_tool = rest.split_whitespace().skip(1).any(is_tool);
