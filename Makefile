@@ -96,7 +96,7 @@ clean: ## Remove build artefacts
 # include Cargo's installation directory.
 # Fetch before Nextest starts timing tests, including nested trybuild builds.
 test-prepare: ## Prepare locked workspace dependencies before timed tests
-	$(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" fetch --locked
+	$(CARGO) --config "$(DEV_FAST_CONFIG)" fetch --locked --target "$${CARGO_BUILD_TARGET:-host-tuple}"
 
 test: test-prepare ## Run tests with warnings treated as errors
 	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
@@ -205,8 +205,8 @@ help: ## Show available targets
 	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
 
 # Opt-in accelerated debug builds (Cranelift + mold); requires a nightly
-# toolchain. See AGENTS.md and tools/dev-fast/config.toml.
-DEV_FAST_CONFIG ?= tools/dev-fast/config.toml
+# toolchain. See AGENTS.md and tools/dev-fast/config.toml. `DEV_FAST_CONFIG`
+# is defined once, above, with the other dev-fast variables.
 
 .PHONY: dev-build dev-test
 dev-build: ## Build debug binaries with Cranelift and mold
