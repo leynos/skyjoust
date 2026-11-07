@@ -75,8 +75,8 @@ fn lint_with_script(scratch: &str, script: &str) -> Read<(Output, String)> {
             "lint".to_owned(),
             "CARGO=true".to_owned(),
             format!("WHITAKER={}", root.join("whitaker").display()),
-            // Stubs the docstring gate, which needs `uv` outside this fake
-            // `PATH` and has its own coverage in `make interrogate`.
+            // Replaces the Interrogate command, because `uv` is not on this
+            // fake `PATH`.
             "INTERROGATE=true".to_owned(),
         ])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -219,8 +219,8 @@ fn tool_directory(scratch: &str) -> Read<std::path::PathBuf> {
 fn a_missing_whitaker_skips_the_check_and_lint_succeeds() {
     let tools = tool_directory("whitaker-absent").expect("prepare the tool directory");
     let output = Command::new("make")
-        // `INTERROGATE=true` stubs the docstring gate, which needs `uv` outside
-        // this fake `PATH` and has its own coverage in `make interrogate`.
+        // `INTERROGATE=true` replaces the Interrogate command, because `uv` is
+        // not on this fake `PATH`.
         .args([
             "lint",
             "CARGO=true",
