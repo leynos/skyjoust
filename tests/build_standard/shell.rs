@@ -25,7 +25,13 @@ fn is_cargo_fetch(command: &str) -> bool {
     let mut words = command.split_whitespace().skip(1);
     while let Some(word) = words.next() {
         if matches!(word, "--config" | "-Z" | "--manifest-path") {
-            words.next();
+            // The value may be a quoted path with spaces in it: skip to its close.
+            match words.next() {
+                Some(value) if value.starts_with('"') && value.matches('"').count() == 1 => {
+                    words.find(|part| part.ends_with('"'));
+                }
+                _ => {}
+            }
         } else if !word.starts_with(['-', '+']) {
             return word == "fetch";
         }

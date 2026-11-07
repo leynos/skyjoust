@@ -96,7 +96,7 @@ clean: ## Remove build artefacts
 # include Cargo's installation directory.
 # Fetch before Nextest starts timing tests, including nested trybuild builds.
 test-prepare: ## Prepare locked workspace dependencies before timed tests
-	$(CARGO) --config "$(DEV_FAST_CONFIG)" fetch --locked --target "$${CARGO_BUILD_TARGET:-host-tuple}"
+	$(CARGO) --config "$(DEV_FAST_CONFIG)" fetch --locked
 
 test: test-prepare ## Run tests with warnings treated as errors
 	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)

@@ -34,6 +34,13 @@ fn commands_split_chained_and_branching_lines(#[case] line: &str, #[case] expect
 #[case("X='a b' cargo test", true)]
 #[case("command -v whitaker", false)]
 #[case("echo whitaker not found", false)]
+// `cargo fetch` downloads and compiles nothing, whatever options precede it.
+#[case("cargo fetch --locked", false)]
+#[case("cargo --config tools/dev-fast/config.toml fetch --locked", false)]
+#[case("cargo --config \"tools/dev fast/config.toml\" fetch --locked", false)]
+// A word that merely reads `fetch` inside a quoted value is not the subcommand.
+#[case("cargo --config \"tools fetch config.toml\" check", true)]
+#[case("cargo --config tools/dev-fast/config.toml test --workspace", true)]
 fn only_a_running_cargo_or_whitaker_counts(#[case] command: &str, #[case] expected: bool) {
     assert_eq!(
         Line(command).runs_cargo_or_whitaker().expect("read"),
