@@ -76,5 +76,5 @@ expansion* rather than by handwritten code, and when no reformulation of the
 source satisfies every gate at once. Handwritten sites take `#[expect(...)]`
 instead; see [the developer's guide](../../docs/developers-guide.md) §7.3.
 Record the reasoning in an Architecture Decision Record, as
-[ADR 006](../../docs/adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+[ADR 006](../../docs/adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md)
 does for this crate.

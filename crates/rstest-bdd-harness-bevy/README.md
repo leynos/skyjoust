@@ -11,7 +11,7 @@ This milestone ships the scaffold and its profile functions: a headless Bevy
 `cargo test` harness. The harness types (`BevyScenario`, `BevyProfile`,
 `BevyHarness`, and their companions) belong to roadmap task `0.1.2`. See
 [the harness design](../../docs/rstest-bdd-harness-bevy-design.md) and
-[ADR 009](../../docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+[ADR 009](../../docs/adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
 
 ## Run the tests
 

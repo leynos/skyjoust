@@ -11,15 +11,15 @@ The validator must stay synchronized with these source documents:
 - [Technical design](skyjoust-technical-design.md)
 - [State graph specification](skyjoust-state-graphs.yaml)
 - [Validator contract](../crates/skyjoust_stateright_validator/spec/validator_contract.yaml)
-- [Architecture decision records](adr/)
+- [Architecture decision records](adrs/)
 
 ## 2. Runtime crate and module boundary
 
-[ADR 002](adr/002-crate-layout-and-public-api.md) is the source of truth for
-the workspace shape. The accepted decision is one runtime crate with strict
+[ADR 002](adrs/adr-0002-crate-layout-and-public-api.md) is the source of truth
+for the workspace shape. The accepted decision is one runtime crate with strict
 internal modules, beside the separate `skyjoust_stateright_validator` crate;
-[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
-a third member crate, `rstest-bdd-harness-bevy`, as tooling in the same
+[ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+adds a third member crate, `rstest-bdd-harness-bevy`, as tooling in the same
 category as the validator exception. Maintainers should add new runtime
 functionality as a module inside the runtime crate, not as a new crate.
 
@@ -50,7 +50,7 @@ workspace members.
 
 The harness crate plugs a headless Bevy application into the `rstest-bdd`
 harness contract. Its boundary rule is stated in
-[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) as
+[ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) as
 an extension seam: *the profile type is the single extension seam. Every
 game-specific plugin, resource, and cleanup hook lives in a downstream
 implementation of it, never in this crate.* Skyjoust and Lille each define a
@@ -380,7 +380,7 @@ the lint fires, and often varies from one annotated item to the next. There the
 argument for `expect` inverts: an expectation that goes unfulfilled on some
 items warns on exactly the sites that were already clean. Such suppressions
 belong in an attribute macro in `crates/skyjoust_test_macros`, not at the call
-site. [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+site. [ADR 006](adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md)
 records the decision and the reasoning.
 
 The case that prompted it is `rstest`'s `#[fixture]`, which re-wraps the
@@ -471,7 +471,7 @@ displaces every `rustflags` source, so release adds neither the frontend flag
 nor `mold` (a caller's own value can still contain either). A bare
 `cargo build --release` still takes both, because Cargo does not select
 `rustflags` by profile. The decision is recorded in
-[ADR 007](adr/007-adopt-the-rust-build-standard.md). CI's coverage action
+[ADR 007](adrs/adr-0007-adopt-the-rust-build-standard.md). CI's coverage action
 detects the Cranelift development profile and holds coverage on LLVM. Cargo
 applies one `rustflags` source and an assigned `RUSTFLAGS` replaces them all,
 so the Makefile restates both flags as `STANDARD_RUSTFLAGS` for the targets

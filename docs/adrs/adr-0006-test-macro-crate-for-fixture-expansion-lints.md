@@ -73,7 +73,7 @@ The crate is `publish = false` and carries no runtime behaviour. It is a
 development dependency of the crates whose tests need it, never a normal one.
 
 The workspace therefore grows to three members. This does not reopen
-[ADR 002](002-crate-layout-and-public-api.md)'s deferral of runtime crate
+[ADR 002](adr-0002-crate-layout-and-public-api.md)'s deferral of runtime crate
 splits: that decision governs *runtime* functionality, which must stay as
 modules inside the runtime crate. `skyjoust-test-macros` is tooling, in the
 same category as the exception ADR 002 already grants the validator crate. A

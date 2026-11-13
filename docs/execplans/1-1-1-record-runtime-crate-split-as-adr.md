@@ -36,7 +36,7 @@ tolerance boundary in this plan and ask for explicit direction.
 - Preserve hexagonal architecture boundaries. Domain responsibilities must not
   depend on adapters, renderer code, audio backends, process setup, or window
   lifecycle glue.
-- Treat `docs/adr/002-crate-layout-and-public-api.md` as the intended ADR
+- Treat `docs/adrs/adr-0002-crate-layout-and-public-api.md` as the intended ADR
   unless implementation reveals a concrete reason to create a new ADR instead.
 - Keep `docs/users-guide.md` unchanged unless implementation creates
   user-facing behaviour or tool usage. If it remains unchanged, record that no
@@ -70,9 +70,9 @@ tolerance boundary in this plan and ask for explicit direction.
 
 - Risk: the existing ADR already says the runtime starts compact, but it is
   still marked `Proposed`. Severity: medium. Likelihood: high. Mitigation:
-  update `docs/adr/002-crate-layout-and-public-api.md` to `Accepted`, make the
-  decision explicit, and reconcile every document that still calls the crate
-  split open or deferred.
+  update `docs/adrs/adr-0002-crate-layout-and-public-api.md` to `Accepted`,
+  make the decision explicit, and reconcile every document that still calls the
+  crate split open or deferred.
 
 - Risk: a future implementer may interpret the ADR as permission to keep
   adapter and domain logic in the same module. Severity: high. Likelihood:
@@ -111,7 +111,7 @@ tolerance boundary in this plan and ask for explicit direction.
   `/tmp/nixie-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`,
   `/tmp/diff-check-skyjoust-1-1-1-record-runtime-crate-split-as-adr.out`.
 - [x] (2026-05-02) Implemented the ADR and documentation reconciliation.
-  Edited six tracked files: `docs/adr/002-crate-layout-and-public-api.md`,
+  Edited six tracked files: `docs/adrs/adr-0002-crate-layout-and-public-api.md`,
   `docs/skyjoust-technical-design.md`, `docs/development-plan.md`,
   `docs/developers-guide.md`, `docs/roadmap.md`, and this ExecPlan. Net diff:
   110 added lines across the six files (well inside the 250-line tolerance).
@@ -126,9 +126,9 @@ tolerance boundary in this plan and ask for explicit direction.
 
 ## Surprises & discoveries
 
-- Observation: `docs/adr/002-crate-layout-and-public-api.md` already exists
-  and directly covers the crate-layout decision. Evidence: the file is titled
-  `002: Document crate layout and defer future API splits`, has
+- Observation: `docs/adrs/adr-0002-crate-layout-and-public-api.md` already
+  exists and directly covers the crate-layout decision. Evidence: the file is
+  titled `002: Document crate layout and defer future API splits`, has
   `Status: Proposed`, and says the project starts as a two-crate workspace.
   Impact: implementation should accept and tighten ADR 002 instead of creating
   a competing ADR number.
@@ -216,7 +216,7 @@ deserve independent crates.
 
 The implementation must reconcile these repository-relative files:
 
-- `docs/adr/002-crate-layout-and-public-api.md` is the ADR to accept and
+- `docs/adrs/adr-0002-crate-layout-and-public-api.md` is the ADR to accept and
   tighten.
 - `docs/skyjoust-technical-design.md` section 4 defines runtime ownership and
   dependency direction. Sections 15 and 16 list accepted and deferred design
@@ -263,15 +263,16 @@ tests are not applicable unless implementation is approved to alter Rust
 behaviour. If code changes become necessary, stop at the tolerance boundary and
 revise this plan to add a red-green test milestone.
 
-Stage 2 is ADR ratification. Edit `docs/adr/002-crate-layout-and-public-api.md`
-so its status is `Accepted`, its decision states that the first implementation
-uses one runtime crate with strict internal modules beside
-`skyjoust_stateright_validator`, and its consequences state the migration path.
-The migration path should permit module extraction only when an API is reused
-by runtime, tools, or validator code, or when a boundary is stable enough to
-test and release independently. The ADR must state dependency direction: app
-orchestration depends on subsystems, subsystems depend on `core`, and lower
-layers do not call higher layers.
+Stage 2 is ADR ratification. Edit
+`docs/adrs/adr-0002-crate-layout-and-public-api.md` so its status is
+`Accepted`, its decision states that the first implementation uses one runtime
+crate with strict internal modules beside `skyjoust_stateright_validator`, and
+its consequences state the migration path. The migration path should permit
+module extraction only when an API is reused by runtime, tools, or validator
+code, or when a boundary is stable enough to test and release independently.
+The ADR must state dependency direction: app orchestration depends on
+subsystems, subsystems depend on `core`, and lower layers do not call higher
+layers.
 
 Stage 3 is documentation reconciliation. Edit
 `docs/skyjoust-technical-design.md` so section 15 lists the initial crate split
@@ -335,7 +336,7 @@ Because `make fmt` may edit Markdown, inspect the resulting diff before
 committing:
 
 ```sh
-git diff -- docs/adr/002-crate-layout-and-public-api.md \
+git diff -- docs/adrs/adr-0002-crate-layout-and-public-api.md \
   docs/skyjoust-technical-design.md \
   docs/development-plan.md \
   docs/developers-guide.md \
@@ -368,7 +369,7 @@ Record the initial runtime crate split for roadmap task 1.1.1 and
 reconcile the design, development, and developer documentation so future
 runtime work has one dependency direction to follow.
 ENDOFMSG
-git add docs/adr/002-crate-layout-and-public-api.md \
+git add docs/adrs/adr-0002-crate-layout-and-public-api.md \
   docs/skyjoust-technical-design.md \
   docs/development-plan.md \
   docs/developers-guide.md \
@@ -382,7 +383,7 @@ rm -rf "$COMMIT_MSG_DIR"
 
 Acceptance requires the repository to show these observable outcomes:
 
-- `docs/adr/002-crate-layout-and-public-api.md` has `Status: Accepted` and
+- `docs/adrs/adr-0002-crate-layout-and-public-api.md` has `Status: Accepted` and
   states the first runtime implementation uses one runtime crate with strict
   modules beside `skyjoust_stateright_validator`.
 - The ADR defines dependency direction and the allowed migration path if the
@@ -430,7 +431,8 @@ The Wyvern planning brief identified these source anchors:
 - `docs/development-plan.md` sections 6 and 17 for runtime foundation and open
   decisions.
 - `docs/roadmap.md` task `1.1.1` for the acceptance criteria.
-- `docs/adr/002-crate-layout-and-public-api.md` as the existing proposed ADR.
+- `docs/adrs/adr-0002-crate-layout-and-public-api.md` as the existing proposed
+  ADR.
 
 No implementation artefacts exist yet because this plan is awaiting approval.
 

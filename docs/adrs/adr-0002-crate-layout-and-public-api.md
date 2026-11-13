@@ -96,7 +96,7 @@ with this decision.
 
 ### Addendum (accepted 2026-08-17): tooling crate exception
 
-[ADR 009](adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
+[ADR 009](adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) adds
 `rstest-bdd-harness-bevy` as a third member crate — a tooling-facing test
 adapter in the same category as the validator exception recorded above. Its
 fixture-lint helper is a nested, crate-owned workspace member and is permitted

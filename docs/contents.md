@@ -56,25 +56,25 @@
 
 ## Architecture decision records
 
-The current Architecture Decision Records (ADRs) live under `docs/adr/`.
+The current Architecture Decision Records (ADRs) live under `docs/adrs/`.
 
-- [ADR 001: Use Stateright as the interaction validator](adr/001-stateright-as-interaction-validator.md)
+- [ADR 001: Use Stateright as the interaction validator](adrs/adr-0001-stateright-as-interaction-validator.md)
   - accepted decision to use Stateright for bounded interaction validation.
-- [ADR 002: Document crate layout and defer future API splits](adr/002-crate-layout-and-public-api.md)
+- [ADR 002: Document crate layout and defer future API splits](adrs/adr-0002-crate-layout-and-public-api.md)
   - proposed crate boundary and public API timing decision.
-- [ADR 003: Defer fixed-point type and scale](adr/003-fixed-point-type-and-scale.md)
+- [ADR 003: Defer fixed-point type and scale](adrs/adr-0003-fixed-point-type-and-scale.md)
   - deferred numeric representation decision pending prototype evidence.
-- [ADR 004: Defer atlas packing format and manifest schema](adr/004-atlas-packing-format-and-manifest-schema.md)
+- [ADR 004: Defer atlas packing format and manifest schema](adrs/adr-0004-atlas-packing-format-and-manifest-schema.md)
   - deferred asset atlas and manifest schema decision.
-- [ADR 005: Defer Warfront renderer map-art strategy](adr/005-warfront-renderer-map-art-strategy.md)
+- [ADR 005: Defer Warfront renderer map-art strategy](adrs/adr-0005-warfront-renderer-map-art-strategy.md)
   - deferred rendering art strategy decision for Warfront maps.
-- [ADR 006: Suppress macro-expansion lints through a test-macro crate](adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+- [ADR 006: Suppress macro-expansion lints through a test-macro crate](adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md)
   - accepted decision to hold fixture expansion lint suppression in a
   test-only procedural-macro crate.
-- [ADR 007: Adopt the Rust build standard in `.cargo/config.toml`](adr/007-adopt-the-rust-build-standard.md)
+- [ADR 007: Adopt the Rust build standard in `.cargo/config.toml`](adrs/adr-0007-adopt-the-rust-build-standard.md)
   - accepted decision to carry the estate build standard in the Cargo
   configuration, holding release and coverage off it.
-- [ADR 009: In-tree incubation of the Bevy BDD harness crate](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+- [ADR 009: In-tree incubation of the Bevy BDD harness crate](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
   - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and adopt
   the published `rstest-bdd` 0.6.0 family with implicit caret requirements.
 
