@@ -13,7 +13,7 @@ The primary sources are `docs/skyjoust-product-requirements.md`,
 `docs/skyjoust-technical-design.md`, `docs/skyjoust-state-graphs.yaml`,
 `docs/rstest-bdd-harness-bevy-design.md`,
 `crates/skyjoust_stateright_validator/spec/validator_contract.yaml`, and the
-reference images in `ref/`. ADRs numbered 001–009 are recorded in `docs/adr/`;
+reference images in `ref/`. ADRs numbered 001–009 are recorded in `docs/adrs/`;
 early roadmap tasks create further narrow ADRs where the design still names
 unresolved choices. ADR 009 records the Bevy harness crate decision. The
 accepted numbering includes main's ADR 007 and ADR 008.
@@ -43,7 +43,7 @@ informs later runtime testing in Phase 1. See
   - Keep the crate free of Skyjoust and Lille dependencies.
   - Use Bevy `0.19.1` with `default-features = false` and the `std` feature;
     use published stable `rstest-bdd` 0.6.0 family requirements with implicit
-    caret syntax. See [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+    caret syntax. See [ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
     The imported [v0.6.0 migration guide](rstest-bdd-v0.6.0-migration-guide.md)
     and [users' guide](rstest-bdd-v0.6.0-users-guide.md) are sourced from the
     upstream v0.6.0 tag; exact URLs are recorded in the ExecPlan.

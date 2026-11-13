@@ -49,10 +49,11 @@ Progress. These are local results only. PR #51 is published at
 findings refer to superseded head `6b185eee6ee3d330585b08b2fa3d5a529754a536`.
 Hosted outcomes, current review reconciliation, and final acceptance remain
 pending. See
-[ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
-the [ExecPlan](execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
-for the current decision and local evidence; it distinguishes that evidence
-from the remaining PR lifecycle work.
+[ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+and the
+[ExecPlan](execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md) for
+the current decision and local evidence; it distinguishes that evidence from
+the remaining PR lifecycle work.
 
 The design also needs to remain extractable. Skyjoust should incubate the crate
 in-tree because that keeps review and validation local while the first runtime
@@ -428,4 +429,4 @@ state resources unless they are represented as downstream profile code.
 - Skyjoust runtime ownership and testing constraints:
   [Project Skyjoust technical design](skyjoust-technical-design.md).
 - In-tree incubation and dependency decisions:
-  [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).
+  [ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md).

@@ -579,8 +579,8 @@ When using `#[once]`, there are critical warnings:
    addresses only `unused_braces` from fixture expansion; it is not a general
    fix for attribute propagation. See the
    [developer guide](developers-guide.md#73-silencing-a-lint) and
-   [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md) for that
-   project-specific macro.
+   [ADR 006](adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md) for
+   that project-specific macro.
 
 The "never dropped" behaviour arises because `rstest` typically creates a
 `static` variable to hold the result of the `#[once]` fixture. `static`

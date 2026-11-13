@@ -79,13 +79,13 @@ _Figure 1: Simplified repository tree for contributor orientation._
   lints raised by macro expansion. It carries no runtime behaviour and is never
   published. Add an attribute here only when a lint comes from an expansion
   rather than from handwritten code; see
-  [ADR 006](adr/006-test-macro-crate-for-fixture-expansion-lints.md).
+  [ADR 006](adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md).
 - `crates/rstest-bdd-harness-bevy/`: reusable Bevy harness scaffolding for
   `rstest-bdd` behavioural tests. It incubates in-tree but depends on no
   Skyjoust or Lille game code, so it can move to its own repository as a
   directory move plus a dependency rewire. See
-  [ADR 009](adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md) and
-  [the harness design](rstest-bdd-harness-bevy-design.md).
+  [ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
+  and [the harness design](rstest-bdd-harness-bevy-design.md).
 - `crates/rstest-bdd-harness-bevy/test-macros/`: nested, test-only procedural
   macro package for fixture-expansion lint handling. It belongs to the
   extractable harness boundary and is not a sibling workspace dependency.
@@ -104,7 +104,7 @@ _Figure 1: Simplified repository tree for contributor orientation._
   standards, state graph references, and generated diagrams. Update the
   relevant document when requirements, architecture, workflows, or generated
   artefacts change.
-- `docs/adr/`: current home for Architecture Decision Records (ADRs). This
+- `docs/adrs/`: current home for Architecture Decision Records (ADRs). This
   layout predates the style guide's canonical ADR filename convention.
 - `ref/`: reference design book images that define the visual contract cited
   by the technical design. Treat these as product and art-direction inputs, not

@@ -4,7 +4,7 @@
 //! This crate is test-only tooling. It carries no runtime behaviour and is not
 //! published. See [the developer's guide](../../../docs/developers-guide.md)
 //! §7.3 for the policy this crate implements, and
-//! [ADR 006](../../../docs/adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+//! [ADR 006](../../../docs/adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md)
 //! for the decision record.
 
 use proc_macro::TokenStream;

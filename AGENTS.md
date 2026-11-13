@@ -430,14 +430,14 @@ collaboration.
 
 `.cargo/config.toml` carries the estate Rust build standard (concordat rule
 `rust-build-defaults`, recorded in
-[ADR 007](docs/adr/007-adopt-the-rust-build-standard.md)): the parallel frontend
-(`-Zthreads=8`) in every `rustflags` source, `mold` on Linux, and Cranelift
-for the development profile, which the whole suite passes under. Cargo applies
-the file to every build, so a bare `cargo build` gets these automatic defaults;
-the dev-fast fragment below is separate and applies only when passed with
-`--config`. Release and coverage are held off the standard, not off the
-configuration: `make release` assigns `RUSTFLAGS`, which displaces every
-`rustflags` source, and coverage holds the development profile on LLVM.
+[ADR 007](docs/adrs/adr-0007-adopt-the-rust-build-standard.md)): the parallel
+frontend (`-Zthreads=8`) in every `rustflags` source, `mold` on Linux, and
+Cranelift for the development profile, which the whole suite passes under.
+Cargo applies the file to every build, so a bare `cargo build` gets these
+automatic defaults; the dev-fast fragment below is separate and applies only
+when passed with `--config`. Release and coverage are held off the standard,
+not off the configuration: `make release` assigns `RUSTFLAGS`, which displaces
+every `rustflags` source, and coverage holds the development profile on LLVM.
 
 `make dev-build` and `make dev-test` still pass `tools/dev-fast/config.toml`
 with `--config`. The fragment repeats what the configuration now sets, and it

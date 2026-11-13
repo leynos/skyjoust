@@ -352,8 +352,8 @@ Goal: start the game with a fixed virtual resolution and placeholder panels.
 Tasks:
 
 - Follow the initial crate split accepted in
-  [ADR 002](adr/002-crate-layout-and-public-api.md): one runtime crate with
-  strict internal modules beside `skyjoust_stateright_validator`. Module
+  [ADR 002](adrs/adr-0002-crate-layout-and-public-api.md): one runtime crate
+  with strict internal modules beside `skyjoust_stateright_validator`. Module
   boundaries match the technical design's runtime ownership table.
 - Add runtime dependencies behind explicit feature choices.
 - Implement a `winit` runner.

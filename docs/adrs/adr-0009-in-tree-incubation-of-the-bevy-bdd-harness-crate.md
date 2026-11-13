@@ -10,7 +10,7 @@ Accepted: 2026-08-17
 
 Project Skyjoust is a Cargo workspace: the root `skyjoust` package, the
 `skyjoust_stateright_validator` crate, and the `skyjoust_test_macros` crate
-added by [ADR 006](006-test-macro-crate-for-fixture-expansion-lints.md).
+added by [ADR 006](adr-0006-test-macro-crate-for-fixture-expansion-lints.md).
 Roadmap phase `0.5` needs behaviour-driven tests that drive a deterministic,
 headless Bevy entity-component system (ECS) application from Gherkin scenarios
 through the ordinary `cargo test` harness. The reusable vehicle is a new crate,
@@ -41,7 +41,7 @@ move to its own repository. The roadmap names the extraction target as
 
 Add `crates/rstest-bdd-harness-bevy` as a workspace member, growing the
 workspace to four members: the root package plus three crates. This does not
-reopen [ADR 002](002-crate-layout-and-public-api.md)'s deferral of runtime
+reopen [ADR 002](adr-0002-crate-layout-and-public-api.md)'s deferral of runtime
 crate splits. That decision governs *runtime* functionality, which must stay as
 modules inside the runtime crate; the harness is a tooling-facing test adapter,
 in the same category as the exception ADR 002 already grants the validator
@@ -139,9 +139,9 @@ every workspace build. `make test` and `make lint` each compile the added
 `0.19.1` graph, and the CI caches grow correspondingly; the measured cost is
 recorded in the ExecPlan's `Outcomes & retrospective`.
 
-[ADR 002](002-crate-layout-and-public-api.md)'s Consequences told readers to
-expect exactly two crates. That statement is superseded by this record, and a
-forward pointer is added there so the two documents do not disagree.
+[ADR 002](adr-0002-crate-layout-and-public-api.md)'s Consequences told readers
+to expect exactly two crates. That statement is superseded by this record, and
+a forward pointer is added there so the two documents do not disagree.
 
 The `rstest-bdd` family now targets stable `0.6.0` with implicit-caret
 requirements. The lockfile records the resolved versions but does not replace

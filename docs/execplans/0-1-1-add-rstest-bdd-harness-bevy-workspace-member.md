@@ -193,7 +193,7 @@ one, stop and escalate rather than working around it.
   `allow_fixture_expansion_lints` attribute — the estate-mandated approach,
   mirroring `weaver-test-macros`. Apply the attribute directly above
   `#[fixture]` and leave the fixture in its natural single-expression form. See
-  [ADR 006](../adr/006-test-macro-crate-for-fixture-expansion-lints.md)
+  [ADR 006](../adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md)
   and [the developer's guide](../developers-guide.md) §7.3. Verified clean
   under both gates.
 
@@ -1554,9 +1554,9 @@ version.
 Documentation only.
 
 1. Create
-   `docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`,
-   following the shape of `docs/adr/002-crate-layout-and-public-api.md`: a
-   numbered title heading, plain status and date lines, then `## Context`,
+   `docs/adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`,
+   following the shape of `docs/adrs/adr-0002-crate-layout-and-public-api.md`:
+   a numbered title heading, plain status and date lines, then `## Context`,
    `## Decision`, `## Consequences`. It must state:
    - that the workspace grows to three crates, and why that does not reopen
      ADR 002's deferral of runtime crate splits — this is a tooling-facing test
@@ -2663,8 +2663,8 @@ declined here as disproportionate, and the manual `cargo tree` step in
 | `crates/rstest-bdd-harness-bevy/tests/ui/missing_include_file.rs`         | Compile-fail fixture for a missing included file.              |
 | `crates/rstest-bdd-harness-bevy/tests/ui/missing_include_file.stderr`     | Expected include compiler diagnostic.                          |
 | `crates/skyjoust_stateright_validator/examples/serve_explorer.rs`         | Minimal lint repair by helper extraction.                      |
-| `docs/adr/002-crate-layout-and-public-api.md`                             | Add the dated ADR 009 tooling exception.                       |
-| `docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`    | Bevy harness ADR, numbered 009.                                |
+| `docs/adrs/adr-0002-crate-layout-and-public-api.md`                       | Add the dated ADR 009 tooling exception.                       |
+| `docs/adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md`  | Bevy harness ADR, numbered 009.                                |
 | `docs/contents.md`                                                        | Index current documents and remove stale deleted-path entries. |
 | `docs/developers-guide.md`                                                | Harness development conventions.                               |
 | `docs/execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md`    | Living implementation and acceptance record.                   |
