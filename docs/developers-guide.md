@@ -114,7 +114,7 @@ Both CI coverage callers set a finite 13,200-second Cargo watchdog, allowing 30
 minutes for cold compilation beyond the 190-minute Nextest run. Their
 240-minute step watchdogs leave time for cleanup and reporting. The ordinary
 test step has the same outer bound. On pull requests, the `coverage-ratchet`
-job depends on `build-test`, so coverage runs after the Cranelift suite in a
+job depends on `build-test`, so coverage runs after the full suite in a
 separate job with its own explicit 360-minute timeout. This keeps the two
 240-minute step budgets within separate six-hour job limits; setup, lint, and
 reporting still use time within their respective job budgets. GitHub terminates
@@ -436,18 +436,25 @@ produces the corresponding `.rmeta` metadata. Do not replace it with a raw
 
 `make dev-build` and `make dev-test` offer an opt-in, faster iteration loop for
 local debug work: `dev-build` compiles debug binaries and `dev-test` runs the
-test suite, both using the Cranelift codegen backend and the `mold` linker
-configured in `tools/dev-fast/config.toml`.
+test suite, both using the `mold` linker configured in
+`tools/dev-fast/config.toml`. The estate standard is LLVM, so the fragment's
+Cranelift selection is commented out (disabled 14 November 2026, review due
+14 May 2027). Uncommenting it, here or in `.cargo/config.toml`, is a persistent
+opt-in that `tests/build_standard_contract.rs` rejects until it is updated; the
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND` environment variable or a one-off
+`--config` flag opts in without that. Cranelift does not unwind, so no test may
+rely on a caught panic under it.
 
 The `DEV_FAST_CONFIG` variable names that fragment, defaulting to
 `tools/dev-fast/config.toml`; both targets pass it to Cargo explicitly with
 `--config "$(DEV_FAST_CONFIG)"`. Cargo never auto-discovers this fragment — it
 takes effect only when a target invokes it directly.
 
-Using the fragment requires a nightly toolchain, since the Cranelift codegen
-backend is unstable. On Linux it also requires the `mold` linker on `PATH`; the
-fragment gates the `-fuse-ld=mold` flag behind a `target_os = "linux"` `cfg`
-table, so other platforms fall back to their default linker.
+Using the fragment requires a nightly toolchain, since the `codegen-backend`
+key it enables is unstable. On Linux it also requires the `mold` linker on
+`PATH`; the fragment gates the `-fuse-ld=mold` flag behind a
+`target_os = "linux"` `cfg` table, so other platforms fall back to their
+default linker.
 
 CI provisions the linker through the pinned `leynos/shared-actions`
 `setup-rust` action rather than an `apt-get` step. The `Setup Rust` step in
@@ -460,45 +467,45 @@ linker flag.
 
 The repository also follows the estate's Rust build standard, which
 `.cargo/config.toml` sets and Cargo auto-discovers, so a bare `cargo build`
-gets it: Cranelift for the development profile (the whole suite passes under
-it), the parallel `rustc` frontend with `-Zthreads=8` in both `rustflags`
-sources, and `mold` in the `cfg(target_os = "linux")` source. The fragment
-therefore repeats what the configuration already sets, and the Make targets
-keep passing it so the dev-fast convention below still holds. `make release`
-uses the release profile, which names no backend, and assigns the inherited
-`RUSTFLAGS`, which is empty when the caller exports none. The assignment
-displaces every `rustflags` source, so release adds neither the frontend flag
-nor `mold` (a caller's own value can still contain either). A bare
-`cargo build --release` still takes both, because Cargo does not select
-`rustflags` by profile. The decision is recorded in
-[ADR 007](adrs/adr-0007-adopt-the-rust-build-standard.md). CI's coverage action
-detects the Cranelift development profile and holds coverage on LLVM. Cargo
-applies one `rustflags` source and an assigned `RUSTFLAGS` replaces them all,
-so the Makefile restates both flags as `STANDARD_RUSTFLAGS` for the targets
-that assign `RUSTFLAGS`, adding them to any `RUSTFLAGS` the recipe inherits
-(setup-rust exports one in CI) rather than replacing it; every `lint` command
-assigns it too. The Makefile adds `mold` only when both the host and the
-compilation target (`CARGO_BUILD_TARGET`, when set) are Linux; an Android
-triple contains `-linux-` but is not Linux to Cargo's `target_os`, so it does
-not get `mold`. `tests/build_standard_contract.rs` (readers in
+gets it: LLVM as the default backend (the Cranelift selection is commented out;
+the estate standard is LLVM, review due 14 May 2027, and an inherited
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND` can still select Cranelift), the parallel
+`rustc` frontend with `-Zthreads=8` in both `rustflags` sources, and `mold` in
+the `cfg(target_os = "linux")` source. The fragment therefore repeats what the
+configuration already sets, and the Make targets keep passing it so the
+dev-fast convention below still holds. `make release` uses the release profile,
+which names no backend, and assigns the inherited `RUSTFLAGS`, which is empty
+when the caller exports none. The assignment displaces every `rustflags`
+source, so release adds neither the frontend flag nor `mold` (a caller's own
+value can still contain either). A bare `cargo build --release` still takes
+both, because Cargo does not select `rustflags` by profile. The decision is
+recorded in [ADR 007](adrs/adr-0007-adopt-the-rust-build-standard.md). CI's
+coverage action holds coverage on LLVM. Cargo applies one `rustflags` source
+and an assigned `RUSTFLAGS` replaces them all, so the Makefile restates both
+flags as `STANDARD_RUSTFLAGS` for the targets that assign `RUSTFLAGS`, adding
+them to any `RUSTFLAGS` the recipe inherits (setup-rust exports one in CI)
+rather than replacing it; every `lint` command assigns it too. The Makefile adds
+`mold` only when both the host and the compilation target
+(`CARGO_BUILD_TARGET`, when set) are Linux; an Android triple contains
+`-linux-` but is not Linux to Cargo's `target_os`, so it does not get `mold`.
+`tests/build_standard_contract.rs` (readers in
 `tests/build_standard/support.rs`) holds the configuration, those recipes and
-the Cranelift and Whitaker settings to this.
+the backend and Whitaker settings to this.
 
 CI's coverage step is narrower than `make test`. The pinned coverage action
 defaults `all-features`, `all-targets` and `doctests` to `false`, and the
 workflow sets none of them, so coverage measures the default-feature library
 and test targets only. Its optional doctests, when enabled, run uninstrumented
 and contribute no coverage. Coverage therefore is not evidence that the whole
-suite passes under Cranelift; the `make test` step that precedes it is. The
-coverage step's effective `RUSTFLAGS` (setup-rust exports one) displace the
-configured `mold` flag, so coverage does not depend on `mold` being installed;
-`make lint` and `make test` do. `tests/build_standard_ci.rs` holds that order
-(`mold`, then `make lint`, then `make test`, then coverage) with one validator
-over the real `ci.yml` and over fixtures that echo, merely name, or
-conditionally skip a gate, using the reader in
-`tests/build_standard/workflow.rs`, which recognizes only the forms this
-workflow uses and rejects any other (a folded `run: >` block, a comment after an
-`install-mold` value) with a named error.
+suite passes; the `make test` step that precedes it is. The coverage step's
+effective `RUSTFLAGS` (setup-rust exports one) displace the configured `mold`
+flag, so coverage does not depend on `mold` being installed; `make lint` and
+`make test` do. `tests/build_standard_ci.rs` holds that order (`mold`, then
+`make lint`, then `make test`, then coverage) with one validator over the real
+`ci.yml` and over fixtures that echo, merely name, or conditionally skip a
+gate, using the reader in `tests/build_standard/workflow.rs`, which recognizes
+only the forms this workflow uses and rejects any other (a folded `run: >`
+block, a comment after an `install-mold` value) with a named error.
 
 Skyjoust's own extra fact, beyond the general dev-fast contract above: per §7,
 the standard `build`, `test`, `lint`, and `typecheck` targets already pass
@@ -509,12 +516,12 @@ skips the other standard targets' formatting and lint checks. The one exception
 is `lint`'s Whitaker Dylint invocation: Whitaker runs its own dylint driver
 under a separately pinned toolchain, outside rustup's toolchain-file
 auto-install mechanism, so nothing guarantees that toolchain has the Cranelift
-component the fragment selects — the fragment is deliberately not passed there.
-Because `.cargo/config.toml` now selects Cranelift for every development build,
-the Whitaker invocation also sets `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`
-(`WHITAKER_CODEGEN_BACKEND`), together with
-`CARGO_UNSTABLE_CODEGEN_BACKEND=true`, because Dylint builds its driver in a
-crate outside the repository that the `[unstable]` table does not reach. A
+component an opted-in fragment would select — the fragment is deliberately not
+passed there. Because an opt-in Cranelift selection in `.cargo/config.toml`
+would apply to every development build, the Whitaker invocation also sets
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm` (`WHITAKER_CODEGEN_BACKEND`), together
+with `CARGO_UNSTABLE_CODEGEN_BACKEND=true`, because Dylint builds its driver in
+a crate outside the repository that the `[unstable]` table does not reach. A
 failing Whitaker run fails `make lint`; a missing `whitaker` binary skips the
 check with a message. A Linux host needs `mold` installed before any `cargo` or
 `make` build, build scripts included.

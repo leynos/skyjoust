@@ -210,7 +210,7 @@ fn pull_request_coverage_has_an_independent_job_budget() {
             .get("needs")
             .and_then(serde_norway::Value::as_str),
         Some("build-test"),
-        "coverage must wait for the Cranelift test job to finish"
+        "coverage must wait for the test job to finish"
     );
 
     let build_steps = build_test
@@ -223,7 +223,7 @@ fn pull_request_coverage_has_an_independent_job_budget() {
                 .and_then(serde_norway::Value::as_str)
                 .is_some_and(|uses| uses.starts_with(COVERAGE_ACTION_PREFIX))
         }),
-        "coverage must not consume time from the Cranelift test job"
+        "coverage must not consume time from the test job"
     );
 }
 

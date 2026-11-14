@@ -1,7 +1,8 @@
 //! Contract test for the dev-fast wiring in the repository `Makefile`.
 //!
-//! Sponsor decision: the dev-fast profile (the Cranelift codegen backend
-//! plus the mold linker, configured in `tools/dev-fast/config.toml`) is
+//! Sponsor decision: the dev-fast profile (the mold linker, plus a Cranelift
+//! selection that is disabled by default, configured in
+//! `tools/dev-fast/config.toml`) is
 //! the *standard* development path, documented in AGENTS.md under "Fast
 //! development builds". The standard `build`, `test`, `lint`, and
 //! `typecheck` targets must pass `--config tools/dev-fast/config.toml` to

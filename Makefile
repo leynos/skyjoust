@@ -37,7 +37,7 @@ DEBUG_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)"
 # warning policy and the standard flags in one place.
 GATE_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)"
 # Whitaker's Dylint driver runs on its own pinned toolchain, which need not
-# carry the Cranelift component the development profile selects, so its
+# carry the Cranelift component an opt-in selection needs, so its
 # check builds take LLVM. Dylint builds its driver in a crate outside this
 # repository, which the `[unstable]` table does not reach, so the override
 # also enables the unstable key there.
@@ -204,15 +204,16 @@ help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
 
-# Opt-in accelerated debug builds (Cranelift + mold); requires a nightly
-# toolchain. See AGENTS.md and tools/dev-fast/config.toml. `DEV_FAST_CONFIG`
-# is defined once, above, with the other dev-fast variables.
+# Opt-in accelerated debug builds (mold; Cranelift is disabled in the
+# fragment); requires a nightly toolchain. See AGENTS.md and
+# tools/dev-fast/config.toml. `DEV_FAST_CONFIG` is defined once, above, with the
+# other dev-fast variables.
 
 .PHONY: dev-build dev-test
-dev-build: ## Build debug binaries with Cranelift and mold
+dev-build: ## Build debug binaries with the dev-fast fragment (mold)
 	$(CARGO) --config "$(DEV_FAST_CONFIG)" build
 
-dev-test: ## Run tests with Cranelift and mold
+dev-test: ## Run tests with the dev-fast fragment (mold)
 	$(CARGO) --config "$(DEV_FAST_CONFIG)" test
 
 test-workflow-contracts: ## Validate the CodeScene coverage workflow contract (CV-005)
