@@ -513,9 +513,9 @@ skips the other standard targets' formatting and lint checks. The one exception
 is `lint`'s Whitaker Dylint invocation: Whitaker runs its own dylint driver
 under a separately pinned toolchain, outside rustup's toolchain-file
 auto-install mechanism, so nothing guarantees that toolchain has the Cranelift
-component the fragment selects — the fragment is deliberately not passed there.
-Because an opt-in Cranelift selection in `.cargo/config.toml` would apply to
-every development build, the Whitaker invocation also sets
+component an opted-in fragment would select — the fragment is deliberately not
+passed there. Because an opt-in Cranelift selection in `.cargo/config.toml`
+would apply to every development build, the Whitaker invocation also sets
 `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm` (`WHITAKER_CODEGEN_BACKEND`), together
 with `CARGO_UNSTABLE_CODEGEN_BACKEND=true`, because Dylint builds its driver in
 a crate outside the repository that the `[unstable]` table does not reach. A
