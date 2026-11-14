@@ -186,20 +186,22 @@ fn value_at<'a>(root: &'a toml::Value, path: &[&str]) -> Option<&'a toml::Value>
     path.iter().try_fold(root, |value, key| value.get(key))
 }
 
-/// Cranelift is the development backend and the release profile does not name
-/// it, so release builds keep the supported LLVM backend.
+/// The development profile leaves the backend unset (LLVM) and the release
+/// profile does not name one, so every build keeps the supported LLVM backend.
+/// Uncommenting the Cranelift selection is a persistent opt-in that needs this
+/// contract updated.
 #[test]
-fn cranelift_is_the_development_backend_and_release_is_not() {
+fn llvm_is_the_development_backend_and_release_names_none() {
     let config = config().expect("read the Cargo configuration");
     assert_eq!(
         value_at(&config, &["unstable", "codegen-backend"]).and_then(toml::Value::as_bool),
         Some(true),
         "`[unstable] codegen-backend = true` is what lets Cargo accept the profile key"
     );
-    assert_eq!(
-        value_at(&config, &["profile", "dev", "codegen-backend"]).and_then(toml::Value::as_str),
-        Some("cranelift"),
-        "the development profile no longer selects Cranelift"
+    let development = value_at(&config, &["profile", "dev", "codegen-backend"]);
+    assert!(
+        development.is_none_or(|backend| backend.as_str() == Some("llvm")),
+        "the development profile must leave the backend unset or select LLVM"
     );
     assert!(
         value_at(&config, &["profile", "release", "codegen-backend"]).is_none(),

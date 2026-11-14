@@ -3,7 +3,7 @@
 //! The Makefile restates the build standard's `mold` flag for its gate targets,
 //! so the build-test job must install `mold` before `make lint` and `make test`,
 //! the steps that take it. `make test` runs after lint so the whole suite is
-//! exercised under Cranelift. Pull-request coverage runs in a dependent job and
+//! exercised before coverage. Pull-request coverage runs in a dependent job and
 //! its separate timeout contract is checked in `nextest_policy`.
 //!
 //! The order is one validator, `order_problem`, applied to the real `ci.yml` and

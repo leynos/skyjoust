@@ -48,3 +48,11 @@ explicit opt-in use.
   Cranelift; coverage itself holds the development profile on LLVM and, at the
   pinned action's defaults, measures a narrower scope than `make test`: its
   optional doctests are uninstrumented and add no coverage.
+
+## Addendum (2026-11-14)
+
+The user abandoned Cranelift for now. The development-profile selection in
+`.cargo/config.toml` and in `tools/dev-fast/config.toml` is commented out, so
+LLVM is the default backend. The unstable key, the component and the opt-in
+route stay. The estate standard is LLVM, with review due 14 May 2027, and this
+supersedes the Cranelift selection above.

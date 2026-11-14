@@ -47,9 +47,8 @@ jobs:
         uses: leynos/shared-actions/.github/actions/install-whitaker@c444bcb1180d5a9e7cc01db2c81e108fd50f26f7
       - name: Lint
         run: make lint
-      - name: Test under Cranelift
-        # Coverage holds the development profile on LLVM, so it cannot show
-        # that the whole suite passes under Cranelift; this step does.
+      - name: Test
+        # Runs the whole suite, which coverage's narrower step does not.
         run: make test
         timeout-minutes: 240
       - name: Workflow contract tests
