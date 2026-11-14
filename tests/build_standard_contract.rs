@@ -31,7 +31,7 @@ use support::{
     THREADS_FLAG,
     check_development_targets,
     dry_run,
-    flags::config,
+    flags::{self, config},
     make_rustflags,
     sources,
 };
@@ -206,6 +206,22 @@ fn llvm_is_the_development_backend_and_release_names_none() {
     assert!(
         value_at(&config, &["profile", "release", "codegen-backend"]).is_none(),
         "the release profile names a backend"
+    );
+}
+
+/// The standard Make targets also pass `tools/dev-fast/config.toml`, so the
+/// committed fragment must leave the development backend unset or select LLVM.
+/// Uncommenting its Cranelift selection is a persistent opt-in for every
+/// standard target and needs this contract updated.
+#[test]
+fn the_dev_fast_fragment_leaves_the_development_backend_on_llvm() {
+    let text = flags::read(std::path::Path::new("tools/dev-fast/config.toml"))
+        .expect("read the dev-fast fragment");
+    let fragment: toml::Value = toml::from_str(&text).expect("parse the dev-fast fragment");
+    let development = value_at(&fragment, &["profile", "dev", "codegen-backend"]);
+    assert!(
+        development.is_none_or(|backend| backend.as_str() == Some("llvm")),
+        "the dev-fast fragment must leave the development backend unset or select LLVM"
     );
 }
 

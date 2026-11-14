@@ -439,8 +439,11 @@ local debug work: `dev-build` compiles debug binaries and `dev-test` runs the
 test suite, both using the `mold` linker configured in
 `tools/dev-fast/config.toml`. The estate standard is LLVM, so the fragment's
 Cranelift selection is commented out (disabled 14 November 2026, review due
-14 May 2027). Uncommenting it is a persistent opt-in. Cranelift does not
-unwind, so no test may rely on a caught panic under it.
+14 May 2027). Uncommenting it, here or in `.cargo/config.toml`, is a persistent
+opt-in that `tests/build_standard_contract.rs` rejects until it is updated; the
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND` environment variable or a one-off
+`--config` flag opts in without that. Cranelift does not unwind, so no test may
+rely on a caught panic under it.
 
 The `DEV_FAST_CONFIG` variable names that fragment, defaulting to
 `tools/dev-fast/config.toml`; both targets pass it to Cargo explicitly with
