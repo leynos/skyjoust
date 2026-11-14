@@ -240,13 +240,13 @@ project:
     `cargo test --doc`, skipping them with a message when the workspace has no
     library target.
 
-  The `cargo` calls in these targets pass
-  `--config tools/dev-fast/config.toml`. The lint, typecheck, and test recipes
-  compose `RUSTFLAGS` from any inherited value, then `-D warnings`, then the
-  standard build flags (`-Zthreads=8`, plus `-Clink-arg=-fuse-ld=mold` on
-  Linux), and `whitaker` receives the same composed flags. Use `make fmt` to
-  apply the formatting fixes reported by the formatter check. It runs
-  `cargo +nightly fmt --all`, then `mdtablefix` in place, then
+  The `cargo` calls in `make lint`, `make typecheck`, and `make test` pass
+  `--config tools/dev-fast/config.toml`. Those three targets compose
+  `RUSTFLAGS` from any inherited value, then `-D warnings`, then the standard
+  build flags (`-Zthreads=8`, plus `-Clink-arg=-fuse-ld=mold` when the host and
+  the target are both Linux), and `whitaker` receives the same composed flags.
+  Use `make fmt` to apply the formatting fixes reported by the formatter check.
+  It runs `cargo +nightly fmt --all`, then `mdtablefix` in place, then
   `markdownlint-cli2 --fix` over the Markdown files.
 - Clippy warnings MUST be disallowed.
 - Fix any warnings emitted during tests in the code itself rather than
