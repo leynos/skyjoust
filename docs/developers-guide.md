@@ -408,11 +408,13 @@ once; everything else takes `#[expect(...)]` at the site.
 
 `clippy.toml` sets the code-health thresholds (cognitive complexity, argument
 count, function length, nesting depth) and lists the `std::env` functions
-clippy disallows: `var`, `var_os`, `vars`, `vars_os`, `set_var`, and
-`remove_var`. Inject an environment reader (or, in tests, a stub environment)
-instead of reading or mutating the process environment directly.
-`allow-expect-in-tests` permits `.expect(...)` inside `#[test]` functions, but
-not in shared, non-test helpers.
+clippy disallows: `var`, `var_os`, `vars`, `vars_os`, `set_var`, `remove_var`,
+and `set_current_dir`. Inject an environment reader (or, in tests, a stub
+environment) instead of reading or mutating the process environment directly,
+and pass a directory in (or use `Command::current_dir` for a child process)
+instead of changing the process's working directory. `allow-expect-in-tests`
+permits `.expect(...)` inside `#[test]` functions, but not in shared, non-test
+helpers.
 
 ### 7.5. Toolchain
 
