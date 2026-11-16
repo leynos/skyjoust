@@ -73,26 +73,40 @@ fn handle_duel(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Opt
     }
 
     match action {
-        SkyAction::IssueDuel => {
-            guard(last.can_issue_duel())?;
-            state.ceremony = CeremonyState::Duel(DuelState::ChallengeIssued);
-        }
+        SkyAction::IssueDuel => issue_duel(last, state)?,
         SkyAction::AcceptDuel => accept_duel(last, state)?,
         SkyAction::RefuseDuel => refuse_duel(last, state)?,
-        SkyAction::DuelReady => {
-            guard(last.ceremony == CeremonyState::Duel(DuelState::ArenaLock))?;
-            state.ceremony = CeremonyState::Duel(DuelState::DuelActive);
-        }
+        SkyAction::DuelReady => activate_duel(last, state)?,
         SkyAction::DuelDecisiveJoust { winner, outcome } => {
             resolve_duel(last, state, *winner, *outcome)?;
         }
         SkyAction::DuelInterference { offender } => {
-            guard(last.ceremony == CeremonyState::Duel(DuelState::DuelActive))?;
-            apply_dishonour_penalty(state, *offender);
+            penalize_duel_interference(last, state, *offender)?;
         }
         _ => return None,
     }
     Some(true)
+}
+
+/// Opens a duel challenge when the current state allows one.
+fn issue_duel(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(last.can_issue_duel())?;
+    state.ceremony = CeremonyState::Duel(DuelState::ChallengeIssued);
+    Some(())
+}
+
+/// Starts the duel once the arena is locked.
+fn activate_duel(last: &SkyState, state: &mut SkyState) -> Option<()> {
+    guard(last.ceremony == CeremonyState::Duel(DuelState::ArenaLock))?;
+    state.ceremony = CeremonyState::Duel(DuelState::DuelActive);
+    Some(())
+}
+
+/// Dishonours `offender` for interfering with a duel that is under way.
+fn penalize_duel_interference(last: &SkyState, state: &mut SkyState, offender: Team) -> Option<()> {
+    guard(last.ceremony == CeremonyState::Duel(DuelState::DuelActive))?;
+    apply_dishonour_penalty(state, offender);
+    Some(())
 }
 
 fn handle_wedding(last: &SkyState, state: &mut SkyState, action: &SkyAction) -> Option<bool> {
