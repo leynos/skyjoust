@@ -1,10 +1,13 @@
 //! Guard the bounded Nextest policy for compile-heavy UI test runners.
+//!
+//! The timeout and watchdog contracts live here; the inventory of `trybuild`
+//! runners the UI filter must match lives in `nextest_policy/runner_inventory.rs`.
 
-use std::io;
-
-use cap_std::{ambient_authority, fs::Dir};
 use rstest::{fixture, rstest};
 use toml::Value;
+
+#[path = "nextest_policy/runner_inventory.rs"]
+mod runner_inventory;
 
 // GitHub-hosted jobs terminate after six hours:
 // https://docs.github.com/en/enterprise-cloud@latest/actions/reference/limits
@@ -357,73 +360,4 @@ fn test_step_watchdog_contains_nextest_and_doctests(policy: Result<Value, toml::
         step_minutes > run_minutes + 30,
         "the CI step must leave thirty minutes beyond Nextest for compilation and doctests"
     );
-}
-
-#[test]
-fn workspace_trybuild_runners_match_the_ui_binary_policy() {
-    let workspace = Dir::open_ambient_dir(env!("CARGO_MANIFEST_DIR"), ambient_authority())
-        .expect("workspace root must be readable");
-    let manifest: Value = toml::from_str(include_str!("../Cargo.toml"))
-        .expect("workspace manifest must be valid TOML");
-    let members = manifest
-        .get("workspace")
-        .and_then(|value| value.get("members"))
-        .and_then(Value::as_array)
-        .expect("workspace must list its member crates");
-    let mut runners = Vec::new();
-
-    for member in members {
-        let name = member
-            .as_str()
-            .expect("workspace member paths must be strings");
-        let tests_path = format!("{name}/tests");
-        if !workspace.exists(&tests_path) {
-            continue;
-        }
-        let tests = workspace
-            .open_dir(&tests_path)
-            .expect("member tests must be readable");
-        for filename in trybuild_runners_in(&tests).expect("trybuild runners must be readable") {
-            assert!(
-                filename.ends_with("_ui.rs"),
-                "trybuild runner {tests_path}/{filename} must match binary(/_ui$/)"
-            );
-            runners.push(format!("{tests_path}/{filename}"));
-        }
-    }
-
-    runners.sort();
-    assert_eq!(
-        runners,
-        [
-            "crates/rstest-bdd-harness-bevy/tests/macro_ui.rs",
-            "crates/skyjoust_test_macros/tests/fixture_expansion_lints_ui.rs",
-        ],
-        "keep the compile-heavy runner inventory synchronized when adding or renaming UI suites"
-    );
-}
-
-// This local query only inventories direct integration targets, not UI fixtures.
-fn trybuild_runners_in(tests: &Dir) -> io::Result<Vec<String>> {
-    let mut runners = Vec::new();
-    for entry in tests.entries()? {
-        let directory_entry = entry?;
-        if !directory_entry.file_type()?.is_file() {
-            continue;
-        }
-        let filename = directory_entry.file_name();
-        let filename_text = filename
-            .to_str()
-            .ok_or_else(|| io::Error::other("test filenames must be UTF-8"))?;
-        if filename_text
-            .rsplit_once('.')
-            .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("rs"))
-            && tests
-                .read_to_string(&filename)?
-                .contains(concat!("trybuild::", "TestCases"))
-        {
-            runners.push(filename_text.to_owned());
-        }
-    }
-    Ok(runners)
 }

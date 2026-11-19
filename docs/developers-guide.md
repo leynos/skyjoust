@@ -99,7 +99,9 @@ which contains both serialized UI runners, their five-second termination grace
 periods, and an ordinary-test tail. The policy applies to development and
 coverage runs that use Nextest; `cargo test` does not apply Nextest groups or
 timeouts. The root `nextest_policy` suite guards the runner inventory, scoped
-limits, and containment by the CI watchdogs.
+limits, and containment by the CI watchdogs. The inventory lives in the
+`tests/nextest_policy/runner_inventory.rs` submodule; it sits in a
+subdirectory, so Cargo does not discover it as a separate test target.
 
 `make test-prepare` runs `cargo fetch --locked` against the shared default
 Cargo cache before timed tests start. `make test` depends on that preparation
