@@ -64,7 +64,7 @@ Repository documents:
 
 - `docs/rstest-bdd-harness-bevy-design.md` §§4–7 (lines 117–257) is the
   governing design; §§9–12 cover layout, verification, extraction, and risks.
-- `docs/adr/adr-009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md` —
+- `docs/adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md` —
   extension-seam rule, extraction contract, dependency strategy, headless
   guarantee.
 - `docs/roadmap.md` lines 97–132 — tasks `0.1.2` to `0.1.5` and their split of
@@ -196,8 +196,6 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
 - Macro contract: if `#[scenario(harness = BevyHarness, ...)]` with the
   defaulted generic parameter, or with a type alias, fails to compile, stop and
   escalate with the diagnostic; do not work around it with wrapper newtypes.
-- Unwinding: if the EP-M0 unwinding probe fails under the dev-fast
-  (Cranelift) configuration, stop and escalate; the panic path depends on it.
 - Lint: if `panic_in_result_fn` flags `std::panic::panic_any` inside
   `BevyHarness::run`, stop and escalate rather than suppressing it.
 - Iterations: if a focused test or gate still fails after three fix attempts
@@ -253,12 +251,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   danger.) Severity: low. Likelihood: low. Mitigation: on the panic path, the
   harness drops its handle inside `catch_unwind` before re-raising and logs a
   drop panic with `tracing::error!`.
-- Risk: the development profile builds with Cranelift, and no workspace test
-  has yet exercised `catch_unwind` or `#[should_panic]`; CI coverage builds
-  with LLVM. Severity: medium. Likelihood: low. Mitigation: EP-M0 runs an
-  unwinding probe under dev-fast before any panic-path code is written; the
-  tolerance escalates on failure; `make test` (Cranelift) and coverage (LLVM)
-  both exercise the panic tests afterwards.
+- Risk: effort drifts into Cranelift compatibility. Cranelift is out of scope
+  (see `Decision log`): it stays an unsupported, commented-out opt-in in
+  `.cargo/config.toml` and `tools/dev-fast/config.toml`. Severity: low.
+  Likelihood: low. Mitigation: no milestone probes, tests, or works around the
+  Cranelift backend; every gate runs on LLVM, the only supported backend; a
+  failure seen only under a locally re-enabled Cranelift build is noted in
+  `Surprises & discoveries` and otherwise left alone.
 - Risk: workspace lints reject first-draft code. Known traps:
   `panic_in_result_fn` (no `panic!`/`assert!` in `run`; re-raise with the
   `panic_any` function), `missing_panics_doc` (every public accessor documents
@@ -301,8 +300,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   panel: contracts and structure; failure modes, cost, and pre-mortem;
   alternatives and verification). Verdict: proceed with conditions. All
   conditions folded into Revision 2.
+- [x] (2026-11-19) Rebased onto `origin/main` at `e727a3c` and revised the
+  plan (Revision 3): Cranelift is out of scope, so the EP-M0 unwinding probe,
+  its tolerance, and its risk were removed; ADR paths and the gate list follow
+  `main`.
 - [ ] Maintainer approval of this plan.
-- [ ] EP-M0: baseline, unwinding probe, and ADR 010 draft.
+- [ ] EP-M0: baseline and ADR 010 draft.
 - [ ] ADR 010 accepted (required before EP-M3).
 - [ ] EP-M1: attribute policy.
 - [ ] EP-M2: scenario context, profiles, and harness normal path.
@@ -356,6 +359,19 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
 
 ## Decision log
 
+- Decision: Cranelift compatibility is out of scope for this plan. The EP-M0
+  unwinding probe, the `Unwinding` tolerance, and the Cranelift unwinding risk
+  are removed, and no milestone does work towards Cranelift beyond ordinary
+  Rust code hygiene. Rationale: the estate's Cranelift experiment found its
+  compile-time gain outweighed by a threefold increase in binary size and
+  slower test execution, so the development profile now builds with LLVM
+  (`docs/adrs/adr-0007-adopt-the-rust-build-standard.md`; the selection is
+  commented out in `.cargo/config.toml`). Cranelift remains an unsupported
+  compile-time option, and the experiment is due for review on 14 May 2027. The
+  probe existed only to check `catch_unwind` and `RefCell` unwinding under
+  Cranelift; on LLVM both are standard-library guarantees (axiom A2), and the
+  EP-M3 panic-path tests exercise them directly. Date/Author: 2026-11-19,
+  maintainer direction.
 - Decision: implement design §6's panic and cleanup path in `0.1.2`, with the
   focused unit, behavioural, and end-to-end tests that drive it, rather than
   deferring it to `0.1.3`. Rationale: the roadmap item cites design §§4–7,
@@ -480,9 +496,12 @@ Skyjoust is a Rust workspace (root `Cargo.toml`) with four members: the root
 `skyjoust` package, `crates/skyjoust_stateright_validator`,
 `crates/skyjoust_test_macros`, and `crates/rstest-bdd-harness-bevy` with its
 nested test-only proc-macro crate `crates/rstest-bdd-harness-bevy/test-macros`.
-The toolchain is pinned to `nightly-2026-03-26` in `rust-toolchain.toml`; the
-development profile builds with Cranelift through `.cargo/config.toml` and
-`tools/dev-fast/config.toml`.
+The toolchain is pinned to `nightly-2026-11-06` in `rust-toolchain.toml`. The
+development profile builds with LLVM: `.cargo/config.toml` carries the Rust
+build standard (the parallel frontend, and `mold` on Linux), and the Make
+targets also pass `tools/dev-fast/config.toml`. The Cranelift backend selection
+is commented out in both files; it is unsupported and out of scope for this
+plan.
 
 `rstest-bdd` is a behaviour-driven development (BDD) framework: Gherkin feature
 files (`Feature`/`Scenario`/`Given`/`When`/`Then`) bind to Rust step functions,
@@ -691,7 +710,7 @@ structure, to be refined by implementation):
 - A2 Rust: `RefCell` resets its borrow flag when a `RefMut` drops during
   unwinding; `catch_unwind` catches every unwinding panic; `panic_any` invokes
   the panic hook; libtest's `should_panic(expected)` matches a `String` payload
-  by substring. (EP-M0 probes the first two under Cranelift.)
+  by substring.
 - A3 Platform: tests build with `panic = "unwind"`. Under `panic = "abort"`
   no cleanup can run; documented, not handled.
 - A4 `rstest-bdd` 0.6.0: generated tests construct the harness with
@@ -729,11 +748,6 @@ runner and set after `run` returns or its panic is caught. Test-only `tracing`
 capture uses a handwritten subscriber that counts `ERROR` events and records
 their `phase` and `scenario_name` fields, installed with
 `tracing::subscriber::with_default` around the `run` call.
-
-EP-M0 unwinding probe (a scratch test, run once and not committed): under
-`cargo --config tools/dev-fast/config.toml`, a test that panics inside
-`catch_unwind(AssertUnwindSafe(..))` while holding a `RefCell` `borrow_mut`,
-then asserts the payload was caught and the cell is borrowable again.
 
 ### Obligations, methods, and evidence
 
@@ -839,10 +853,10 @@ continuing.
 
 ## Plan of work
 
-Stage A (EP-M0) establishes the baseline, probes unwinding, and drafts the ADR.
-Stages B–D repeat per milestone: write the smallest failing test, confirm it
-fails for the expected reason, implement, re-run, refactor, then run
-`make check-fmt`, `make lint`, and `make test`.
+Stage A (EP-M0) establishes the baseline and drafts the ADR. Stages B–D repeat
+per milestone: write the smallest failing test, confirm it fails for the
+expected reason, implement, re-run, refactor, then run `make check-fmt`,
+`make lint`, `make typecheck`, and `make test`.
 
 Module layout at completion (design §9, adjusted):
 
@@ -883,15 +897,13 @@ with no Bevy or profile dependency. If `harness.rs` approaches 400 lines, move
 
 ## Milestones and plateaus
 
-### EP-M0: baseline, unwinding probe, and ADR 010 (no production code)
+### EP-M0: baseline and ADR 010 (no production code)
 
-- Outcome: a recorded baseline, a passed unwinding probe, and a Proposed ADR.
+- Outcome: a recorded baseline and a Proposed ADR.
   Run the focused crate tests and record the pass count. Confirm
   `multi_threaded` is off with
-  `cargo tree -p rstest-bdd-harness-bevy -e features -i bevy_ecs`. Run the
-  unwinding probe from `Test profiles and probes` in a scratch test file under
-  dev-fast, record the result, and delete the file. Write
-  `docs/adr/adr-010-bevy-harness-failure-contract.md` (status Proposed) with
+  `cargo tree -p rstest-bdd-harness-bevy -e features -i bevy_ecs`. Write
+  `docs/adrs/adr-0010-bevy-harness-failure-contract.md` (status Proposed) with
   the lifecycle table, phase tags, `panic_any` re-raise, phase-tagged error
   wrapping, the never-`finish` rule, the SemVer coupling, and options
   considered (Table 1): `resume_unwind` plus direct stderr (GPUI's approach), a
@@ -901,13 +913,12 @@ with no Bevy or profile dependency. If `harness.rs` approaches 400 lines, move
   crate-owned profile error type (interface change), and deterministic time by
   default (`FixedTimesteps`; deviates from design §5). Reference the ADR from
   design §6 and add it to `docs/contents.md`.
-- Requirements: EP-REQ-6 (partial); axiom A2 probe.
-- Acceptance: baseline and probe result recorded in `Progress`;
+- Requirements: EP-REQ-6 (partial).
+- Acceptance: baseline recorded in `Progress`;
   `make markdownlint` and `make nixie` pass.
 - Conformance check: design followed; no code committed; no dependency
   change.
-- Recovery: documentation-only; revert the commit. If the probe fails,
-  escalate (tolerance).
+- Recovery: documentation-only; revert the commit.
 - Remaining gaps: ADR acceptance by the maintainer, required before EP-M3.
 - Compatibility decision: none.
 
@@ -924,7 +935,7 @@ with no Bevy or profile dependency. If `harness.rs` approaches 400 lines, move
   `Interfaces and dependencies`); export from `src/lib.rs`.
 - Requirements: EP-REQ-1 (partial), EP-INV-9.
 - Acceptance: the conformance test passes; `make check-fmt`, `make lint`,
-  `make test` pass.
+  `make typecheck`, and `make test` pass.
 - Conformance check: marker semantics per design §7; no new dependency; no
   game code.
 - Recovery: revert the milestone commit.
@@ -1131,10 +1142,10 @@ Feature: Headless Bevy scaffolding
   `0.1.2` (`- [x]`) and reword `0.1.3`. Run the scoped `cargo mutants` audit
   and triage survivors.
 - Requirements: EP-REQ-5, EP-REQ-6.
-- Acceptance: `make check-fmt`, `make lint`, `make test`, `make markdownlint`,
-  `make nixie`, and `make spelling` pass; `cargo tree` shows no forbidden
-  package; the mutation audit has no unexplained survivors (or was stopped by
-  tolerance and escalated).
+- Acceptance: `make check-fmt`, `make lint`, `make typecheck`, `make test`,
+  `make markdownlint`, `make nixie`, and `make spelling` pass; `cargo tree`
+  shows no forbidden package; the mutation audit has no unexplained survivors
+  (or was stopped by tolerance and escalated).
 - Conformance check: every Conformance-basis trace link has evidence; design
   and ADR agree with code; no unapproved public item (compare the crate's
   `cargo doc` output against `Interfaces and dependencies`).
@@ -1174,6 +1185,7 @@ Milestone gates, sequentially, never in parallel:
 ```bash
 make check-fmt 2>&1 | tee /tmp/check-fmt-skyjoust-0-1-2-bevy-harness-public-api.out
 make lint 2>&1 | tee /tmp/lint-skyjoust-0-1-2-bevy-harness-public-api.out
+make typecheck 2>&1 | tee /tmp/typecheck-skyjoust-0-1-2-bevy-harness-public-api.out
 make test 2>&1 | tee /tmp/test-skyjoust-0-1-2-bevy-harness-public-api.out
 ```
 
@@ -1229,8 +1241,8 @@ Quality criteria:
   `Verification plan`; the hand-seeded faults are recorded as rejected; the
   advisory mutation audit has no unexplained survivors. No Verus milestone
   exists, so no Verus command is part of acceptance.
-- Lint and format: `make check-fmt` and `make lint` (rustdoc, Clippy,
-  Whitaker) pass with no new suppression.
+- Lint and format: `make check-fmt`, `make lint` (rustdoc, Clippy,
+  Whitaker), and `make typecheck` pass with no new suppression.
 - Documentation: `make markdownlint`, `make nixie`, and `make spelling` pass.
 
 Behavioural acceptance, observable by a human:
@@ -1452,3 +1464,14 @@ Downstream consumers need direct development dependencies on `rstest`,
   acceptance before EP-M3 were added, the `World::drop` risk was corrected, and
   EP-M5 now rewords roadmap `0.1.3` to its remaining scope. The plan keeps its
   six-milestone shape and awaits maintainer approval.
+- Revision 3, 2026-11-19: rebased onto `origin/main` at `e727a3c` and took
+  Cranelift out of scope at the maintainer's direction. The estate experiment
+  found Cranelift's compile-time gain outweighed by a threefold increase in
+  binary size and slower test execution; it stays an unsupported compile-time
+  option and is due for review on 14 May 2027. The EP-M0 unwinding probe, the
+  `Unwinding` tolerance, and the Cranelift unwinding risk added in Revision 2
+  were removed, and EP-M0 is now the baseline and the ADR 010 draft. Drift from
+  `main` was corrected: ADRs live under `docs/adrs/` with four-digit numbers,
+  the toolchain pin is `nightly-2026-11-06`, the development profile builds
+  with LLVM, and `make typecheck` joins the milestone gates. The plan keeps its
+  six-milestone shape and still awaits maintainer approval.
