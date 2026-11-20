@@ -177,25 +177,60 @@ fn fence_delimiter(line: &str) -> Option<(usize, Delimiter, &str)> {
     Some((depth, Delimiter { character, length }, trailing))
 }
 
-/// Returns the block-quote depth and the text a fence delimiter would start.
+/// The result of scanning a line's block-quote prefix.
+enum QuoteScan<'a> {
+    /// The line's content and the depth of the block quotes around it.
+    Content { depth: usize, content: &'a str },
+    /// The line begins an indented code block at this depth.
+    IndentedCode { depth: usize },
+}
+
+impl<'a> QuoteScan<'a> {
+    /// Returns the block-quote depth reached before content or indented code.
+    fn depth(self) -> usize {
+        match self {
+            Self::Content { depth, .. } | Self::IndentedCode { depth } => depth,
+        }
+    }
+
+    /// Returns the depth and content, unless the line is indented code.
+    fn into_content(self) -> Option<(usize, &'a str)> {
+        match self {
+            Self::Content { depth, content } => Some((depth, content)),
+            Self::IndentedCode { .. } => None,
+        }
+    }
+}
+
+/// Scans the block-quote markers prefixing `line`.
 ///
-/// `None` when the content is indented by four or more spaces: such a line is
-/// an indented code block, whose text is literal rather than a fence.
-fn fence_content(line: &str) -> Option<(usize, &str)> {
+/// CommonMark locates content by column, so a line indented by four or more
+/// spaces is an indented code block and carries no block-quote markers. The
+/// scan stops at the first line that is neither indented code nor quoted.
+fn scan_block_quote(line: &str) -> QuoteScan<'_> {
     let mut rest = line;
     let mut depth = 0;
     loop {
         let trimmed = rest.trim_start_matches(' ');
         if rest.len() - trimmed.len() > 3 {
-            return None;
+            return QuoteScan::IndentedCode { depth };
         }
         let Some(after_quote) = trimmed.strip_prefix('>') else {
-            return Some((depth, trimmed));
+            return QuoteScan::Content {
+                depth,
+                content: trimmed,
+            };
         };
         rest = strip_quote_padding(after_quote);
         depth += 1;
     }
 }
+
+/// Returns the block-quote depth and the text a fence delimiter would start.
+///
+/// `None` when the content is indented by four or more spaces: such a line is
+/// an indented code block, whose text is literal rather than a fence.
+fn fence_content(line: &str) -> Option<(usize, &str)> { scan_block_quote(line).into_content() }
 
 /// Counts the block-quote markers that prefix `line`.
 ///
@@ -203,21 +238,7 @@ fn fence_content(line: &str) -> Option<(usize, &str)> {
 /// container has ended: an unquoted line, including a blank one, has depth
 /// zero. A line indented by four or more spaces before a `>` is an indented
 /// code block rather than a quote, so it does not deepen the count.
-fn quote_depth(line: &str) -> usize {
-    let mut rest = line;
-    let mut depth = 0;
-    loop {
-        let trimmed = rest.trim_start_matches(' ');
-        if rest.len() - trimmed.len() > 3 {
-            return depth;
-        }
-        let Some(after_quote) = trimmed.strip_prefix('>') else {
-            return depth;
-        };
-        rest = strip_quote_padding(after_quote);
-        depth += 1;
-    }
-}
+fn quote_depth(line: &str) -> usize { scan_block_quote(line).depth() }
 
 /// Strips the optional space or tab that may follow a block-quote marker.
 ///
