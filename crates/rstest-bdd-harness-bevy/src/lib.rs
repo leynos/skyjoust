@@ -8,6 +8,7 @@
 
 mod context;
 mod harness;
+mod panic;
 mod policy;
 mod profile;
 

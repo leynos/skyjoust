@@ -1,0 +1,5 @@
+---
+source: crates/rstest-bdd-harness-bevy/src/panic_tests.rs
+expression: "scenario_panic_message(Phase::Configure, payload.as_ref(), \"test::Harness\",\n&metadata(),)"
+---
+rstest-bdd-harness-bevy scenario panicked: phase=configure, harness=test::Harness, feature=tests/features/demo.feature:12, scenario="Demo scenario": boom
