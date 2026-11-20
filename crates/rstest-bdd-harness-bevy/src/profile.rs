@@ -115,16 +115,15 @@ pub trait BevyProfile: 'static {
     /// ```
     fn configure(app: &mut App, metadata: &ScenarioMetadata) -> HarnessResult<()>;
 
-    /// Releases scenario resources after the runner finishes or panics.
+    /// Releases scenario resources after the runner returns.
     ///
     /// The default implementation does nothing. A cleanup hook must not
     /// advance the application.
     ///
     /// # Errors
     ///
-    /// Returns [`rstest_bdd_harness::HarnessError`] when release fails. On the
-    /// normal path the harness wraps and returns the error; on the panic path
-    /// it records the error without masking the step panic.
+    /// Returns [`rstest_bdd_harness::HarnessError`] when release fails; the
+    /// harness wraps and returns the error.
     ///
     /// # Examples
     ///
