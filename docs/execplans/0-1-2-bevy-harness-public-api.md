@@ -614,8 +614,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     plus 27 doctests), `markdownlint` (3 s), `nixie` (<1 s), and `spelling`
     (1 s); logs
     `/tmp/<gate>-skyjoust-0-1-2-bevy-harness-public-api-20261120T2248*.out`
-    for the seven gate names. Committed as the Revision 12 commit recorded in
-    the delivery ledger.
+    for the seven gate names. Committed as `6b679f6`.
+- [x] (2026-11-20) Post-assessment CodeScene repair: the hosted delta for the
+  assessment-repair commit reported two fresh findings, so the fix introduced
+  its own returns. Duplicated parser test fixtures became one `single_fence`
+  helper behind merged `#[rstest]` case tables, and the list module's
+  string-heavy parameter ratio fell by measuring every fragment through a
+  `Line` newtype. The same delta on the repaired tree then reported duplication
+  between the two drop-panic tests and the same ratio in the panic rows;
+  `run_and_transcribe`, `expect_drop_record`, `ExpectedPhase`, `RecordedPhase`,
+  and `CleanupFailure::message` replaced the repeated string triples and the
+  copied catch-and-transcribe preamble. `cs delta 2268c56` reports no issues in
+  the checked changes and `cs check` scores 10.00 on all five files. The
+  seven-gate run passed: `check-fmt` (1 s), `lint` (101 s), `typecheck` (2 s),
+  `test` (230 s, 331/331 plus 27 doctests), `markdownlint` (4 s), `nixie` (1
+  s), and `spelling` (2 s); logs
+  `/tmp/<gate>-skyjoust-0-1-2-bevy-harness-public-api-20261120T231042.out` for
+  the seven gate names. Committed as `058f373`.
 
 ## Surprises & discoveries
 
@@ -2154,3 +2169,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   and non-vacuity evidence for the hostile-destructor, normal-return
   `DropFlag`, cross-clone borrow, end-to-end phase, and list-container cases.
   No requirement, signature, or milestone changed.
+- Revision 13, 2026-11-20: the hosted CodeScene delta reported that the
+  Revision 12 repair introduced duplication across the parser test fixtures and
+  a string-heavy parameter ratio in the list module, and the same delta on the
+  repaired tree repeated both returns in the panic rows. `Progress` records the
+  repairs that cleared them: a shared `single_fence` fixture helper, the `Line`
+  fragment type, and the `ExpectedPhase`, `RecordedPhase`, `CleanupFailure`,
+  `run_and_transcribe`, and `expect_drop_record` consolidations. No
+  requirement, signature, tolerance, or milestone changed.
