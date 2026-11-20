@@ -496,7 +496,29 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   gates: `check-fmt` (1 s), `lint` (5 s), `typecheck` (1 s), `test` (32 s,
   317/317 plus 27 doctests), `markdownlint` (3 s), `nixie` (<1 s), and
   `spelling` (1 s); logs
-  `/tmp/gate8-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
+  `/tmp/gate8-*-skyjoust-0-1-2-bevy-harness-public-api.out`. A fifth CLI review
+  of `c90d36b` (216 s, 2 files, exit 0) confirmed three minor gaps in the fence
+  checker. First, the depth-guard test paired a quoted tilde delimiter with a
+  backtick opener, so the character comparison alone rejected the candidate and
+  the depth guard was untested; the fixture now uses a quoted backtick
+  delimiter that matches the opener's character and length. Second, a tab after
+  a block-quote marker (`>\t~~~rust`) escaped detection because the scanner
+  consumed only an optional space; `strip_quote_padding` now accepts either,
+  matching CommonMark's four-column tab stops. Third, an unquoted blank line
+  ended the block-quote container but did not invalidate the open fence, so a
+  later same-depth delimiter closed the earlier block; `visit` now compares the
+  open fence's depth with `quote_depth` on every line and rejects a shallower
+  line as an unterminated quoted fence. The expanded module approached the
+  400-line limit, so the scanner moved to
+  `crates/rstest-bdd-harness-bevy/src/guide_tests/parser.rs` with its unit
+  tests in `src/guide_tests/parser/tests.rs`; Whitaker's `module-max-lines`
+  lint had rejected the unsplit module at 457 lines. Seeded faults removed the
+  depth comparison, the tab padding, and the container check in turn; each
+  failed the corresponding test for the intended reason, and `parser.rs` was
+  restored to sha256 `37df8e4b...` after each (logs
+  `/tmp/fault-{o2,p2,q2}-round5-...-public-api.out`). The focused guide suite
+  passed 12/12, and focused Clippy and Whitaker were clean (logs
+  `/tmp/{guide-tests-split,clippy-split,whitaker-split}-...-public-api.out`).
 
 ## Surprises & discoveries
 
@@ -1866,3 +1888,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   marker above a quoted fence, and a quoted delimiter inside a top-level fence;
   a seeded fault and a fresh seven-gate run are recorded in `Progress`. No
   requirement, signature, tolerance, or milestone changed.
+- Revision 8, 2026-11-20: a fifth review round hardened the fence checker's
+  CommonMark fidelity. The depth guard now has a decisive test, tab padding
+  after a block-quote marker is consumed, and an unquoted line that ends a
+  block-quote container rejects the open fence rather than letting a later
+  delimiter close it. The scanner and its tests were split into submodules to
+  satisfy the 400-line module limit. Three seeded faults and a fresh seven-gate
+  run are recorded in `Progress`. No requirement, signature, tolerance, or
+  milestone changed.
