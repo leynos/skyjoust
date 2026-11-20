@@ -518,7 +518,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   restored to sha256 `37df8e4b...` after each (logs
   `/tmp/fault-{o2,p2,q2}-round5-...-public-api.out`). The focused guide suite
   passed 12/12, and focused Clippy and Whitaker were clean (logs
-  `/tmp/{guide-tests-split,clippy-split,whitaker-split}-...-public-api.out`).
+  `/tmp/{guide-tests-split,clippy-split,whitaker-split}-...-public-api.out`). A
+  sixth CLI review of `3cff9b1` (245 s, 4 files, exit 0) found one minor gap
+  the round-5 check missed: `visit` called `fence_line` before testing
+  containment, so an unquoted delimiter line ended the block quote silently and
+  a later same-depth delimiter closed the original fence. In the fixture
+  `<!-- tested-example: example -->\n> ~~~rust\n```\n> ~~~\n` the unquoted
+  backtick opener vanished and all guide-wide checks accepted the result. The
+  regression test `unquoted_delimiter_ends_a_quoted_fence` was written first
+  and failed against `3cff9b1` for that reason (log
+  `/tmp/red-round6-...-public-api.out`); moving the containment check ahead of
+  `fence_line` makes it pass while same-depth closers, quoted delimiters inside
+  top-level fences, and the blank-line rule all still pass (13/13 guide tests,
+  log `/tmp/green-round6-...-public-api.out`). The re-gate passed all seven
+  gates: `check-fmt` (<1 s), `lint` (4 s), `typecheck` (1 s), `test` (14 s,
+  320/320 plus 27 doctests), `markdownlint` (4 s), `nixie` (<1 s), and
+  `spelling` (2 s); logs
+  `/tmp/gate10-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
 
 ## Surprises & discoveries
 
@@ -1896,3 +1912,8 @@ Downstream consumers need direct development dependencies on `rstest`,
   satisfy the 400-line module limit. Three seeded faults and a fresh seven-gate
   run are recorded in `Progress`. No requirement, signature, tolerance, or
   milestone changed.
+- Revision 9, 2026-11-20: a sixth review round found the containment check ran
+  after delimiter processing, letting an unquoted delimiter line end a quoted
+  container without an error. The check now runs first, and a regression test
+  written before the fix demonstrates the failure and its repair. No
+  requirement, signature, tolerance, or milestone changed.
