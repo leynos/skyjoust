@@ -1,10 +1,10 @@
-//! Unit tests for the guide's CommonMark fence scanner.
+//! Unit tests for the guide's `CommonMark` fence scanner.
 //!
 //! Each fixture exercises one recognition rule: tilde and backtick openers,
 //! up-to-three-space indentation, closing-delimiter matching, block-quote
-//! nesting depth, tab padding after a quote marker, marker attachment, and the
-//! end of a quoted container. The guide-wide assertions live in the parent
-//! module.
+//! nesting depth, list-item content indentation, tab padding after a quote
+//! marker, marker attachment, and the end of a contained block. The guide-wide
+//! assertions live in the parent module.
 
 use rstest::rstest;
 
@@ -39,6 +39,65 @@ fn unmarked_fence_is_detected(#[case] text: &str, #[case] description: &str) {
     assert!(
         fence.marker.is_none(),
         "{description} must stay unmarked so the marker check can reject it"
+    );
+}
+
+#[rstest]
+#[case(
+    "- Item\n\n    ```rust\n    let value = 1;\n    ```\n",
+    "a four-space fence inside a bullet item"
+)]
+#[case(
+    "1. Item\n\n    ```rust\n    let value = 1;\n    ```\n",
+    "a four-space fence inside an ordered item"
+)]
+#[case(
+    "- Item\n\n  > ```rust\n  > let value = 1;\n  > ```\n",
+    "a quoted fence inside a bullet item"
+)]
+fn unmarked_fence_inside_a_list_item_is_detected(#[case] text: &str, #[case] description: &str) {
+    let fences = parse_fences(text).expect("the fixture must parse");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "{description} must be recorded exactly once"
+    );
+    let fence = fences
+        .first()
+        .expect("the fixture records exactly one fence");
+    assert_eq!(
+        fence.language, "rust",
+        "{description} must keep the language after its delimiter"
+    );
+    assert!(
+        fence.marker.is_none(),
+        "{description} must stay unmarked so the marker check can reject it"
+    );
+}
+
+#[test]
+fn marker_above_a_list_fence_is_attached() {
+    let fences = parse_fences(
+        "- Item\n\n  <!-- tested-example: list-fence -->\n  ```rust\n  let value = 1;\n  ```\n",
+    )
+    .expect("the marked list fence parses");
+
+    assert_eq!(
+        fences.first().and_then(|fence| fence.marker),
+        Some("list-fence"),
+        "a marker above a list fence must be attached to it"
+    );
+}
+
+#[test]
+fn a_top_level_delimiter_does_not_close_a_list_fence() {
+    let error = parse_fences("- Item\n\n    ```rust\n    let value = 1;\n```\n")
+        .expect_err("a top-level delimiter must not close a list fence");
+
+    assert!(
+        error.contains("list item"),
+        "the error must name the ended list item, got {error:?}"
     );
 }
 

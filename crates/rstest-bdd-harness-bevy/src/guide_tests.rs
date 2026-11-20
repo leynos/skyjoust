@@ -7,7 +7,7 @@
 //! preceded by a marker with a non-empty identifier, identifiers must be
 //! unique, and every fence must be terminated.
 //!
-//! The CommonMark scanner that recognizes fences, including their marker
+//! The `CommonMark` scanner that recognizes fences, including their marker
 //! placement and block-quote containment rules, lives in the [`parser`]
 //! submodule; this module asserts the guide-wide properties over its output.
 

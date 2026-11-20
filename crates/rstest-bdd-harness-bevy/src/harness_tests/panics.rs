@@ -5,7 +5,8 @@
 //! step panic is re-raised with phase `steps`, that cleanup still runs exactly
 //! once, and that a cleanup failure becomes a `tracing::error!` record rather
 //! than masking the step panic. The leak row proves the application is dropped
-//! before the panic reaches the caller.
+//! before the panic reaches the caller. The hostile-payload rows, where a
+//! secondary payload's own destructor panics, live in [`hostile`].
 
 use std::{
     any::Any,
@@ -38,6 +39,9 @@ use super::{
     recorder::{RecordedEvent, capture_errors},
 };
 use crate::{BevyHarness, BevyProfile, BevyScenario};
+
+#[path = "panics/hostile.rs"]
+mod hostile;
 
 /// Resource whose drop records that the application was released.
 #[derive(Resource)]
@@ -296,6 +300,10 @@ fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
         metadata(),
         ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
             scenario.with_world(|world| world.insert_resource(DropFlag(Arc::clone(&flag))));
+            assert!(
+                !flag.load(Ordering::SeqCst),
+                "the application must still be alive inside the runner",
+            );
             panic_any("step boom")
         }),
     );
@@ -306,4 +314,31 @@ fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
     let _payload = outcome.expect_err("the step panic must reach the caller");
     expect_that!(dropped.load(Ordering::SeqCst), eq(true));
     expect_that!(events.len(), eq(1));
+}
+
+#[gtest]
+fn the_application_is_dropped_before_the_runner_result_returns() {
+    let dropped = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&dropped);
+    let harness = BevyHarness::<Recording>::new();
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
+            scenario.with_world(|world| {
+                world.insert_resource(DropFlag(Arc::clone(&flag)));
+            });
+            assert!(
+                !flag.load(Ordering::SeqCst),
+                "the application must still be alive inside the runner",
+            );
+            41
+        }),
+    );
+
+    let (result, events) = capture_errors(|| harness.run(request));
+    let value = result.expect("the recording profile must succeed");
+
+    expect_that!(value, eq(41));
+    expect_that!(dropped.load(Ordering::SeqCst), eq(true));
+    expect_that!(events.len(), eq(0));
 }

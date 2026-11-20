@@ -239,12 +239,15 @@ fn cleanup_after_step_panic<P: BevyProfile>(scenario: &BevyScenario, metadata: &
             &wrap_profile_error(Phase::Cleanup, error).to_string(),
             metadata,
         ),
-        Err(payload) => record_error::<P>(
-            Phase::Cleanup,
-            "Bevy scenario cleanup panicked after a step panic",
-            &payload_text(payload.as_ref()),
-            metadata,
-        ),
+        Err(payload) => {
+            let text = transcribe_and_forget(payload);
+            record_error::<P>(
+                Phase::Cleanup,
+                "Bevy scenario cleanup panicked after a step panic",
+                &text,
+                metadata,
+            );
+        }
     }
 }
 
@@ -280,10 +283,11 @@ fn message_for<P>(phase: Phase, payload: &(dyn Any + Send), metadata: &ScenarioM
 /// Drops the last scenario handle under a guard, recording a panicking drop.
 fn drop_scenario_guarded<P>(scenario: BevyScenario, metadata: &ScenarioMetadata) {
     if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(move || drop(scenario))) {
+        let text = transcribe_and_forget(payload);
         record_error::<P>(
             Phase::Cleanup,
             "Bevy scenario application drop panicked",
-            &payload_text(payload.as_ref()),
+            &text,
             metadata,
         );
     }
@@ -292,13 +296,26 @@ fn drop_scenario_guarded<P>(scenario: BevyScenario, metadata: &ScenarioMetadata)
 /// Drops the partially configured application under a guard.
 fn drop_app_guarded<P>(app: App, metadata: &ScenarioMetadata) {
     if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(move || drop(app))) {
+        let text = transcribe_and_forget(payload);
         record_error::<P>(
             Phase::Configure,
             "Bevy application drop panicked after a configure panic",
-            &payload_text(payload.as_ref()),
+            &text,
             metadata,
         );
     }
+}
+
+/// Transcribes a caught secondary payload and then leaks it.
+///
+/// The payload's `Drop` is arbitrary caller code. Running it here would let a
+/// panicking destructor replace the phase-tagged panic this recovery path is
+/// preserving. Leaking one payload on a path that is already failing is the
+/// bounded cost of a stable diagnostic.
+fn transcribe_and_forget(payload: Box<dyn Any + Send>) -> String {
+    let text = payload_text(payload.as_ref());
+    std::mem::forget(payload);
+    text
 }
 
 /// Leaks the transcribed payload before raising, so its drop cannot double-panic.

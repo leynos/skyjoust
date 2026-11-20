@@ -14,7 +14,7 @@ use googletest::prelude::*;
 use rstest::rstest;
 use rstest_bdd_harness::ScenarioMetadata;
 
-use super::{BevyScenario, MISSING_MAIN_MESSAGE};
+use super::{BORROWED_MESSAGE, BevyScenario, MISSING_MAIN_MESSAGE};
 use crate::minimal_app;
 
 /// A resource the accessor tests write and read back.
@@ -106,21 +106,28 @@ fn clones_share_one_application() {
     expect_that!(frames, eq(1));
 }
 
+/// Asserts that a caught accessor panic carries the crate's full diagnostic.
+fn expect_borrowed_panic(outcome: std::thread::Result<()>) {
+    let payload = outcome.expect_err("the nested borrow must panic");
+    let message = panic_message(payload.as_ref());
+    expect_that!(message.starts_with(BORROWED_MESSAGE), eq(true));
+}
+
 #[gtest]
 fn a_nested_borrow_panics_with_the_crate_prefix() {
     let scenario = test_scenario();
-    let outcome = catch_unwind(AssertUnwindSafe(|| {
+    expect_borrowed_panic(catch_unwind(AssertUnwindSafe(|| {
         scenario.with_app(|_app| scenario.update());
-    }));
-    let payload = outcome.expect_err("the nested borrow must panic");
-    let message = panic_message(payload.as_ref());
-    expect_that!(
-        message.starts_with(
-            "rstest-bdd-harness-bevy: BevyScenario is already borrowed; accessor closures must \
-             not call with_app, with_world, update, or update_times"
-        ),
-        eq(true)
-    );
+    })));
+}
+
+#[gtest]
+fn a_cross_clone_update_inside_with_world_panics_with_the_crate_prefix() {
+    let scenario = test_scenario();
+    let clone = scenario.clone();
+    expect_borrowed_panic(catch_unwind(AssertUnwindSafe(|| {
+        scenario.with_world(|_world| clone.update());
+    })));
 }
 
 #[gtest]
