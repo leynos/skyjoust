@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: APPROVED — IMPLEMENTATION IN PROGRESS
+Status: APPROVED — IMPLEMENTATION COMPLETE; PR DELIVERY IN PROGRESS
 
 Approval gate: satisfied. The maintainer approved this plan on 2026-11-20 by
 directing that implementation begin and that the plan be marked approved. ADR
@@ -538,6 +538,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   review of `bf0b3e2` (reviewing the containment fix, 3 files) returned zero
   findings, so the implementation record reached review equilibrium; log
   `/tmp/coderabbit7-skyjoust-0-1-2-bevy-harness-public-api.out`.
+- [x] (2026-11-20) Hosted-delivery CodeScene repair: the pre-readiness delta
+  analysis (`cs delta 2268c56..HEAD`) reported five Code Duplication findings
+  in the candidate. Each was cleared by a cohesive refactor rather than a
+  suppression: `parser.rs` now exposes one `scan_block_quote` used by
+  `fence_content` and `quote_depth`; `profile_tests.rs` shares `configured_app`;
+  `panics.rs` shares `run_and_stash` and folds the two cleanup-failure tests
+  into one `#[rstest]` case table; `steps.rs` shares `require_counter`; and the
+  four unmarked-fence fixtures in `parser/tests.rs` became one case table.
+  `cs check` reports 10.00 for all five files. The first re-gate failed
+  `make lint` on four Clippy diagnostics introduced by the refactor; passing
+  `BevyHarness` by value, replacing a raw `assert!` in a `#[gtest] #[rstest]`
+  function with `expect_that!`, and renaming a shadowed match binding cleared
+  them. The final seven-gate run passed on the repaired tree: `check-fmt` (1 s),
+  `lint` (12 s), `typecheck` (3 s), `test` (25 s, 320/320 plus 27 doctests),
+  `markdownlint` (4 s), `nixie` (<1 s), and `spelling` (1 s); logs
+  `/tmp/<gate>-skyjoust-0-1-2-bevy-harness-public-api-20261120T21*.out` for the
+  seven gate names. Committed as `8354662`.
 
 ## Surprises & discoveries
 
@@ -667,6 +684,18 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   compiled but unmarked example. `src/guide_tests.rs` now strips block-quote
   prefixes and tracks the opener's depth, so a delimiter closes only a fence at
   the same depth and quoted lines inside a top-level fence stay content.
+- Observation (2026-11-20, hosted delivery): CodeScene's code-duplication rule
+  reaches test modules and treats repeated setup as duplication, so merging
+  duplicated tests and extracting helpers cleared all five findings without
+  weakening an assertion. Three Clippy interactions surfaced while repairing
+  them. `#[gtest]` composes with `#[rstest]` by producing a `Result`-returning
+  test, so a raw `assert!` inside that function trips
+  `clippy::panic_in_result_fn`; `expect_that!` is the equivalent assertion that
+  the composed harness accepts. `BevyHarness<Profile>` is zero-sized, so a
+  helper taking `&BevyHarness<Profile>` trips
+  `clippy::trivially_copy_pass_by_ref`; the helper takes it by value. A match
+  arm that rebinds `observed` to the inner value trips `clippy::shadow_reuse`;
+  the inner binding was renamed `actual`.
 
 ## Decision log
 
@@ -1924,3 +1953,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   containment fix, closing the local review loop at equilibrium. This revision
   records that result; no requirement, signature, tolerance, or milestone
   changed.
+- Revision 11, 2026-11-20: hosted delivery began, and the pre-readiness
+  CodeScene delta reported five code-duplication findings in the candidate.
+  They were cleared by cohesive refactors in the fence scanner and the test
+  modules, followed by a full seven-gate run; `Progress` and
+  `Surprises & discoveries` record the repairs, the Clippy interactions they
+  exposed, and the evidence. The status now distinguishes completed
+  implementation from in-progress PR delivery. No requirement, signature,
+  tolerance, or milestone changed.
