@@ -158,6 +158,17 @@ fn tab_after_the_quote_marker_is_accepted() {
 }
 
 #[test]
+fn unquoted_delimiter_ends_a_quoted_fence() {
+    let error = parse_fences("<!-- tested-example: example -->\n> ~~~rust\n```\n> ~~~\n")
+        .expect_err("an unquoted delimiter must end the block quote");
+
+    assert!(
+        error.contains("block quote"),
+        "the error must name the ended block quote, got {error:?}"
+    );
+}
+
+#[test]
 fn unquoted_blank_line_ends_a_quoted_fence() {
     let error =
         parse_fences("<!-- tested-example: first -->\n> ~~~rust\n> let value = 1;\n\n> ~~~\n")

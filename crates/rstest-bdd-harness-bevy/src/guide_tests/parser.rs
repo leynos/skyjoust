@@ -82,9 +82,9 @@ impl<'a> FenceParser<'a> {
         if let Some(identifier) = marker_identifier(line) {
             return self.open_marker(identifier, line_number);
         }
-        if self.fence_line(line) {
-            return Ok(());
-        }
+        // Containment is checked before delimiter processing: a shallower
+        // delimiter line ends the container, so it must not be mistaken for a
+        // closer (or for a new top-level fence) that the open block survives.
         if let Some(open) = &self.open
             && open.depth > quote_depth(line)
         {
@@ -92,6 +92,9 @@ impl<'a> FenceParser<'a> {
                 "the fenced block {:?} inside a block quote is not terminated",
                 open.language
             ));
+        }
+        if self.fence_line(line) {
+            return Ok(());
         }
         if line.trim().is_empty() {
             return Ok(());
