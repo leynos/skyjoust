@@ -184,6 +184,10 @@ errors on the panic path must be logged without suppressing the original panic.
 
 ## 6. Panic and cleanup behaviour
 
+The lifecycle table, phase tags, `panic_any` re-raise, phase-tagged error
+wrapping, never-`finish` rule, and SemVer coupling are recorded in
+[ADR 010](adrs/adr-0010-bevy-harness-failure-contract.md).
+
 The harness must catch step panics around `runner.run(scenario.clone())`, run
 profile cleanup, and resume unwinding with a message that includes:
 

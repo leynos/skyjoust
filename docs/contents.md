@@ -77,6 +77,9 @@ The current Architecture Decision Records (ADRs) live under `docs/adrs/`.
 - [ADR 009: In-tree incubation of the Bevy BDD harness crate](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
   - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and adopt
   the published `rstest-bdd` 0.6.0 family with implicit caret requirements.
+- [ADR 010: Bevy harness scenario failure contract](adrs/adr-0010-bevy-harness-failure-contract.md)
+  - accepted decision fixing the configure, steps, and cleanup lifecycle, the
+  phase-tagged panic message, and the error-wrapping scheme.
 
 ## Execution plans
 

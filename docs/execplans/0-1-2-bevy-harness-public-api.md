@@ -308,8 +308,17 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `main`.
 - [x] (2026-11-20) Maintainer approval of this plan, recorded by direction to
   begin implementation and mark the plan approved.
-- [ ] EP-M0: baseline and ADR 010 draft.
-- [ ] ADR 010 accepted (required before EP-M3).
+- [x] (2026-11-20) EP-M0 baseline: the focused `rstest-bdd-harness-bevy`
+  suite passed 12/12 across 5 binaries (0 skipped); `macro_ui` took 71.7
+  seconds. `cargo tree -p rstest-bdd-harness-bevy -e features -i bevy_ecs`
+  shows no `multi_threaded` feature, and
+  `cargo tree -p rstest-bdd-harness-bevy -e normal,dev` shows no game package
+  (the only `skyjoust` matches are this worktree's own path).
+- [x] (2026-11-20) EP-M0: ADR 010 drafted as Accepted with its approval
+  provenance, referenced from design §6, and indexed in `docs/contents.md`.
+  `make markdownlint` and `make nixie` pass.
+- [x] (2026-11-20) ADR 010 accepted (required before EP-M3), under the
+  maintainer's approval of this plan; see `Decision log`.
 - [ ] EP-M1: attribute policy.
 - [ ] EP-M2: scenario context, profiles, and harness normal path.
 - [ ] EP-M3: panic and cleanup path.
