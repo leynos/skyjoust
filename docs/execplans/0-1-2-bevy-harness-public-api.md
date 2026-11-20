@@ -534,7 +534,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   gates: `check-fmt` (<1 s), `lint` (4 s), `typecheck` (1 s), `test` (14 s,
   320/320 plus 27 doctests), `markdownlint` (4 s), `nixie` (<1 s), and
   `spelling` (2 s); logs
-  `/tmp/gate10-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
+  `/tmp/gate10-*-skyjoust-0-1-2-bevy-harness-public-api.out`. A seventh CLI
+  review of `bf0b3e2` (reviewing the containment fix, 3 files) returned zero
+  findings, so the implementation record reached review equilibrium; log
+  `/tmp/coderabbit7-skyjoust-0-1-2-bevy-harness-public-api.out`.
 
 ## Surprises & discoveries
 
@@ -1917,3 +1920,7 @@ Downstream consumers need direct development dependencies on `rstest`,
   container without an error. The check now runs first, and a regression test
   written before the fix demonstrates the failure and its repair. No
   requirement, signature, tolerance, or milestone changed.
+- Revision 10, 2026-11-20: a seventh review round found no concerns in the
+  containment fix, closing the local review loop at equilibrium. This revision
+  records that result; no requirement, signature, tolerance, or milestone
+  changed.
