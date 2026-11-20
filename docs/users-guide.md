@@ -265,19 +265,20 @@ finalizes the app itself gives up that ability. For deterministic time, install
 `add_minimal_plugins` adds Bevy's minimal plugin set to an existing `App`, and
 `minimal_app` creates a fresh application with that set already installed. Both
 avoid window, renderer, asset, and audio plugins and remain available for tests
-that do not need a scenario:
+that do not need a scenario. A test body reads:
 
 <!-- tested-example: minimal-headless-app -->
 
 ```rust
 use rstest_bdd_harness_bevy::{bevy::diagnostic::FrameCount, minimal_app};
 
-#[test]
-fn advances_one_headless_frame() {
-    let mut app = minimal_app();
-    app.update();
-    assert_eq!(app.world().resource::<FrameCount>().0, 1);
-}
+let mut app = minimal_app();
+app.update();
+assert_eq!(
+    app.world().resource::<FrameCount>().0,
+    1,
+    "one update advances exactly one frame"
+);
 ```
 
 For the crate's full test setup and extension guidance, see the
