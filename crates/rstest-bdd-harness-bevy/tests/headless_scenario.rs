@@ -81,3 +81,13 @@ fn the_bare_profile_adds_no_plugins() {}
                 its scenario\": Step failed at index \u{2068}1\u{2069}"
 )]
 fn a_failing_step_reports_its_scenario() {}
+
+/// Proves the phase tag survives the real macro-to-harness boundary.
+#[scenario(
+    path = "tests/features/bevy_panic.feature",
+    index = 0,
+    harness = BevyHarness,
+    attributes = BevyAttributePolicy
+)]
+#[should_panic(expected = "rstest-bdd-harness-bevy scenario panicked: phase=steps")]
+fn a_failing_step_reports_the_steps_phase() {}

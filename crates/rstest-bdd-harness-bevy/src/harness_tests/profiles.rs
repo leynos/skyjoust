@@ -85,6 +85,24 @@ impl Drop for PanicOnDrop {
     fn drop(&mut self) { panic_any("drop boom"); }
 }
 
+/// Panic payload whose own destructor panics.
+///
+/// The harness must transcribe and forget a caught secondary payload rather
+/// than drop it, or this destructor replaces the original phase-tagged panic.
+pub struct PanicOnPayloadDrop;
+
+impl Drop for PanicOnPayloadDrop {
+    fn drop(&mut self) { panic_any(String::from("payload drop boom")); }
+}
+
+/// Resource whose drop panics with [`PanicOnPayloadDrop`].
+#[derive(Resource)]
+pub struct PanicOnDropWithHostilePayload;
+
+impl Drop for PanicOnDropWithHostilePayload {
+    fn drop(&mut self) { panic_any(PanicOnPayloadDrop); }
+}
+
 /// Profile whose configure hook installs [`PanicOnDrop`] and then panics.
 pub enum ConfigurePanicsWithDrop {}
 
@@ -92,6 +110,32 @@ impl BevyProfile for ConfigurePanicsWithDrop {
     fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
         app.insert_resource(PanicOnDrop);
         panic_any("configure boom");
+    }
+}
+
+/// Profile whose configure hook installs a hostile drop and then panics.
+pub enum ConfigurePanicsWithHostileDrop {}
+
+impl BevyProfile for ConfigurePanicsWithHostileDrop {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.insert_resource(PanicOnDropWithHostilePayload);
+        panic_any("configure boom");
+    }
+}
+
+/// Profile whose cleanup panics with a payload that panics on drop.
+pub enum CleanupPanicsWithHostilePayload {}
+
+impl BevyProfile for CleanupPanicsWithHostilePayload {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<CleanupCalls>();
+        app.init_resource::<RunnerCalls>();
+        Ok(())
+    }
+
+    fn cleanup(_scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        panic_any(PanicOnPayloadDrop);
     }
 }
 
