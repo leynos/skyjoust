@@ -323,7 +323,14 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `E0432` unresolved import; `BevyAttributePolicy` is implemented, exported,
   and conformance-tested. The full gate set (`check-fmt`, `lint`, `typecheck`,
   `test`, `spelling`, `markdownlint`, `nixie`) passed on the milestone tree.
-- [ ] EP-M2: scenario context, profiles, and harness normal path.
+- [x] (2026-11-20) EP-M2: scenario context, profiles, and harness normal
+  path. `BevyScenario`, `BevyProfile`, `BareBevyProfile`, `MinimalBevyProfile`,
+  and `BevyHarness<P>` implement the normal-path rows (1, 3, and 4) and the
+  return-path leak row; the focused library suite passes 27/27. The full gate
+  set passed on the final tree: `make lint` (4 s), `make check-fmt` (1 s),
+  `make typecheck` (1 s), `make test` (14 s, 279/279), `make spelling` (5 s),
+  `make markdownlint` (8 s), and `make nixie` (<1 s). Logs:
+  `/tmp/*-skyjoust-0-1-2-bevy-harness-public-api-5.out`.
 - [ ] EP-M3: panic and cleanup path.
 - [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
@@ -378,6 +385,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `bevy_ecs-0.19.1/src/world/mod.rs:144-155` and
   `world/command_queue.rs:227-228`. Impact: corrects the Revision 1 risk; the
   residual abort risk is a panicking user `Drop`.
+- Observation (2026-11-20, EP-M2): Whitaker's `no_unwrap_or_else_panic`,
+  Clippy's `option_if_let_else` and `match_wild_err_arm`, and the workspace ban
+  on production `expect` leave exactly one lint-clean shape for a panicking
+  `RefCell` borrow: `let Ok(value) = ... else { panic!(...) };`. Evidence: gate
+  runs `-2` (Clippy), `-3` (Whitaker), and `-4` (Clippy on the `match` form),
+  with `-5` green. Impact: `BevyScenario::borrow_app` uses let-else and records
+  the constraint in a comment; no lint is silenced.
+- Observation (2026-11-20, EP-M2): Bevy 0.20.1's first `App::update` produces
+  a zero time delta. `Time<Real>::update_with_instant` returns early when
+  `last_update` is `None`, recording the first instant without advancing, so
+  `TimeUpdateStrategy::FixedTimesteps(1)` runs zero fixed steps on the first
+  update and one on each later update. Evidence: `bevy_time-0.20.1/src/real.rs`
+  (`update_with_instant`). Impact: the `FixedTimestep` test primes with one
+  update and then asserts one fixed tick per subsequent update, which is the
+  steady-state contract a deterministic profile relies on; the decision is
+  recorded in `Decision log`.
 
 ## Decision log
 
@@ -491,6 +514,14 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   alternative. Rationale: changing the default profile would deviate from
   design §5; the seam is what roadmap `0.1.4` needs. Date/Author: 2026-10-18,
   design review.
+- Decision (2026-11-20, EP-M2): the `FixedTimestep` test primes the clock with
+  one update, then asserts one fixed tick per subsequent update, rather than
+  asserting a tick count from the first update. Rationale: Bevy 0.20.1's first
+  update initializes `Time<Real>` with a zero delta (see
+  `Surprises & discoveries`), so a test measured from the first update would
+  pin an initialization artefact and fail if Bevy later advances on the first
+  update. Measuring the steady state pins the behaviour a deterministic profile
+  depends on. Date/Author: 2026-11-20, implementer.
 - Decision: no `HarnessError` construction helper is added. Rationale: the
   design lists no such API; the one-line idiom is documented. Date/Author:
   2026-10-18, planning agent.
