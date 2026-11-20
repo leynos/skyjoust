@@ -319,7 +319,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `make markdownlint` and `make nixie` pass.
 - [x] (2026-11-20) ADR 010 accepted (required before EP-M3), under the
   maintainer's approval of this plan; see `Decision log`.
-- [ ] EP-M1: attribute policy.
+- [x] (2026-11-20) EP-M1: attribute policy. Red observed as the expected
+  `E0432` unresolved import; `BevyAttributePolicy` is implemented, exported,
+  and conformance-tested. The full gate set (`check-fmt`, `lint`, `typecheck`,
+  `test`, `spelling`, `markdownlint`, `nixie`) passed on the milestone tree.
 - [ ] EP-M2: scenario context, profiles, and harness normal path.
 - [ ] EP-M3: panic and cleanup path.
 - [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
