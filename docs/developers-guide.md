@@ -151,6 +151,46 @@ the failed metadata for diagnosis, remove only that generated file, and retry
 the gate through the normal compiler wrapper. Keep the shared Cargo cache and
 admission settings.
 
+The harness keeps its lifecycle tests free of globals and thread-locals.
+Profile hooks are associated functions, so "cleanup ran exactly once" is
+otherwise unobservable: `src/harness_tests/` uses tripwire profiles and runners
+whose forbidden methods panic with a sentinel, and a stashed scenario clone to
+read state after `run` returns. Error records are observed with the handwritten
+`tracing::Subscriber` in `src/harness_tests/recorder.rs`, installed with
+`tracing::subscriber::with_default`. The recorder returns
+`Interest::sometimes()` and rebuilds the callsite interest cache after
+installation, because `tracing` otherwise remembers that a callsite was
+disabled under the no-op subscriber.
+
+The harness re-raises a caught panic with `std::panic::panic_any(message)`.
+`resume_unwind` is silent in libtest, and a `panic!` in a `Result`-returning
+function hides the scenario payload behind an ordinary formatting panic.
+`panic_any` runs the panic hook, so `cargo test` and `cargo nextest` show the
+augmented message and `#[should_panic(expected = ...)]` matches it. Do not
+write to standard error directly; the workspace denies `print_stderr`.
+
+Two context panics are contractual diagnostics rather than incidental failures.
+A step that holds one `BevyScenario` borrow across another `with_app`,
+`with_world`, or `update` call panics with the fixed nested-borrow advice, so
+step functions should borrow briefly and never retain a `RefMut`. A Bevy system
+panic removes the `Main` schedule; `update` and `update_times(0)` still check
+for that schedule and panic with a message naming the earlier system panic.
+
+The advisory mutation audit is scoped so it reuses the warm `target/` and skips
+the slow UI and manifest binaries:
+
+```sh
+cargo mutants --in-place -p rstest-bdd-harness-bevy \
+  -f crates/rstest-bdd-harness-bevy/src/harness.rs \
+  -f crates/rstest-bdd-harness-bevy/src/panic.rs \
+  --test-tool nextest --cargo-arg=--config=tools/dev-fast/config.toml \
+  -- -E 'not binary(macro_ui) & not binary(extraction_boundary)'
+```
+
+Run `cargo mutants --list` with the same file filters first, and treat the
+audit as advisory: a survivor is either killed by a new test or recorded with a
+reason in the ExecPlan's decision log.
+
 ## 3. Validator module structure
 
 The `skyjoust-stateright-validator` crate keeps domain logic in small modules:

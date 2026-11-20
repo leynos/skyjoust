@@ -1,6 +1,8 @@
 # `rstest-bdd-harness-bevy` design
 
-Status: Proposed companion design
+Status: Accepted companion design. Sections 4–7 are implemented by roadmap task
+`0.1.2`, and their failure contract is recorded in
+[ADR 010](adrs/adr-0010-bevy-harness-failure-contract.md).
 
 Audience: developers implementing Skyjoust behavioural tests, reviewers of the
 `rstest-bdd` harness contract, and downstream maintainers evaluating extraction
@@ -120,9 +122,28 @@ Milestone 0 follow-up.
 The public API centres on these items:
 
 ```rust
-pub struct BevyScenario;
-pub trait BevyProfile;
-pub struct BevyHarness<P = MinimalBevyProfile>;
+pub struct BevyScenario {
+    // One shared application and the scenario identity, behind a RefCell.
+    app: Rc<RefCell<App>>,
+    metadata: ScenarioMetadata,
+}
+
+pub trait BevyProfile: 'static {
+    fn configure(app: &mut App, metadata: &ScenarioMetadata) -> HarnessResult<()>;
+
+    fn cleanup(
+        scenario: &BevyScenario,
+        metadata: &ScenarioMetadata,
+    ) -> HarnessResult<()> {
+        Ok(())
+    }
+}
+
+pub struct BevyHarness<P = MinimalBevyProfile> {
+    // Covariant in P without requiring P: Default or P: Send.
+    profile: PhantomData<fn() -> P>,
+}
+
 pub enum BareBevyProfile {}
 pub enum MinimalBevyProfile {}
 pub struct BevyAttributePolicy;
@@ -163,6 +184,14 @@ functions, and it lets the wrapper produce a precise panic message when a step
 attempts a nested mutable borrow. Step functions should request
 `&BevyScenario`, not `&mut BevyScenario`.
 
+`BevyScenario` derives `Clone` and `Debug`; every clone shares the same
+application, and a clone must not outlive the scenario that produced it.
+`update` advances exactly one frame, and `update_times(0)` still checks that
+the application can advance, so a scenario that lost its `Main` schedule fails
+even when a step requests no ticks. Both methods are `#[track_caller]` and
+panic with a crate-prefixed diagnostic that explains a nested borrow or an
+earlier system panic.
+
 `BevyProfile` owns framework configuration:
 
 ```rust
@@ -201,6 +230,20 @@ On the normal path, cleanup errors return `Err(HarnessError)`. On the panic
 path, cleanup errors become `tracing::error!` records with the same scenario
 metadata, and the original augmented panic resumes. This preserves scenario
 failure identity for `cargo test`, `cargo nextest`, and log subscribers.
+
+The delivered formatter (`src/panic.rs`) produces this form, wrapped here for
+width:
+
+```plaintext
+rstest-bdd-harness-bevy scenario panicked: phase=steps, harness=<type name>,
+feature=<path>:<one-based line>, scenario="<name>": <payload text>
+```
+
+The harness type is informative rather than stable: consumers match the phase,
+feature path, line, and quoted scenario name. A pure formatter owns the text,
+and `src/harness.rs` owns only lifecycle tags and the `panic_any` re-raise, so
+`run` contains no `panic!` or `assert!` and never inspects a payload, error, or
+metadata value.
 
 ```mermaid
 sequenceDiagram
@@ -298,7 +341,7 @@ profiles, not the crate, reference game-specific plugins.
 
 ## 9. Crate layout and dependency strategy
 
-The Skyjoust incubation crate should use this layout:
+The Skyjoust incubation crate uses this layout:
 
 ```plaintext
 crates/rstest-bdd-harness-bevy/
@@ -307,37 +350,58 @@ crates/rstest-bdd-harness-bevy/
 |-- test-macros/
 |   `-- Cargo.toml
 |-- src/
+|   |-- context.rs
+|   |-- context_tests.rs
+|   |-- harness.rs
+|   |-- harness_tests/
+|   |   |-- panics.rs
+|   |   |-- profiles.rs
+|   |   `-- recorder.rs
+|   |-- harness_tests.rs
 |   |-- lib.rs
+|   |-- panic.rs
+|   |-- panic_tests.rs
+|   |-- policy.rs
+|   |-- policy_tests.rs
 |   |-- profile.rs
-|   `-- profile_tests.rs
+|   |-- profile_tests.rs
+|   `-- snapshots/
 `-- tests/
     |-- extraction_boundary.rs
+    |-- features/
+    |   |-- bevy_panic.feature
+    |   |-- bevy_scenario.feature
+    |   `-- headless_scenario.feature
+    |-- headless_scenario/
+    |   `-- steps.rs
     |-- headless_scenario.rs
+    |-- macro_ui.rs
     |-- tick_properties.rs
-    `-- features/
-        `-- headless_scenario.feature
+    `-- ui/
 ```
 
-Roadmap task `0.1.1` establishes exactly the subset above. Task `0.1.2` adds
-`src/context.rs`, `src/harness.rs`, `src/panic.rs`, and `src/policy.rs` and
-their behavioural test pairs; the feature file `headless_scenario.feature` is
-re-bound through the harness-selecting `#[scenario]` rather than copied.
+Roadmap task `0.1.1` established the crate and its profile helpers. Task
+`0.1.2` added the harness modules and their sibling tests, the three feature
+files, the step module, and the `trybuild` macro fixtures; the original
+`headless_scenario.feature` is re-bound through the harness-selecting
+`#[scenario]` rather than copied. The `tests/headless_scenario.rs` root reaches
+its step module through `#[path = "headless_scenario/steps.rs"]`, because a
+`tests/foo.rs` root would otherwise resolve `mod steps;` to `tests/steps.rs`.
 
-The compatibility line targets Bevy `0.19.1` with `default-features = false` and
+The compatibility line targets Bevy `0.20.1` with `default-features = false` and
 `features = ["std"]`: `bevy::prelude::*` is the natural import surface for
 downstream steps, the default harness must stay headless, and the `std` feature
-keeps the time plugin on wall-clock without enabling the renderer or window. The
-`rstest-bdd` family now uses published stable `0.6.0` requirements with
+keeps the time plugin on wall-clock without enabling the renderer or window.
+The workspace upgraded from Bevy `0.19.1` to `0.20.0` (lockfile `0.20.1`) while
+`0.1.2` was in progress; the APIs this design depends on are unchanged. The
+`rstest-bdd` family uses published stable `0.6.0` requirements with
 implicit-caret syntax. The historical exact `=0.6.0-beta3` pins avoided
 drifting across breaking beta releases; they are superseded by the stable
-release decision. The stable focused and workspace suites and six local gates
-passed on the source tree named in §1. PR #51 is published but `BLOCKED` with
-review decision `CHANGES_REQUESTED`; build-test run `38309867260` was in
-progress at the latest status check. Current hosted outcomes, review
-reconciliation, and PR acceptance remain pending. The migration guide notes
-that bound feature files are Cargo rebuild dependencies, a custom
-`HarnessAdapter::run` returns `HarnessResult<T>`, and Rust 1.88 is the minimum
-supported version. Do not use git dependencies against upstream `main`.
+release decision. The `0.1.2` implementation passes the seven local commit
+gates; hosted CI, review reconciliation, and PR acceptance remain pending. The
+migration guide notes that bound feature files are Cargo rebuild dependencies,
+a custom `HarnessAdapter::run` returns `HarnessResult<T>`, and Rust 1.88 is the
+minimum supported version. Do not use git dependencies against upstream `main`.
 
 ## 10. Verification strategy
 

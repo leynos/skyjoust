@@ -403,7 +403,44 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `/tmp/fault-{a,b,c}-m4-skyjoust-0-1-2-bevy-harness-public-api.out`). The 0.1.1
   `headless_scenario.feature` is byte-for-byte unchanged (sha256 `12dac9ee...`
   before and after).
+- [x] (2026-11-20) EP-M4 review follow-up: the local CodeRabbit CLI review of
+  `a96027e` (0.9.6, 261 s, 6 files) found two gaps, both confirmed and
+  repaired. The metadata step compared only values that stay mutually
+  consistent, so `then_metadata_matches` now pins the scenario name
+  (`EXPECTED_METADATA_SCENARIO`) before deriving the declared line. The
+  `should_panic` expectation matched only `phase=steps`, which a failing
+  `Given` step would also satisfy, so it now pins the feature path, line 3, the
+  scenario name, and `Step failed at index ⁨1⁩`. Both repairs were proven
+  non-vacuous by a seeded fault: a wrong expected name failed with "the
+  scenario name must read …", and switching the failing scenario to the bare
+  harness (a `Given` failure at index 0) failed the expectation (logs
+  `/tmp/fault-{d,e}-m4-review-skyjoust-0-1-2-bevy-harness-public-api.out`).
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
+  Documentation is delivered: design §§4–6 and §9 now describe the built API,
+  with the status line updated; the crate README is rewritten (purpose, suite
+  inventory, files table, extension example, Bevy compatibility table); the
+  users' guide §4 covers the harness-backed scenario workflow; adoption
+  guidance adds the direct `rstest-bdd-harness` development dependency and a
+  drive-through section; `repository-layout`, `developers-guide` §2.1, and
+  `contents` are updated; roadmap `0.1.2` is ticked and `0.1.3` reworded to its
+  remaining scope; ADR 011 corrects the never-finish guidance under ADR 010's
+  amendment process (see `Decision log`). Mutation audit: `cargo mutants`
+  27.1.0 over the crate's `src/`, in place, with nextest and the serial macro
+  binaries excluded, produced 28 mutants — 12 caught, 12 unviable, 0 timeout, 4
+  missed (`mutants.out/`; summary
+  `/tmp/mutants-skyjoust-0-1-2-bevy-harness-public-api.out`). Three missed
+  mutants now have killing tests, each rejected by a seeded fault in
+  `src/harness.rs`: a `Debug` impl returning `Ok` failed
+  `new_and_default_harnesses_are_equivalent`; an empty `emit_start` failed
+  `the_start_event_carries_the_scenario_identity` with "the run must emit
+  exactly one start event"; and `source` returning `None` failed
+  `a_profile_hook_error_exposes_its_source` with "the hook error must expose
+  the failure it wraps" (logs
+  `/tmp/fault-{f,g,h}-mutants-fix-...-public-api.out`; the file was restored to
+  sha256 `3b04e652...` after each). The fourth, a `Clone` returning
+  `Default::default()`, is equivalent because `BevyHarness` is a zero-sized
+  type over `PhantomData`; see `Decision log`. Final gates and the milestone
+  CLI review are pending.
 
 ## Surprises & discoveries
 
@@ -678,6 +715,21 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   unrelated producers; the harness always emits its type beside the three
   contract fields, so the marker is the honest discriminator. Date/Author:
   2026-11-20, implementer acting on the milestone review.
+- Decision (2026-11-20, EP-M5): record the `Clone` mutation survivor as an
+  equivalent mutant rather than adding a test. Rationale: `BevyHarness<P>` is a
+  zero-sized type whose only field is `PhantomData<fn() -> P>`, so
+  `fn clone(&self) -> Self { *self }` and `Default::default()` construct the
+  same value and no observable assertion can separate them. The other three
+  survivors change an observable (debug text, the start event, or the error
+  source chain) and are killed by tests. Date/Author: 2026-11-20, implementer
+  triaging the mutation audit.
+- Decision (2026-11-20, EP-M5): correct the never-finish guidance through ADR
+  011 rather than rewriting ADR 010. Rationale: ADR 010 said the harness never
+  finalizes, yet also claimed a finalized profile could still add plugins
+  inside steps; the accepted-decision history must be preserved, so ADR 011
+  amends the sentence and ADR 010 keeps the original under `## Amendments`, as
+  the documentation style guide requires. Date/Author: 2026-11-20, implementer
+  preparing the documentation milestone.
 
 ## Outcomes & retrospective
 
