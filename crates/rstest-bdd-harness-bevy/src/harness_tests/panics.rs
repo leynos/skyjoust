@@ -20,6 +20,7 @@ use std::{
 
 use bevy::ecs::resource::Resource;
 use googletest::prelude::*;
+use rstest::rstest;
 use rstest_bdd_harness::{HarnessAdapter, ScenarioRunRequest, ScenarioRunner};
 
 use super::{
@@ -34,9 +35,9 @@ use super::{
         Recording,
         RunnerCalls,
     },
-    recorder::capture_errors,
+    recorder::{RecordedEvent, capture_errors},
 };
-use crate::{BevyHarness, BevyScenario};
+use crate::{BevyHarness, BevyProfile, BevyScenario};
 
 /// Resource whose drop records that the application was released.
 #[derive(Resource)]
@@ -80,6 +81,36 @@ fn expect_phase_message(message: &str, phase: &str, payload: &str) {
     );
 }
 
+/// Runs `harness` with a runner that counts its call and stashes the handle,
+/// returning the raised message, the captured error records, and the handle.
+fn run_and_stash<Profile: BevyProfile>(
+    harness: BevyHarness<Profile>,
+    panic_expectation: &str,
+    runner: impl FnOnce(BevyScenario) -> u32 + 'static,
+) -> (String, Vec<RecordedEvent>, BevyScenario) {
+    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
+    let sink = Rc::clone(&stashed);
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
+            scenario.with_world(|world| world.resource_mut::<RunnerCalls>().0 += 1);
+            *sink.borrow_mut() = Some(scenario.clone());
+            runner(scenario)
+        }),
+    );
+
+    let (outcome, events) =
+        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
+
+    let payload = outcome.expect_err(panic_expectation);
+    let message = panic_text(payload.as_ref()).to_owned();
+    let scenario = stashed
+        .borrow()
+        .clone()
+        .expect("the runner stashed its scenario");
+    (message, events, scenario)
+}
+
 #[gtest]
 fn a_configure_panic_is_raised_with_the_configure_phase() {
     let harness = BevyHarness::<ConfigurePanics>::new();
@@ -105,28 +136,13 @@ fn a_configure_panic_is_raised_with_the_configure_phase() {
 
 #[gtest]
 fn a_cleanup_panic_is_raised_with_the_cleanup_phase() {
-    let harness = BevyHarness::<CleanupPanics>::new();
-    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
-    let sink = Rc::clone(&stashed);
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| world.resource_mut::<RunnerCalls>().0 += 1);
-            *sink.borrow_mut() = Some(scenario);
-            0
-        }),
+    let (message, events, scenario) = run_and_stash(
+        BevyHarness::<CleanupPanics>::new(),
+        "the cleanup panic must reach the caller",
+        |_scenario| 0,
     );
 
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
-
-    let payload = outcome.expect_err("the cleanup panic must reach the caller");
-    let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "cleanup", "cleanup boom");
-    let scenario = stashed
-        .borrow()
-        .clone()
-        .expect("the runner stashed its scenario");
+    expect_phase_message(&message, "cleanup", "cleanup boom");
     expect_that!(
         scenario.with_world(|world| world.resource::<RunnerCalls>().0),
         eq(1)
@@ -140,28 +156,13 @@ fn a_cleanup_panic_is_raised_with_the_cleanup_phase() {
 
 #[gtest]
 fn a_step_panic_runs_cleanup_once_and_records_the_step_phase() {
-    let harness = BevyHarness::<Recording>::new();
-    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
-    let sink = Rc::clone(&stashed);
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| world.resource_mut::<RunnerCalls>().0 += 1);
-            *sink.borrow_mut() = Some(scenario.clone());
-            panic_any("step boom")
-        }),
+    let (message, events, scenario) = run_and_stash(
+        BevyHarness::<Recording>::new(),
+        "the step panic must reach the caller",
+        |_scenario| -> u32 { panic_any("step boom") },
     );
 
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
-
-    let payload = outcome.expect_err("the step panic must reach the caller");
-    let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "steps", "step boom");
-    let scenario = stashed
-        .borrow()
-        .clone()
-        .expect("the runner stashed its scenario");
+    expect_phase_message(&message, "steps", "step boom");
     expect_that!(
         scenario.with_world(|world| world.resource::<RunnerCalls>().0),
         eq(1)
@@ -177,34 +178,36 @@ fn a_step_panic_runs_cleanup_once_and_records_the_step_phase() {
     expect_that!(event.message.as_str(), contains_substring("step boom"));
 }
 
+/// Which cleanup hook failure a step-panic scenario exercises.
+#[derive(Clone, Copy, Debug)]
+enum CleanupFailure {
+    Error,
+    Panic,
+}
+
 #[gtest]
-fn a_cleanup_error_after_a_step_panic_is_recorded_not_raised() {
-    let harness = BevyHarness::<CleanupFails>::new();
-    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
-    let sink = Rc::clone(&stashed);
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| world.resource_mut::<RunnerCalls>().0 += 1);
-            *sink.borrow_mut() = Some(scenario.clone());
-            panic_any("step boom")
-        }),
-    );
+#[rstest]
+#[case(CleanupFailure::Error, "cleanup sentinel")]
+#[case(CleanupFailure::Panic, "cleanup boom")]
+fn a_cleanup_failure_after_a_step_panic_is_recorded_not_raised(
+    #[case] failure: CleanupFailure,
+    #[case] cleanup_message: &str,
+) {
+    let (message, events, scenario) = match failure {
+        CleanupFailure::Error => run_and_stash(
+            BevyHarness::<CleanupFails>::new(),
+            "the step panic must reach the caller",
+            |_scenario| -> u32 { panic_any("step boom") },
+        ),
+        CleanupFailure::Panic => run_and_stash(
+            BevyHarness::<CleanupPanics>::new(),
+            "the step panic must reach the caller",
+            |_scenario| -> u32 { panic_any("step boom") },
+        ),
+    };
 
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
-
-    let payload = outcome.expect_err("the step panic must reach the caller");
-    let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "steps", "step boom");
-    assert!(
-        !message.contains("cleanup sentinel"),
-        "the cleanup error must not replace the step message, got {message:?}",
-    );
-    let scenario = stashed
-        .borrow()
-        .clone()
-        .expect("the runner stashed its scenario");
+    expect_phase_message(&message, "steps", "step boom");
+    expect_that!(message.as_str(), not(contains_substring(cleanup_message)));
     expect_that!(
         scenario.with_world(|world| world.resource::<CleanupCalls>().0),
         eq(1)
@@ -217,48 +220,8 @@ fn a_cleanup_error_after_a_step_panic_is_recorded_not_raised() {
     expect_that!(cleanup.scenario_name.as_str(), eq("Demo scenario"));
     expect_that!(
         cleanup.message.as_str(),
-        contains_substring("cleanup sentinel")
+        contains_substring(cleanup_message)
     );
-}
-
-#[gtest]
-fn a_cleanup_panic_after_a_step_panic_is_recorded_not_raised() {
-    let harness = BevyHarness::<CleanupPanics>::new();
-    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
-    let sink = Rc::clone(&stashed);
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| world.resource_mut::<RunnerCalls>().0 += 1);
-            *sink.borrow_mut() = Some(scenario.clone());
-            panic_any("step boom")
-        }),
-    );
-
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
-
-    let payload = outcome.expect_err("the step panic must reach the caller");
-    let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "steps", "step boom");
-    assert!(
-        !message.contains("cleanup boom"),
-        "the cleanup panic must not replace the step message, got {message:?}",
-    );
-    let scenario = stashed
-        .borrow()
-        .clone()
-        .expect("the runner stashed its scenario");
-    expect_that!(
-        scenario.with_world(|world| world.resource::<CleanupCalls>().0),
-        eq(1)
-    );
-    expect_that!(events.len(), eq(2));
-    let cleanup = events
-        .get(1)
-        .expect("the cleanup panic is the second record");
-    expect_that!(cleanup.phase.as_str(), eq("cleanup"));
-    expect_that!(cleanup.message.as_str(), contains_substring("cleanup boom"));
 }
 
 #[gtest]

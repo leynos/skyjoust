@@ -13,6 +13,14 @@ use rstest_bdd_harness::ScenarioMetadata;
 
 use super::{BareBevyProfile, BevyProfile, MinimalBevyProfile, add_minimal_plugins, minimal_app};
 
+/// Configures a fresh application with `Profile` and asserts the hook succeeds.
+fn configured_app<Profile: BevyProfile>() -> App {
+    let mut app = App::new();
+    let result = Profile::configure(&mut app, &ScenarioMetadata::default());
+    assert!(result.is_ok(), "the profile's configure hook must succeed");
+    app
+}
+
 #[gtest]
 #[rstest]
 #[case(0)]
@@ -39,9 +47,7 @@ fn an_unconfigured_app_omits_the_time_plugin() {
 
 #[gtest]
 fn bare_profile_leaves_the_app_unconfigured() {
-    let mut app = App::new();
-    let result = BareBevyProfile::configure(&mut app, &ScenarioMetadata::default());
-    expect_that!(result.is_ok(), eq(true));
+    let app = configured_app::<BareBevyProfile>();
     expect_that!(app.is_plugin_added::<TimePlugin>(), eq(false));
     expect_that!(
         app.world().get_resource::<FrameCount>().is_some(),
@@ -56,20 +62,16 @@ fn bare_profile_still_runs_update_systems() {
 
     fn count_tick(mut ticks: bevy::ecs::system::ResMut<Ticks>) { ticks.0 += 1; }
 
-    let mut app = App::new();
-    let result = BareBevyProfile::configure(&mut app, &ScenarioMetadata::default());
+    let mut app = configured_app::<BareBevyProfile>();
     app.insert_resource(Ticks(0));
     app.add_systems(Update, count_tick);
     app.update();
-    expect_that!(result.is_ok(), eq(true));
     expect_that!(app.world().resource::<Ticks>().0, eq(1));
 }
 
 #[gtest]
 fn minimal_profile_adds_the_minimal_plugins() {
-    let mut app = App::new();
-    let result = MinimalBevyProfile::configure(&mut app, &ScenarioMetadata::default());
-    expect_that!(result.is_ok(), eq(true));
+    let app = configured_app::<MinimalBevyProfile>();
     expect_that!(app.is_plugin_added::<TimePlugin>(), eq(true));
     expect_that!(app.world().get_resource::<FrameCount>().is_some(), eq(true));
 }

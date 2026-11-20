@@ -96,13 +96,12 @@ fn then_toy_counter_reads(
     #[from(rstest_bdd_harness_context)] scenario: BevyScenario,
     expected: u32,
 ) -> StepResult<(), String> {
-    match toy_count(&scenario) {
-        Some(observed) if observed == expected => Ok(()),
-        Some(observed) => Err(format!(
-            "the toy counter must read {expected}, but it read {observed}"
-        )),
-        None => Err("the scenario has no toy counter".to_owned()),
-    }
+    require_counter(
+        toy_count(&scenario),
+        expected,
+        "toy counter",
+        "the scenario has no toy counter",
+    )
 }
 
 #[then("the application has no frame counter")]
@@ -169,12 +168,28 @@ fn toy_count(scenario: &BevyScenario) -> Option<u32> {
 
 /// Fails unless the frame counter reads `expected`.
 fn require_frame_count(scenario: &BevyScenario, expected: u32) -> StepResult<(), String> {
-    match frame_count(scenario) {
-        Some(observed) if observed == expected => Ok(()),
-        Some(observed) => Err(format!(
-            "the frame count must read {expected}, but it read {observed}"
+    require_counter(
+        frame_count(scenario),
+        expected,
+        "frame count",
+        "the application has no frame counter",
+    )
+}
+
+/// Fails unless an observed counter equals `expected`, reporting a missing
+/// counter separately from a wrong value.
+fn require_counter(
+    observed: Option<u32>,
+    expected: u32,
+    label: &str,
+    missing: &str,
+) -> StepResult<(), String> {
+    match observed {
+        Some(actual) if actual == expected => Ok(()),
+        Some(actual) => Err(format!(
+            "the {label} must read {expected}, but it read {actual}"
         )),
-        None => Err("the application has no frame counter".to_owned()),
+        None => Err(missing.to_owned()),
     }
 }
 

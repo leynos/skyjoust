@@ -6,46 +6,39 @@
 //! end of a quoted container. The guide-wide assertions live in the parent
 //! module.
 
+use rstest::rstest;
+
 use super::parse_fences;
 
-#[test]
-fn unmarked_tilde_fence_is_detected() {
-    let fences = parse_fences("~~~rust\nlet value = 1;\n~~~\n").expect("the tilde fence parses");
+#[rstest]
+#[case("~~~rust\nlet value = 1;\n~~~\n", "a tilde fence")]
+#[case(
+    "   ```rust\n   let value = 1;\n   ```\n",
+    "an indented backtick fence"
+)]
+#[case("> ~~~rust\n> let value = 1;\n> ~~~\n", "a block-quoted fence")]
+#[case(
+    ">\t~~~rust\n>\tlet value = 1;\n>\t~~~\n",
+    "a tab-padded block-quoted fence"
+)]
+fn unmarked_fence_is_detected(#[case] text: &str, #[case] description: &str) {
+    let fences = parse_fences(text).expect("the fixture must parse");
 
     assert_eq!(
         fences.len(),
         1,
-        "a tilde fence must be recorded exactly once"
+        "{description} must be recorded exactly once"
     );
     let fence = fences
         .first()
         .expect("the fixture records exactly one fence");
     assert_eq!(
         fence.language, "rust",
-        "the text after the delimiter names the language"
+        "{description} must keep the language after its delimiter"
     );
     assert!(
         fence.marker.is_none(),
-        "the fixture leaves the fence unmarked so the marker check can reject it"
-    );
-}
-
-#[test]
-fn unmarked_indented_fence_is_detected() {
-    let fences =
-        parse_fences("   ```rust\n   let value = 1;\n   ```\n").expect("the indented fence parses");
-
-    assert_eq!(
-        fences.len(),
-        1,
-        "an indented backtick fence must be recorded exactly once"
-    );
-    let fence = fences
-        .first()
-        .expect("the fixture records exactly one fence");
-    assert!(
-        fence.marker.is_none(),
-        "the fixture leaves the fence unmarked so the marker check can reject it"
+        "{description} must stay unmarked so the marker check can reject it"
     );
 }
 
@@ -76,29 +69,6 @@ fn longer_closer_closes_the_fence() {
     assert_eq!(
         fence.language, "rust",
         "the block keeps the opener's language"
-    );
-}
-
-#[test]
-fn unmarked_block_quoted_fence_is_detected() {
-    let fences = parse_fences("> ~~~rust\n> let value = 1;\n> ~~~\n")
-        .expect("the block-quoted fence parses");
-
-    assert_eq!(
-        fences.len(),
-        1,
-        "a fence inside a block quote must be recorded exactly once"
-    );
-    let fence = fences
-        .first()
-        .expect("the fixture records exactly one fence");
-    assert_eq!(
-        fence.language, "rust",
-        "the info string inside the quote names the language"
-    );
-    assert!(
-        fence.marker.is_none(),
-        "the fixture leaves the fence unmarked so the marker check can reject it"
     );
 }
 
@@ -135,25 +105,6 @@ fn quoted_delimiter_does_not_close_a_top_level_fence() {
             .expect("the fixture records exactly one fence"),
         "text",
         "the fence keeps its opener's language"
-    );
-}
-
-#[test]
-fn tab_after_the_quote_marker_is_accepted() {
-    let fences = parse_fences(">\t~~~rust\n>\tlet value = 1;\n>\t~~~\n")
-        .expect("the tab-padded block-quoted fence parses");
-
-    assert_eq!(
-        fences.len(),
-        1,
-        "a fence whose quote marker is padded with a tab must be recorded exactly once"
-    );
-    let fence = fences
-        .first()
-        .expect("the fixture records exactly one fence");
-    assert!(
-        fence.marker.is_none(),
-        "the fixture leaves the fence unmarked so the marker check can reject it"
     );
 }
 
