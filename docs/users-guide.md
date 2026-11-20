@@ -199,12 +199,19 @@ rstest-bdd-harness-bevy = { path = "crates/rstest-bdd-harness-bevy" }
 The crate supports Bevy `0.20.1`. Select the default minimal profile with
 `harness = BevyHarness`, or a downstream profile through a type alias such as
 `type GameHarness = BevyHarness<GameProfile>;`. A scenario step requests the
-shared application through the reserved harness-context fixture:
+shared application through the reserved harness-context fixture. The consuming
+package supplies the feature file: create
+`tests/features/bevy_scenario.feature` with the scenario this example binds
+(the repository's copy is
+`crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`), where
+`index = 1` selects its second scenario, "Steps share one application across
+ticks".
+
+<!-- tested-example: bevy-harness-scenario -->
 
 ```rust
-use bevy::diagnostic::FrameCount;
 use rstest_bdd::StepResult;
-use rstest_bdd_harness_bevy::{BevyHarness, BevyScenario};
+use rstest_bdd_harness_bevy::{BevyHarness, BevyScenario, bevy::diagnostic::FrameCount};
 use rstest_bdd_macros::{scenario, then, when};
 
 #[scenario(
@@ -259,6 +266,8 @@ finalizes the app itself gives up that ability. For deterministic time, install
 `minimal_app` creates a fresh application with that set already installed. Both
 avoid window, renderer, asset, and audio plugins and remain available for tests
 that do not need a scenario:
+
+<!-- tested-example: minimal-headless-app -->
 
 ```rust
 use rstest_bdd_harness_bevy::{bevy::diagnostic::FrameCount, minimal_app};

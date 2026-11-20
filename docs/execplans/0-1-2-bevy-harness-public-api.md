@@ -415,11 +415,11 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   scenario name must read …", and switching the failing scenario to the bare
   harness (a `Given` failure at index 0) failed the expectation (logs
   `/tmp/fault-{d,e}-m4-review-skyjoust-0-1-2-bevy-harness-public-api.out`).
-- [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
-  Documentation is delivered: design §§4–6 and §9 now describe the built API,
-  with the status line updated; the crate README is rewritten (purpose, suite
-  inventory, files table, extension example, Bevy compatibility table); the
-  users' guide §4 covers the harness-backed scenario workflow; adoption
+- [x] (2026-11-20) EP-M5: documentation, mutation audit, roadmap, and final
+  gates. Documentation is delivered: design §§4–6 and §9 now describe the built
+  API, with the status line updated; the crate README is rewritten (purpose,
+  suite inventory, files table, extension example, Bevy compatibility table);
+  the users' guide §4 covers the harness-backed scenario workflow; adoption
   guidance adds the direct `rstest-bdd-harness` development dependency and a
   drive-through section; `repository-layout`, `developers-guide` §2.1, and
   `contents` are updated; roadmap `0.1.2` is ticked and `0.1.3` reworded to its
@@ -439,8 +439,27 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `/tmp/fault-{f,g,h}-mutants-fix-...-public-api.out`; the file was restored to
   sha256 `3b04e652...` after each). The fourth, a `Clone` returning
   `Default::default()`, is equivalent because `BevyHarness` is a zero-sized
-  type over `PhantomData`; see `Decision log`. Final gates and the milestone
-  CLI review are pending.
+  type over `PhantomData`; see `Decision log`. The seven local gates passed on
+  this tree: `make check-fmt` (1 s), `make lint` (48 s), `make typecheck` (12
+  s), `make test` (171 s, 307/307 plus doctests), `make markdownlint` (3 s),
+  `make nixie` (1 s), and `make spelling` (1 s); logs
+  `/tmp/gate-*-skyjoust-0-1-2-bevy-harness-public-api-m5.out`. The milestone
+  CLI review of `a96027e..2449742` (288 s, 17 files, exit 0) then found five
+  minor documentation gaps. Four are repaired: the adoption example imports
+  `when` and uses the `bevy` re-export; the users' guide example imports
+  `FrameCount` through the re-export and states that the consuming package
+  supplies the feature file that `index = 1` selects; and both guide examples
+  carry `tested-example` markers and are compiled from the published text by a
+  `cfg(doctest)` item that includes `docs/users-guide.md`. The fifth reported
+  that roadmap `0.1.2` claimed the gates passed while this plan still said
+  pending; that inconsistency was transient and is resolved by replacing the
+  pending language with the evidence above, so the roadmap needs no change. The
+  review-fix tree then passed all seven gates again: `check-fmt` (1 s), `lint`
+  (461 s under compile-slot contention), `typecheck` (14 s), `test` (514 s,
+  307/307 plus 18 harness doctests, including both guide examples),
+  `markdownlint` (8 s), `nixie` (<1 s), and `spelling` (7 s); logs
+  `/tmp/gate2-*-skyjoust-0-1-2-bevy-harness-public-api-m5.out`. The review
+  fixes are committed separately from the milestone work.
 
 ## Surprises & discoveries
 
@@ -544,6 +563,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   than `StepResult<(), E>`. Impact: the three infallible steps return `()`;
   only steps with a real failure branch return `StepResult`, and no lint is
   silenced.
+- Observation (2026-11-20, EP-M5): a `#[cfg(doctest)]` item carrying
+  `#[doc = include_str!("../../../docs/users-guide.md")]` makes rustdoc compile
+  the guide's Rust fences as doctests, so the published examples are exercised
+  without a bespoke Markdown parser or a copied fixture. Evidence: the crate's
+  doctest count rises from 16 to 18, and both guide fences pass, including the
+  `#[scenario]` fence whose macro expands against the crate's real feature
+  file. Impact: the style guide's shared-loader intent is met for the guide's
+  executable examples; a marker-enforcement scan remains unimplemented and is
+  recorded in `Decision log`.
 
 ## Decision log
 
@@ -730,11 +758,40 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   amends the sentence and ADR 010 keeps the original under `## Amendments`, as
   the documentation style guide requires. Date/Author: 2026-11-20, implementer
   preparing the documentation milestone.
+- Decision (2026-11-20, EP-M5 review): load the users' guide's Rust examples
+  into doctests through a hidden `#[cfg(doctest)]` item rather than building a
+  Markdown example parser. Rationale: the style guide requires documented
+  examples to be exercised from the published text, and rustdoc already
+  compiles every Rust fence in an included document; the `cfg` keeps the item
+  out of normal builds, rendered documentation, and the public API. The two
+  affected fences carry stable `tested-example` markers. Enforcing markers on
+  every fence remains unimplemented across the documentation set; the plan
+  records that residual gap rather than adding a scanner in this milestone.
+  Date/Author: 2026-11-20, implementer acting on the milestone review.
 
 ## Outcomes & retrospective
 
-Not yet started. Record milestone outcomes, gate durations, mutation-audit
-counts (caught, missed, unviable, timeout), and lessons here.
+Delivered roadmap `0.1.2`: the six public API types, the failure contract, the
+behavioural and property suites, and the documentation set, with ADR 010 and
+its ADR 011 amendment. The crate remains workspace-only and its dependency
+shape is unchanged.
+
+Gate durations grew with host contention: the first EP-M5 run took 237 s in
+total (lint 48 s, test 171 s), while the review-fix run took 997 s (lint 461 s,
+test 514 s) as compiler slots queued. Every run was green.
+
+Mutation audit: 28 mutants, 12 caught, 12 unviable, 0 timeout, 4 missed. Three
+missed mutants were killed by new tests and proven by hand-seeded faults; the
+fourth (`Clone` returning `Default::default()`) is equivalent because the
+harness is zero-sized.
+
+Lessons: generated step wrappers inherit Clippy's `unnecessary_wraps`, so
+infallible steps must return `()`; `rstest-bdd`'s step loop wraps the failing
+step index in isolate characters, which a `should_panic` substring must
+reproduce; `cfg(doctest)` plus `include_str!` compiles a Markdown guide's Rust
+examples from the published text without a bespoke loader; and the local CLI
+review found only documentation gaps once the code gates were green,
+reinforcing that gate evidence does not replace review.
 
 ## Context and orientation
 
@@ -1729,3 +1786,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   the toolchain pin is `nightly-2026-11-06`, the development profile builds
   with LLVM, and `make typecheck` joins the milestone gates. The plan keeps its
   six-milestone shape and still awaits maintainer approval.
+- Revision 5, 2026-11-20: implementation delivered through EP-M5. The design,
+  crate README, users' guide, adoption note, repository layout, developers'
+  guide, contents, and roadmap were updated, and ADR 011 amends ADR 010's
+  never-finish sentence under the documented amendment process. The mutation
+  audit and its survivor dispositions, the CLI review gaps and their repairs,
+  and every gate run are recorded in `Progress`, `Decision log`, and
+  `Outcomes & retrospective`. No requirement, signature, tolerance, or
+  milestone changed.

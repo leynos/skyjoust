@@ -35,3 +35,12 @@ pub use rstest_bdd_harness::{
     TestAttribute,
 };
 pub use tracing;
+
+/// Compiles the Rust examples published in the Skyjoust users' guide.
+///
+/// The item is hidden and exists only while rustdoc collects doctests, so the
+/// guide's examples are exercised from the published text rather than a copied
+/// fixture. The path is relative to this crate's `src` directory.
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/users-guide.md")]
+pub struct UsersGuideExamples;
