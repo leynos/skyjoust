@@ -458,8 +458,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   (461 s under compile-slot contention), `typecheck` (14 s), `test` (514 s,
   307/307 plus 18 harness doctests, including both guide examples),
   `markdownlint` (8 s), `nixie` (<1 s), and `spelling` (7 s); logs
-  `/tmp/gate2-*-skyjoust-0-1-2-bevy-harness-public-api-m5.out`. The review
-  fixes are committed separately from the milestone work.
+  `/tmp/gate2-*-skyjoust-0-1-2-bevy-harness-public-api-m5.out`. A second CLI
+  review of the follow-up commit `d2ec246` (240 s, 4 files, exit 0) found two
+  more minor gaps: the loader did not validate markers, and the guide's
+  minimal-application fence declared a `#[test]` function that rustdoc never
+  runs. `src/guide_tests.rs` now enforces marker placement, non-empty unique
+  identifiers, and fence termination for the guide, and that fence is a test
+  body rustdoc executes. Both were proven by seeded faults: an unmarked Rust
+  fence and a duplicated identifier each failed the new checks, and changing
+  the expected frame count failed the doctest (logs
+  `/tmp/fault-{i,j,k}-review2-...-public-api.out`).
 
 ## Surprises & discoveries
 
@@ -570,8 +578,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   doctest count rises from 16 to 18, and both guide fences pass, including the
   `#[scenario]` fence whose macro expands against the crate's real feature
   file. Impact: the style guide's shared-loader intent is met for the guide's
-  executable examples; a marker-enforcement scan remains unimplemented and is
-  recorded in `Decision log`.
+  executable examples. A follow-up review showed that rustdoc alone ignores the
+  `tested-example` markers, so `src/guide_tests.rs` now enforces marker
+  placement, non-empty identifiers, uniqueness, and fence termination for that
+  document.
 
 ## Decision log
 
@@ -764,9 +774,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   examples to be exercised from the published text, and rustdoc already
   compiles every Rust fence in an included document; the `cfg` keeps the item
   out of normal builds, rendered documentation, and the public API. The two
-  affected fences carry stable `tested-example` markers. Enforcing markers on
-  every fence remains unimplemented across the documentation set; the plan
-  records that residual gap rather than adding a scanner in this milestone.
+  affected fences carry stable `tested-example` markers, and
+  `src/guide_tests.rs` enforces the marker rules for that document, because
+  rustdoc itself ignores the markers. The scope is the users' guide: a
+  repository-wide scan over every user-facing document remains future work.
   Date/Author: 2026-11-20, implementer acting on the milestone review.
 
 ## Outcomes & retrospective

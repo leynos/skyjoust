@@ -36,6 +36,10 @@ pub use rstest_bdd_harness::{
 };
 pub use tracing;
 
+#[cfg(test)]
+#[path = "guide_tests.rs"]
+mod guide_tests;
+
 /// Compiles the Rust examples published in the Skyjoust users' guide.
 ///
 /// The item is hidden and exists only while rustdoc collects doctests, so the
