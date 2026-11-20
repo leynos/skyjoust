@@ -59,8 +59,20 @@ fn panic_text(payload: &(dyn Any + Send)) -> &str {
         .as_str()
 }
 
+/// The phase and payload a re-raised panic message must carry.
+///
+/// They travel together everywhere the message shape is asserted, so one
+/// value carries them rather than two positional strings that a caller could
+/// transpose.
+struct ExpectedPhase<'a> {
+    phase: &'a str,
+    payload: &'a str,
+}
+
 /// Asserts the full phase-tagged message shape from ADR 010.
-fn expect_phase_message(message: &str, phase: &str, payload: &str) {
+fn expect_phase_message(message: &str, expected: &ExpectedPhase<'_>) {
+    let phase = expected.phase;
+    let payload = expected.payload;
     let expected_prefix =
         format!("rstest-bdd-harness-bevy scenario panicked: phase={phase}, harness=");
     assert!(
@@ -89,7 +101,6 @@ fn expect_phase_message(message: &str, phase: &str, payload: &str) {
 /// returning the raised message, the captured error records, and the handle.
 fn run_and_stash<Profile: BevyProfile>(
     harness: BevyHarness<Profile>,
-    panic_expectation: &str,
     runner: impl FnOnce(BevyScenario) -> u32 + 'static,
 ) -> (String, Vec<RecordedEvent>, BevyScenario) {
     let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
@@ -106,13 +117,25 @@ fn run_and_stash<Profile: BevyProfile>(
     let (outcome, events) =
         capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
 
-    let payload = outcome.expect_err(panic_expectation);
+    let payload = outcome.expect_err("the re-raised scenario panic must reach the caller");
     let message = panic_text(payload.as_ref()).to_owned();
     let scenario = stashed
         .borrow()
         .clone()
         .expect("the runner stashed its scenario");
     (message, events, scenario)
+}
+
+/// Runs `harness` and returns the raised message and captured error records.
+fn run_and_transcribe<Profile: BevyProfile>(
+    harness: BevyHarness<Profile>,
+    runner: impl FnOnce(BevyScenario) -> u32 + 'static,
+) -> (String, Vec<RecordedEvent>) {
+    let request = ScenarioRunRequest::new(metadata(), ScenarioRunner::new(runner));
+    let (outcome, events) =
+        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
+    let payload = outcome.expect_err("the re-raised scenario panic must reach the caller");
+    (panic_text(payload.as_ref()).to_owned(), events)
 }
 
 #[gtest]
@@ -133,20 +156,29 @@ fn a_configure_panic_is_raised_with_the_configure_phase() {
 
     let payload = outcome.expect_err("the configure panic must reach the caller");
     let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "configure", "configure boom");
+    expect_phase_message(
+        message,
+        &ExpectedPhase {
+            phase: "configure",
+            payload: "configure boom",
+        },
+    );
     expect_that!(*runner_called.borrow(), eq(false));
     expect_that!(events.len(), eq(0));
 }
 
 #[gtest]
 fn a_cleanup_panic_is_raised_with_the_cleanup_phase() {
-    let (message, events, scenario) = run_and_stash(
-        BevyHarness::<CleanupPanics>::new(),
-        "the cleanup panic must reach the caller",
-        |_scenario| 0,
-    );
+    let (message, events, scenario) =
+        run_and_stash(BevyHarness::<CleanupPanics>::new(), |_scenario| 0);
 
-    expect_phase_message(&message, "cleanup", "cleanup boom");
+    expect_phase_message(
+        &message,
+        &ExpectedPhase {
+            phase: "cleanup",
+            payload: "cleanup boom",
+        },
+    );
     expect_that!(
         scenario.with_world(|world| world.resource::<RunnerCalls>().0),
         eq(1)
@@ -160,13 +192,18 @@ fn a_cleanup_panic_is_raised_with_the_cleanup_phase() {
 
 #[gtest]
 fn a_step_panic_runs_cleanup_once_and_records_the_step_phase() {
-    let (message, events, scenario) = run_and_stash(
-        BevyHarness::<Recording>::new(),
-        "the step panic must reach the caller",
-        |_scenario| -> u32 { panic_any("step boom") },
-    );
+    let (message, events, scenario) =
+        run_and_stash(BevyHarness::<Recording>::new(), |_scenario| -> u32 {
+            panic_any("step boom")
+        });
 
-    expect_phase_message(&message, "steps", "step boom");
+    expect_phase_message(
+        &message,
+        &ExpectedPhase {
+            phase: "steps",
+            payload: "step boom",
+        },
+    );
     expect_that!(
         scenario.with_world(|world| world.resource::<RunnerCalls>().0),
         eq(1)
@@ -189,28 +226,42 @@ enum CleanupFailure {
     Panic,
 }
 
+impl CleanupFailure {
+    /// The failure text the cleanup hook reports for this case.
+    fn message(self) -> &'static str {
+        match self {
+            Self::Error => "cleanup sentinel",
+            Self::Panic => "cleanup boom",
+        }
+    }
+}
+
 #[gtest]
 #[rstest]
-#[case(CleanupFailure::Error, "cleanup sentinel")]
-#[case(CleanupFailure::Panic, "cleanup boom")]
-fn a_cleanup_failure_after_a_step_panic_is_recorded_not_raised(
-    #[case] failure: CleanupFailure,
-    #[case] cleanup_message: &str,
-) {
+#[case(CleanupFailure::Error)]
+#[case(CleanupFailure::Panic)]
+fn a_cleanup_failure_after_a_step_panic_is_recorded_not_raised(#[case] failure: CleanupFailure) {
+    let cleanup_message = failure.message();
     let (message, events, scenario) = match failure {
-        CleanupFailure::Error => run_and_stash(
-            BevyHarness::<CleanupFails>::new(),
-            "the step panic must reach the caller",
-            |_scenario| -> u32 { panic_any("step boom") },
-        ),
-        CleanupFailure::Panic => run_and_stash(
-            BevyHarness::<CleanupPanics>::new(),
-            "the step panic must reach the caller",
-            |_scenario| -> u32 { panic_any("step boom") },
-        ),
+        CleanupFailure::Error => {
+            run_and_stash(BevyHarness::<CleanupFails>::new(), |_scenario| -> u32 {
+                panic_any("step boom")
+            })
+        }
+        CleanupFailure::Panic => {
+            run_and_stash(BevyHarness::<CleanupPanics>::new(), |_scenario| -> u32 {
+                panic_any("step boom")
+            })
+        }
     };
 
-    expect_phase_message(&message, "steps", "step boom");
+    expect_phase_message(
+        &message,
+        &ExpectedPhase {
+            phase: "steps",
+            payload: "step boom",
+        },
+    );
     expect_that!(message.as_str(), not(contains_substring(cleanup_message)));
     expect_that!(
         scenario.with_world(|world| world.resource::<CleanupCalls>().0),
@@ -228,75 +279,82 @@ fn a_cleanup_failure_after_a_step_panic_is_recorded_not_raised(
     );
 }
 
-#[gtest]
-fn a_panicking_drop_after_a_step_panic_keeps_the_step_phase() {
-    let harness = BevyHarness::<Recording>::new();
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(|scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| world.insert_resource(PanicOnDrop));
-            panic_any("step boom")
-        }),
-    );
+/// A phase as it appears in a captured error record.
+#[derive(Clone, Copy)]
+enum RecordedPhase {
+    Cleanup,
+    Configure,
+}
 
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
+impl RecordedPhase {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Cleanup => "cleanup",
+            Self::Configure => "configure",
+        }
+    }
+}
 
-    let payload = outcome.expect_err("the step panic must reach the caller");
-    let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "steps", "step boom");
+/// Asserts the raised message kept its phase and the drop panic was recorded.
+fn expect_drop_record(message: &str, events: &[RecordedEvent], index: usize, phase: RecordedPhase) {
     assert!(
         !message.contains("drop boom"),
-        "the drop panic must not replace the step message, got {message:?}",
+        "the drop panic must not replace the phase-tagged message, got {message:?}",
     );
-    expect_that!(events.len(), eq(2));
-    let drop_record = events.get(1).expect("the drop panic is the second record");
-    expect_that!(drop_record.phase.as_str(), eq("cleanup"));
-    expect_that!(
-        drop_record.message.as_str(),
-        contains_substring("drop boom")
-    );
+    expect_that!(events.len(), eq(index + 1));
+    let record = events
+        .get(index)
+        .expect("the drop panic is the recorded event");
+    expect_that!(record.phase.as_str(), eq(phase.as_str()));
+    expect_that!(record.message.as_str(), contains_substring("drop boom"));
+}
+
+#[gtest]
+fn a_panicking_drop_after_a_step_panic_keeps_the_step_phase() {
+    let (message, events) = run_and_transcribe(BevyHarness::<Recording>::new(), |scenario| {
+        scenario.with_world(|world| world.insert_resource(PanicOnDrop));
+        panic_any("step boom")
+    });
+
+    let expected = ExpectedPhase {
+        phase: "steps",
+        payload: "step boom",
+    };
+    expect_phase_message(&message, &expected);
+    expect_drop_record(&message, &events, 1, RecordedPhase::Cleanup);
 }
 
 #[gtest]
 fn a_panicking_drop_after_a_configure_panic_keeps_the_configure_phase() {
-    let harness = BevyHarness::<ConfigurePanicsWithDrop>::new();
     let runner_called = Rc::new(RefCell::new(false));
     let flag = Rc::clone(&runner_called);
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |_scenario: BevyScenario| -> u32 {
+    let (message, events) = run_and_transcribe(
+        BevyHarness::<ConfigurePanicsWithDrop>::new(),
+        move |_scenario| -> u32 {
             *flag.borrow_mut() = true;
             0
-        }),
+        },
     );
 
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
-
-    let payload = outcome.expect_err("the configure panic must reach the caller");
-    let message = panic_text(payload.as_ref());
-    expect_phase_message(message, "configure", "configure boom");
-    assert!(
-        !message.contains("drop boom"),
-        "the drop panic must not replace the configure message, got {message:?}",
-    );
+    let expected = ExpectedPhase {
+        phase: "configure",
+        payload: "configure boom",
+    };
+    expect_phase_message(&message, &expected);
     expect_that!(*runner_called.borrow(), eq(false));
-    expect_that!(events.len(), eq(1));
-    let drop_record = events.first().expect("the drop panic leaves one record");
-    expect_that!(drop_record.phase.as_str(), eq("configure"));
-    expect_that!(
-        drop_record.message.as_str(),
-        contains_substring("drop boom")
-    );
+    expect_drop_record(&message, &events, 0, RecordedPhase::Configure);
 }
 
-#[gtest]
-fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
-    let dropped = Arc::new(AtomicBool::new(false));
-    let flag = Arc::clone(&dropped);
-    let harness = BevyHarness::<Recording>::new();
-    let request = ScenarioRunRequest::new(
+/// Builds a request whose runner inserts a [`DropFlag`] and calls `runner`.
+///
+/// The runner asserts the application is still alive before it hands control
+/// to `runner`, so each test proves the flag it checks afterwards was set by
+/// the harness rather than by the fixture.
+fn request_with_drop_flag(
+    flag: Arc<AtomicBool>,
+    runner: impl FnOnce(BevyScenario) -> u32 + 'static,
+) -> ScenarioRunRequest<'static, BevyScenario, u32> {
+    ScenarioRunRequest::new(
         metadata(),
         ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
             scenario.with_world(|world| world.insert_resource(DropFlag(Arc::clone(&flag))));
@@ -304,9 +362,18 @@ fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
                 !flag.load(Ordering::SeqCst),
                 "the application must still be alive inside the runner",
             );
-            panic_any("step boom")
+            runner(scenario)
         }),
-    );
+    )
+}
+
+#[gtest]
+fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
+    let dropped = Arc::new(AtomicBool::new(false));
+    let harness = BevyHarness::<Recording>::new();
+    let request = request_with_drop_flag(Arc::clone(&dropped), |_scenario| -> u32 {
+        panic_any("step boom")
+    });
 
     let (outcome, events) =
         capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
@@ -319,21 +386,8 @@ fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
 #[gtest]
 fn the_application_is_dropped_before_the_runner_result_returns() {
     let dropped = Arc::new(AtomicBool::new(false));
-    let flag = Arc::clone(&dropped);
     let harness = BevyHarness::<Recording>::new();
-    let request = ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| {
-                world.insert_resource(DropFlag(Arc::clone(&flag)));
-            });
-            assert!(
-                !flag.load(Ordering::SeqCst),
-                "the application must still be alive inside the runner",
-            );
-            41
-        }),
-    );
+    let request = request_with_drop_flag(Arc::clone(&dropped), |_scenario| 41);
 
     let (result, events) = capture_errors(|| harness.run(request));
     let value = result.expect("the recording profile must succeed");

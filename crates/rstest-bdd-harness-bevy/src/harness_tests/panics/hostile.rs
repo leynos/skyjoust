@@ -22,6 +22,7 @@ use super::{
         },
         recorder::{RecordedEvent, capture_errors},
     },
+    ExpectedPhase,
     expect_phase_message,
     panic_text,
 };
@@ -58,7 +59,13 @@ fn a_hostile_cleanup_payload_cannot_replace_the_step_panic() {
         |_scenario| -> u32 { panic_any("step boom") },
     );
 
-    expect_phase_message(&message, "steps", "step boom");
+    expect_phase_message(
+        &message,
+        &ExpectedPhase {
+            phase: "steps",
+            payload: "step boom",
+        },
+    );
     expect_that!(
         message.as_str(),
         not(contains_substring("payload drop boom"))
@@ -79,7 +86,13 @@ fn a_hostile_drop_payload_cannot_replace_the_step_panic() {
         },
     );
 
-    expect_phase_message(&message, "steps", "step boom");
+    expect_phase_message(
+        &message,
+        &ExpectedPhase {
+            phase: "steps",
+            payload: "step boom",
+        },
+    );
     expect_that!(
         message.as_str(),
         not(contains_substring("payload drop boom"))
@@ -95,7 +108,13 @@ fn a_hostile_configure_drop_payload_cannot_replace_the_configure_panic() {
         |_scenario| -> u32 { 0 },
     );
 
-    expect_phase_message(&message, "configure", "configure boom");
+    expect_phase_message(
+        &message,
+        &ExpectedPhase {
+            phase: "configure",
+            payload: "configure boom",
+        },
+    );
     expect_that!(
         message.as_str(),
         not(contains_substring("payload drop boom"))

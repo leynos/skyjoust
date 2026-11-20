@@ -23,11 +23,11 @@ impl ListContainers {
     /// rather than guessed at: partial tab-stop arithmetic would either hide
     /// a fence or invent one. The guide uses spaces, so failing closed keeps
     /// the checker honest for the layout it actually receives.
-    pub(super) fn match_indent<'a>(&mut self, line: &'a str) -> Result<&'a str, String> {
-        if line.trim().is_empty() {
+    pub(super) fn match_indent<'a>(&mut self, line: Line<'a>) -> Result<Line<'a>, String> {
+        if line.is_blank() {
             return Ok(line);
         }
-        if leading_whitespace_has_tab(line) {
+        if line.has_tab_indent() {
             return Err(
                 "a tab-indented line inside a list item is not supported; use spaces".to_owned(),
             );
@@ -35,7 +35,7 @@ impl ListContainers {
         let mut rest = line;
         let mut matched = 0;
         for item in &self.items {
-            let Some(after) = strip_indent(rest, item.content_indent) else {
+            let Some(after) = rest.strip_spaces(item.content_indent) else {
                 break;
             };
             rest = after;
@@ -52,20 +52,63 @@ impl ListContainers {
     }
 }
 
-/// Whether the leading whitespace of `line` contains a tab.
-fn leading_whitespace_has_tab(line: &str) -> bool {
-    line.chars()
-        .take_while(|character| character.is_whitespace())
-        .any(|character| character == '\t')
+/// A line fragment measured from a list item's content column.
+///
+/// Every helper below asks the same kind of question of the fragment: how many
+/// spaces lead it, which marker opens it, what follows. Carrying those
+/// operations on the fragment keeps bare strings out of the module's internal
+/// calls, so a fragment from one container is not passed where another
+/// container's fragment belongs.
+#[derive(Clone, Copy)]
+pub(super) struct Line<'a> {
+    text: &'a str,
 }
 
-/// Consumes exactly `count` leading spaces.
-fn strip_indent(text: &str, count: usize) -> Option<&str> {
-    let mut rest = text;
-    for _ in 0..count {
-        rest = rest.strip_prefix(' ')?;
+impl<'a> Line<'a> {
+    pub(super) fn new(text: &'a str) -> Self { Self { text } }
+
+    pub(super) fn as_str(self) -> &'a str { self.text }
+
+    fn is_blank(self) -> bool { self.text.trim().is_empty() }
+
+    fn is_empty(self) -> bool { self.text.is_empty() }
+
+    fn len(self) -> usize { self.text.len() }
+
+    fn first_char(self) -> Option<char> { self.text.chars().next() }
+
+    /// Whether the leading whitespace contains a tab.
+    fn has_tab_indent(self) -> bool {
+        self.text
+            .chars()
+            .take_while(|character| character.is_whitespace())
+            .any(|character| character == '\t')
     }
-    Some(rest)
+
+    fn strip_char(self, prefix: char) -> Option<Self> {
+        self.text.strip_prefix(prefix).map(Self::new)
+    }
+
+    /// Consumes exactly `count` leading spaces.
+    fn strip_spaces(self, count: usize) -> Option<Self> {
+        let mut rest = self;
+        for _ in 0..count {
+            rest = rest.strip_char(' ')?;
+        }
+        Some(rest)
+    }
+
+    /// Splits at `count` bytes, failing when the fragment is shorter.
+    fn skip_bytes(self, count: usize) -> Option<Self> { self.text.get(count..).map(Self::new) }
+
+    fn leading_spaces(self) -> usize { self.text.bytes().take_while(|byte| *byte == b' ').count() }
+
+    fn leading_digits(self) -> usize { self.text.bytes().take_while(u8::is_ascii_digit).count() }
+
+    /// Whether a marker is followed by whitespace or the end of the line.
+    fn is_marker_terminator(self) -> bool {
+        self.is_empty() || self.text.starts_with(' ') || self.text.starts_with('\t')
+    }
 }
 
 /// Spaces a tab advances from `column`, with tab stops every four columns.
@@ -83,19 +126,19 @@ fn tab_stop_padding(column: usize) -> usize { 4 - (column & 3) }
 /// ordered markers are one to nine digits plus `.` or `)`. Either form must be
 /// followed by whitespace or the end of the line, so `-foo` and `1.foo` are
 /// not list items.
-pub(super) fn list_marker(line: &str) -> Option<(usize, &str)> {
+pub(super) fn list_marker(line: Line<'_>) -> Option<(usize, Line<'_>)> {
     let (marker_len, rest) = list_marker_kind(line)?;
     let (padding, content) = marker_padding(line, rest)?;
     Some((marker_len + padding, content))
 }
 
 /// Splits the padding after a marker from the item's content.
-fn marker_padding<'a>(line: &str, rest: &'a str) -> Option<(usize, &'a str)> {
+fn marker_padding<'a>(line: Line<'a>, rest: Line<'a>) -> Option<(usize, Line<'a>)> {
     if rest.is_empty() {
         // An empty item still reserves the marker's virtual trailing space.
         return Some((1, rest));
     }
-    if let Some(after_tab) = rest.strip_prefix('\t') {
+    if let Some(after_tab) = rest.strip_char('\t') {
         let column = line.len() - rest.len();
         return Some((tab_stop_padding(column), after_tab));
     }
@@ -103,38 +146,33 @@ fn marker_padding<'a>(line: &str, rest: &'a str) -> Option<(usize, &'a str)> {
 }
 
 /// Splits space padding from the item's content.
-fn space_padding(rest: &str) -> Option<(usize, &str)> {
-    let spaces = rest.bytes().take_while(|byte| *byte == b' ').count();
+fn space_padding(rest: Line<'_>) -> Option<(usize, Line<'_>)> {
+    let spaces = rest.leading_spaces();
     if spaces == 0 {
         return None;
     }
     // `CommonMark` uses one space of padding when five or more follow, so the
     // remaining spaces indent content inside the item.
     let padding = if spaces > 4 { 1 } else { spaces };
-    Some((padding, rest.get(padding..)?))
+    Some((padding, rest.skip_bytes(padding)?))
 }
 
 /// Splits the marker itself from the text after it.
-fn list_marker_kind(line: &str) -> Option<(usize, &str)> {
-    let first = line.chars().next()?;
+fn list_marker_kind(line: Line<'_>) -> Option<(usize, Line<'_>)> {
+    let first = line.first_char()?;
     if matches!(first, '-' | '+' | '*') {
-        let rest = line.strip_prefix(first)?;
-        return is_marker_terminator(rest).then_some((1, rest));
+        let rest = line.strip_char(first)?;
+        return rest.is_marker_terminator().then_some((1, rest));
     }
-    let digits = line.bytes().take_while(u8::is_ascii_digit).count();
+    let digits = line.leading_digits();
     if !(1..=9).contains(&digits) {
         return None;
     }
-    let after_digits = line.get(digits..)?;
-    let delimiter = after_digits.chars().next()?;
+    let after_digits = line.skip_bytes(digits)?;
+    let delimiter = after_digits.first_char()?;
     if !matches!(delimiter, '.' | ')') {
         return None;
     }
-    let rest = after_digits.get(delimiter.len_utf8()..)?;
-    is_marker_terminator(rest).then_some((digits + 1, rest))
-}
-
-/// Whether a marker is followed by whitespace or the end of the line.
-fn is_marker_terminator(rest: &str) -> bool {
-    rest.is_empty() || rest.starts_with(' ') || rest.starts_with('\t')
+    let rest = after_digits.skip_bytes(delimiter.len_utf8())?;
+    rest.is_marker_terminator().then_some((digits + 1, rest))
 }
