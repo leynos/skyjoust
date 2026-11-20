@@ -1,47 +1,77 @@
-//! Behavioural coverage proving `rstest-bdd` drives a headless Bevy app.
+//! Behavioural coverage proving `rstest-bdd` drives headless Bevy apps
+//! through the public harness.
+//!
+//! Every scenario in this binary binds the same real macro surface a
+//! downstream project uses: `harness = BevyHarness` selects the default
+//! minimal profile, the `BareHarness` alias proves a type alias selects a
+//! downstream profile, and `attributes = BevyAttributePolicy` keeps the
+//! generated test free of a framework-specific runner attribute. The feature
+//! text is included here so a change to any bound file rebuilds this binary.
 
-use std::cell::RefCell;
+// The steps live beside this binary's feature files rather than directly in
+// `tests/`, so the path attribute keeps the layout the design documents.
+#[path = "headless_scenario/steps.rs"]
+mod steps;
 
-use bevy::{app::App, diagnostic::FrameCount, time::TimePlugin};
-use googletest::prelude::*;
-use rstest::fixture;
-use rstest_bdd::StepResult;
-use rstest_bdd_harness_bevy::minimal_app;
-use rstest_bdd_harness_bevy_test_macros::allow_fixture_expansion_lints;
-use rstest_bdd_macros::{given, scenario, then, when};
+use rstest_bdd_harness_bevy::{BareBevyProfile, BevyAttributePolicy, BevyHarness};
+use rstest_bdd_macros::scenario;
 
-/// Keeps the feature-file rebuild contract explicit at this integration
-/// boundary; `rstest-bdd` 0.6.0 also tracks the bound file automatically.
+/// Harness for the bare profile; a type alias is how a downstream project
+/// selects a profile.
+type BareHarness = BevyHarness<BareBevyProfile>;
+
+/// Feature text the metadata step scans as its independent oracle.
+pub(crate) const BEVY_SCENARIO_FEATURE: &str = include_str!("features/bevy_scenario.feature");
+/// Keeps the 0.1.1 feature-file rebuild contract explicit at this boundary.
 const _: &str = include_str!("features/headless_scenario.feature");
+/// Keeps the failure-diagnostics feature-file rebuild contract explicit.
+const _: &str = include_str!("features/bevy_panic.feature");
 
-/// Scenario-scoped headless application shared by the steps below.
-#[allow_fixture_expansion_lints]
-#[fixture]
-fn app() -> RefCell<App> { RefCell::new(minimal_app()) }
+#[scenario(
+    path = "tests/features/headless_scenario.feature",
+    index = 0,
+    harness = BevyHarness,
+    attributes = BevyAttributePolicy
+)]
+fn minimal_app_advances_one_tick() {}
 
-#[given("a minimal headless Bevy application")]
-fn given_minimal_app(app: &RefCell<App>) -> StepResult<(), String> {
-    app.try_borrow()
-        .map(|shared| assert_that!(shared.is_plugin_added::<TimePlugin>(), eq(true)))
-        .map_err(|error| error.to_string())
-}
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 0,
+    harness = BevyHarness,
+    attributes = BevyAttributePolicy
+)]
+fn steps_receive_the_scenario_metadata() {}
 
-#[when("the schedule advances once")]
-fn when_schedule_advances_once(app: &RefCell<App>) -> StepResult<(), String> {
-    app.try_borrow_mut()
-        .map(|mut borrow| borrow.update())
-        .map_err(|error| error.to_string())
-}
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 1,
+    harness = BevyHarness,
+    attributes = BevyAttributePolicy
+)]
+fn steps_share_one_application_across_ticks() {}
 
-#[then("the frame count reads 1")]
-fn then_frame_count_reads_one(app: &RefCell<App>) -> StepResult<(), String> {
-    app.try_borrow()
-        .map(|shared| {
-            let observed = shared.world().resource::<FrameCount>().0;
-            assert_that!(observed, eq(1_u32));
-        })
-        .map_err(|error| error.to_string())
-}
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 2,
+    harness = BevyHarness,
+    attributes = BevyAttributePolicy
+)]
+fn advancing_zero_times_leaves_the_application_untouched() {}
 
-#[scenario(path = "tests/features/headless_scenario.feature", index = 0)]
-fn minimal_app_advances_one_tick(app: RefCell<App>) {}
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 3,
+    harness = BareHarness,
+    attributes = BevyAttributePolicy
+)]
+fn the_bare_profile_adds_no_plugins() {}
+
+#[scenario(
+    path = "tests/features/bevy_panic.feature",
+    index = 0,
+    harness = BevyHarness,
+    attributes = BevyAttributePolicy
+)]
+#[should_panic(expected = "rstest-bdd-harness-bevy scenario panicked: phase=steps")]
+fn a_failing_step_reports_its_scenario() {}

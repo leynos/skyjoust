@@ -378,7 +378,31 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   doctests). A fresh CLI review of `12813a4..8e1cade` (100 s, 8 files) reported
   zero findings (log
   `/tmp/coderabbit-skyjoust-0-1-2-bevy-harness-public-api-m3-followup.out`).
-- [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
+- [x] (2026-11-20) EP-M4: harness-backed behavioural scenarios and tick
+  properties. Red observed as four generated scenarios failing with
+  `Step not found at index 0` for the new `Given` lines (log
+  `/tmp/red-m4-skyjoust-0-1-2-bevy-harness-public-api.out`).
+  `tests/features/bevy_scenario.feature` and
+  `tests/features/bevy_panic.feature` add the five new scenarios,
+  `tests/headless_scenario/steps.rs` defines their steps, and
+  `tests/headless_scenario.rs` binds all six scenarios through the real
+  `#[scenario]` surface, including a type alias selecting `BareBevyProfile` and
+  the preserved `#[should_panic]` attribute. Green: six scenario tests and five
+  property tests pass, alongside the rest of the crate (44 unit, 4
+  extraction-boundary, 6 scenario, 1 `macro_ui`, 5 property and 16 doctest
+  tests; log `/tmp/focused-m4-skyjoust-0-1-2-bevy-harness-public-api.out`). The
+  failure scenario panics for the intended reason: `--nocapture` shows the
+  augmented message carrying `phase=steps` and `deliberate failure`
+  (`/tmp/panic-evidence-m4-skyjoust-0-1-2-bevy-harness-public-api.out`).
+  EP-INV-6 non-vacuity: each seeded fault failed the intended cases —
+  `update_times` running `count - 1` failed `zero_advance_first` and the
+  64-case property; `count + 1` failed `lone_zero_advance`,
+  `zero_advance_first`, and the property; and a no-op `update` failed
+  `zero_advance_first` and the property. `src/context.rs` was restored
+  byte-for-byte to sha256 `77ec0cc7...` after each (logs
+  `/tmp/fault-{a,b,c}-m4-skyjoust-0-1-2-bevy-harness-public-api.out`). The 0.1.1
+  `headless_scenario.feature` is byte-for-byte unchanged (sha256 `12dac9ee...`
+  before and after).
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
 
 ## Surprises & discoveries
@@ -465,6 +489,24 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   Impact: the recorder returns `Interest::sometimes()` and `capture_errors`
   calls `tracing::callsite::rebuild_interest_cache()` after installing it, so
   every run observes its own records deterministically.
+- Observation (2026-11-20, EP-M4): an integration-test root at
+  `tests/headless_scenario.rs` resolves `mod steps;` to `tests/steps.rs`, not to
+  `tests/headless_scenario/steps.rs`, so the layout the design documents needs
+  `#[path = "headless_scenario/steps.rs"] mod steps;`. Impact: the path
+  attribute keeps that layout without moving the module to the `tests` root;
+  the crate already uses the same idiom for `harness_tests`.
+- Observation (2026-11-20, EP-M4): a step that takes the harness context by
+  value (`scenario: BevyScenario`) still needs
+  `#[from(rstest_bdd_harness_context)]`. Without it the parameter name is
+  treated as an ordinary fixture name, and the generated test panics with a
+  missing-fixture message that lists the harness-context fixture it did
+  provide. Impact: the by-value `Clone` form is documented and exercised; the
+  `#[harness_context]` marker is the equivalent spelling.
+- Observation (2026-11-20, EP-M4): Clippy's `unnecessary_wraps` reaches the
+  generated step wrappers, so a step that cannot fail must return `()` rather
+  than `StepResult<(), E>`. Impact: the three infallible steps return `()`;
+  only steps with a real failure branch return `StepResult`, and no lint is
+  silenced.
 
 ## Decision log
 
