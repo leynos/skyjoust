@@ -73,5 +73,11 @@ fn the_bare_profile_adds_no_plugins() {}
     harness = BevyHarness,
     attributes = BevyAttributePolicy
 )]
-#[should_panic(expected = "rstest-bdd-harness-bevy scenario panicked: phase=steps")]
+// The expectation pins the feature path, line, scenario name, and failing step
+// index, so a failure in the Given step at index 0 cannot satisfy it. The
+// isolate characters around the index are `rstest-bdd`'s step-loop formatting.
+#[should_panic(
+    expected = "feature=tests/features/bevy_panic.feature:3, scenario=\"A failing step reports \
+                its scenario\": Step failed at index \u{2068}1\u{2069}"
+)]
 fn a_failing_step_reports_its_scenario() {}

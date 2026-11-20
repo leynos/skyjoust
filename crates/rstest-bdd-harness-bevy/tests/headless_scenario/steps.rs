@@ -23,6 +23,10 @@ use crate::BEVY_SCENARIO_FEATURE;
 /// Manifest-relative path every Bevy scenario feature in this binary uses.
 const FEATURE_PATH_SUFFIX: &str = "tests/features/bevy_scenario.feature";
 
+/// Scenario the metadata step is bound to; asserting it rejects metadata from
+/// any other declaration that happens to be internally consistent.
+const EXPECTED_METADATA_SCENARIO: &str = "Steps receive the scenario metadata from the harness";
+
 /// Counts `Update` ticks observed by the toy system.
 #[derive(Resource, Default)]
 struct ToyCounter(u32);
@@ -117,10 +121,15 @@ fn then_metadata_matches(
     #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
 ) -> StepResult<(), String> {
     let metadata = scenario.metadata();
-    let Some(declared_line) = declared_scenario_line(metadata.scenario_name()) else {
+    if metadata.scenario_name() != EXPECTED_METADATA_SCENARIO {
         return Err(format!(
-            "the feature file does not declare the scenario {:?}",
+            "the scenario name must read {EXPECTED_METADATA_SCENARIO:?}, but it read {:?}",
             metadata.scenario_name()
+        ));
+    }
+    let Some(declared_line) = declared_scenario_line(EXPECTED_METADATA_SCENARIO) else {
+        return Err(format!(
+            "the feature file does not declare the scenario {EXPECTED_METADATA_SCENARIO:?}"
         ));
     };
     if metadata.scenario_line() != declared_line {
