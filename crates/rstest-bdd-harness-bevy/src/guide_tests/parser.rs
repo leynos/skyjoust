@@ -13,7 +13,7 @@
 #[path = "parser/list.rs"]
 mod list;
 
-use list::{ListContainers, list_marker};
+use list::{Line, ListContainers, list_marker};
 
 /// One fenced block and the marker immediately above it, if any.
 #[derive(Debug)]
@@ -166,7 +166,7 @@ impl<'a> FenceParser<'a> {
 
     /// Strips the containers around `line` and records list-item openings.
     fn scan(&mut self, line: &'a str) -> Result<ContainerScan<'a>, String> {
-        let mut rest = self.containers.match_indent(line)?;
+        let mut rest = self.containers.match_indent(Line::new(line))?.as_str();
         let mut depth = 0;
         loop {
             let trimmed = rest.trim_start_matches(' ');
@@ -189,10 +189,10 @@ impl<'a> FenceParser<'a> {
             // list item. Matching existing item indentation above still
             // detects the dedent that ends the fence's container.
             if self.open.is_none()
-                && let Some((indent, content)) = list_marker(trimmed)
+                && let Some((indent, content)) = list_marker(Line::new(trimmed))
             {
                 self.containers.push(leading + indent);
-                rest = content;
+                rest = content.as_str();
                 continue;
             }
             return Ok(ContainerScan {

@@ -8,7 +8,19 @@
 
 use rstest::rstest;
 
-use super::parse_fences;
+use super::{Fence, parse_fences};
+
+/// Parses `text` and returns the single fence it must contain.
+fn single_fence<'a>(text: &'a str, description: &str) -> Fence<'a> {
+    let mut fences = parse_fences(text).expect("the fixture must parse");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "{description} must be recorded exactly once"
+    );
+    fences.pop().expect("the fixture records exactly one fence")
+}
 
 #[rstest]
 #[case("~~~rust\nlet value = 1;\n~~~\n", "a tilde fence")]
@@ -21,28 +33,6 @@ use super::parse_fences;
     ">\t~~~rust\n>\tlet value = 1;\n>\t~~~\n",
     "a tab-padded block-quoted fence"
 )]
-fn unmarked_fence_is_detected(#[case] text: &str, #[case] description: &str) {
-    let fences = parse_fences(text).expect("the fixture must parse");
-
-    assert_eq!(
-        fences.len(),
-        1,
-        "{description} must be recorded exactly once"
-    );
-    let fence = fences
-        .first()
-        .expect("the fixture records exactly one fence");
-    assert_eq!(
-        fence.language, "rust",
-        "{description} must keep the language after its delimiter"
-    );
-    assert!(
-        fence.marker.is_none(),
-        "{description} must stay unmarked so the marker check can reject it"
-    );
-}
-
-#[rstest]
 #[case(
     "- Item\n\n    ```rust\n    let value = 1;\n    ```\n",
     "a four-space fence inside a bullet item"
@@ -55,17 +45,9 @@ fn unmarked_fence_is_detected(#[case] text: &str, #[case] description: &str) {
     "- Item\n\n  > ```rust\n  > let value = 1;\n  > ```\n",
     "a quoted fence inside a bullet item"
 )]
-fn unmarked_fence_inside_a_list_item_is_detected(#[case] text: &str, #[case] description: &str) {
-    let fences = parse_fences(text).expect("the fixture must parse");
+fn unmarked_fence_is_detected(#[case] text: &str, #[case] description: &str) {
+    let fence = single_fence(text, description);
 
-    assert_eq!(
-        fences.len(),
-        1,
-        "{description} must be recorded exactly once"
-    );
-    let fence = fences
-        .first()
-        .expect("the fixture records exactly one fence");
     assert_eq!(
         fence.language, "rust",
         "{description} must keep the language after its delimiter"
@@ -76,17 +58,28 @@ fn unmarked_fence_inside_a_list_item_is_detected(#[case] text: &str, #[case] des
     );
 }
 
-#[test]
-fn marker_above_a_list_fence_is_attached() {
-    let fences = parse_fences(
-        "- Item\n\n  <!-- tested-example: list-fence -->\n  ```rust\n  let value = 1;\n  ```\n",
-    )
-    .expect("the marked list fence parses");
+#[rstest]
+#[case(
+    "- Item\n\n  <!-- tested-example: list-fence -->\n  ```rust\n  let value = 1;\n  ```\n",
+    "list-fence",
+    "a marker above a list fence"
+)]
+#[case(
+    "<!-- tested-example: quoted-fence -->\n\n> ```rust\n> let value = 1;\n> ```\n",
+    "quoted-fence",
+    "a marker above a block-quoted fence"
+)]
+fn marker_above_a_contained_fence_is_attached(
+    #[case] text: &str,
+    #[case] expected: &str,
+    #[case] description: &str,
+) {
+    let fence = single_fence(text, description);
 
     assert_eq!(
-        fences.first().and_then(|fence| fence.marker),
-        Some("list-fence"),
-        "a marker above a list fence must be attached to it"
+        fence.marker,
+        Some(expected),
+        "{description} must be attached to its fence"
     );
 }
 
@@ -114,17 +107,11 @@ fn closer_with_a_different_character_does_not_close() {
 
 #[test]
 fn longer_closer_closes_the_fence() {
-    let fences =
-        parse_fences("```rust\nlet value = 1;\n`````\n").expect("a longer closer parses the block");
-
-    assert_eq!(
-        fences.len(),
-        1,
-        "a closer longer than its opener must still close the block"
+    let fence = single_fence(
+        "```rust\nlet value = 1;\n`````\n",
+        "a closer longer than its opener",
     );
-    let fence = fences
-        .first()
-        .expect("the fixture records exactly one fence");
+
     assert_eq!(
         fence.language, "rust",
         "the block keeps the opener's language"
@@ -132,37 +119,16 @@ fn longer_closer_closes_the_fence() {
 }
 
 #[test]
-fn marker_above_a_block_quoted_fence_is_attached() {
-    let fences = parse_fences(
-        "<!-- tested-example: quoted-fence -->\n\n> ```rust\n> let value = 1;\n> ```\n",
-    )
-    .expect("the marked block-quoted fence parses");
-
-    let marker = fences.first().and_then(|fence| fence.marker);
-    assert_eq!(
-        marker,
-        Some("quoted-fence"),
-        "a marker above a block-quoted fence must be attached to it"
-    );
-}
-
-#[test]
 fn quoted_delimiter_does_not_close_a_top_level_fence() {
     // The quoted candidate matches the opener's character and length, so only
     // the depth comparison can reject it as a closer.
-    let fences = parse_fences("```text\n> ```\n```\n").expect("the top-level fence parses");
+    let fence = single_fence(
+        "```text\n> ```\n```\n",
+        "a quoted delimiter inside a top-level fence",
+    );
 
     assert_eq!(
-        fences.len(),
-        1,
-        "a quoted delimiter is content inside a top-level fence"
-    );
-    assert_eq!(
-        fences
-            .first()
-            .map(|fence| fence.language)
-            .expect("the fixture records exactly one fence"),
-        "text",
+        fence.language, "text",
         "the fence keeps its opener's language"
     );
 }
