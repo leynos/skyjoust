@@ -62,17 +62,18 @@ alias, and request the shared application with the reserved
 `rstest_bdd_harness_context` fixture:
 
 ```rust
-use rstest_bdd_harness_bevy::{BevyHarness, BevyScenario, BevyProfile};
-use rstest_bdd_macros::scenario;
+use rstest_bdd_harness::{HarnessResult, ScenarioMetadata};
+use rstest_bdd_harness_bevy::{
+    BevyHarness, BevyProfile, BevyScenario,
+    bevy::{app::App, prelude::MinimalPlugins},
+};
+use rstest_bdd_macros::{scenario, when};
 
 pub enum SkyjoustProfile {}
 
 impl BevyProfile for SkyjoustProfile {
-    fn configure(
-        app: &mut bevy::app::App,
-        _metadata: &rstest_bdd_harness::ScenarioMetadata,
-    ) -> rstest_bdd_harness::HarnessResult<()> {
-        app.add_plugins(bevy::prelude::MinimalPlugins);
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
         Ok(())
     }
 }
