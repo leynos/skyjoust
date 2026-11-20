@@ -4,6 +4,9 @@
 
 Accepted.
 
+Amended by ADR 011 (2026-11-20): the never-finish paragraph's final sentence is
+corrected by [ADR 011](adr-0011-correct-bevy-harness-never-finish-guidance.md).
+
 ## Date
 
 2026-11-20.
@@ -203,9 +206,10 @@ step message. Configure and cleanup panics take the same guarded-drop path.
 
 The harness never calls `App::run`, `App::finish`, or `App::cleanup`, and it
 advances the application only through `BevyScenario::update` and
-`update_times`. A profile that needs plugin finalization calls `finish` and
-`cleanup` at the end of `configure`, which keeps `add_plugins` legal inside
-steps.
+`update_times`. A profile that needs plugin finalization may call `finish` and
+`cleanup` at the end of `configure`, but a finished application can no longer
+accept plugins, so that profile's steps must not call `add_plugins`. A profile
+that needs `add_plugins` in steps must not finalize.
 
 ### SemVer coupling
 
@@ -270,6 +274,22 @@ while every framework- or game-specific hook stays in a downstream
 project's observability rule that failures reach the ordinary test output.
 Wrapping profile errors instead of changing the profile signatures preserves
 the approved public API and its extractability.
+
+## Amendments
+
+### 2026-11-20: never-finish guidance corrected
+
+The original never-finish paragraph ended with:
+
+> A profile that needs plugin finalization calls `finish` and `cleanup` at the
+> end of `configure`, which keeps `add_plugins` legal inside steps.
+
+That clause contradicted Bevy's behaviour and the rule it was explaining:
+finishing an application makes later `add_plugins` calls illegal.
+[ADR 011](adr-0011-correct-bevy-harness-never-finish-guidance.md) replaces it
+with the delivered rule — a profile that finalizes gives up in-step plugin
+registration. The decision that the harness never finalizes is unchanged, and
+no code or public API changed.
 
 ## References
 

@@ -79,7 +79,10 @@ The current Architecture Decision Records (ADRs) live under `docs/adrs/`.
   the published `rstest-bdd` 0.6.0 family with implicit caret requirements.
 - [ADR 010: Bevy harness scenario failure contract](adrs/adr-0010-bevy-harness-failure-contract.md)
   - accepted decision fixing the configure, steps, and cleanup lifecycle, the
-  phase-tagged panic message, and the error-wrapping scheme.
+  phase-tagged panic message, and the error-wrapping scheme. Amended by ADR 011.
+- [ADR 011: Correct the Bevy harness never-finish guidance](adrs/adr-0011-correct-bevy-harness-never-finish-guidance.md)
+  - accepted amendment clarifying that a finalized profile cannot add plugins
+  inside steps, while the harness itself never finalizes.
 
 ## Execution plans
 

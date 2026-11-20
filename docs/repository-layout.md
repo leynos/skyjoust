@@ -80,26 +80,33 @@ _Figure 1: Simplified repository tree for contributor orientation._
   published. Add an attribute here only when a lint comes from an expansion
   rather than from handwritten code; see
   [ADR 006](adrs/adr-0006-test-macro-crate-for-fixture-expansion-lints.md).
-- `crates/rstest-bdd-harness-bevy/`: reusable Bevy harness scaffolding for
-  `rstest-bdd` behavioural tests. It incubates in-tree but depends on no
-  Skyjoust or Lille game code, so it can move to its own repository as a
-  directory move plus a dependency rewire. See
+- `crates/rstest-bdd-harness-bevy/`: reusable Bevy harness for `rstest-bdd`
+  behavioural tests. It incubates in-tree but depends on no Skyjoust or Lille
+  game code, so it can move to its own repository as a directory move plus a
+  dependency rewire. See
   [ADR 009](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
   and [the harness design](rstest-bdd-harness-bevy-design.md).
 - `crates/rstest-bdd-harness-bevy/test-macros/`: nested, test-only procedural
   macro package for fixture-expansion lint handling. It belongs to the
   extractable harness boundary and is not a sibling workspace dependency.
-- `crates/rstest-bdd-harness-bevy/src/`: headless plugin configuration.
-  `profile.rs` owns `add_minimal_plugins` and `minimal_app`; `profile_tests.rs`
-  holds the sibling unit tests. The harness types arrive with roadmap task
-  `0.1.2`.
-- `crates/rstest-bdd-harness-bevy/tests/`: integration coverage for the
-  scaffold — the Gherkin scenario binding, tick-count property test,
-  extraction-contract tripwire, and `trybuild` macro cases. Stable `rstest-bdd`
-  0.6.0 also tracks bound feature files as Cargo rebuild dependencies; the
-  completed stable A/B confirms feature-only edits rebuild with or without the
-  explicit `include_str!` binding. The declaration remains because the task
-  contract requires it, not because it is load-bearing.
+- `crates/rstest-bdd-harness-bevy/src/`: the harness implementation.
+  `context.rs` owns `BevyScenario`, `harness.rs` owns `BevyHarness` and the
+  lifecycle, `panic.rs` owns the pure panic-message formatter, `policy.rs` owns
+  `BevyAttributePolicy`, and `profile.rs` owns `BevyProfile`, `BareBevyProfile`,
+  `MinimalBevyProfile`, `add_minimal_plugins`, and `minimal_app`. Sibling
+  `*_tests.rs` modules and `harness_tests/` hold the unit, tripwire,
+  recording-subscriber, and snapshot coverage.
+- `crates/rstest-bdd-harness-bevy/tests/`: integration coverage through the
+  real `#[scenario]` surface. `headless_scenario.rs` binds the Gherkin
+  scenarios and reaches `headless_scenario/steps.rs` through `#[path]`;
+  `features/` holds the three feature files; `tick_properties.rs` holds the
+  frame-count and sequence-additivity properties; `extraction_boundary.rs` is
+  the manifest tripwire; and `macro_ui.rs` with `ui/` holds the `trybuild`
+  macro cases. Stable `rstest-bdd` 0.6.0 also tracks bound feature files as
+  Cargo rebuild dependencies; the completed stable A/B confirms feature-only
+  edits rebuild with or without the explicit `include_str!` binding. The
+  declaration remains because the task contract requires it, not because it is
+  load-bearing.
 - `docs/`: source of truth for product requirements, technical design, guides,
   standards, state graph references, and generated diagrams. Update the
   relevant document when requirements, architecture, workflows, or generated

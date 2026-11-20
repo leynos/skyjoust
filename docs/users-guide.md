@@ -181,20 +181,84 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace -- --verbose < t
 
 ## 4. Use the headless Bevy test helpers
 
-`rstest-bdd-harness-bevy` provides small helpers for tests that need a headless
-Bevy application. The crate is currently workspace-only (`publish = false`), so
-tests in this workspace's root package use a path development dependency:
+`rstest-bdd-harness-bevy` provides a `rstest-bdd` harness for tests that need a
+headless Bevy application. The crate is currently workspace-only
+(`publish = false`), so tests in this workspace's root package use a path
+development dependency. Add a direct `rstest-bdd-harness` dependency as well:
+the scenario macro uses the base harness API path for non-first-party
+harnesses, and steps need its `StepResult` type.
 
 ```toml
 [dev-dependencies]
+rstest-bdd = "0.6.0"
+rstest-bdd-macros = "0.6.0"
+rstest-bdd-harness = "0.6.0"
 rstest-bdd-harness-bevy = { path = "crates/rstest-bdd-harness-bevy" }
 ```
 
-The crate supports Bevy `0.19.1`. Its `add_minimal_plugins` function adds
-Bevy's minimal plugin set to an existing `App`; `minimal_app` creates a fresh
-application with that set already installed. Both avoid window, renderer,
-asset, and audio plugins. The schedule runner does not advance the app for a
-test: call `app.update()` explicitly whenever the scenario should advance.
+The crate supports Bevy `0.20.1`. Select the default minimal profile with
+`harness = BevyHarness`, or a downstream profile through a type alias such as
+`type GameHarness = BevyHarness<GameProfile>;`. A scenario step requests the
+shared application through the reserved harness-context fixture:
+
+```rust
+use bevy::diagnostic::FrameCount;
+use rstest_bdd::StepResult;
+use rstest_bdd_harness_bevy::{BevyHarness, BevyScenario};
+use rstest_bdd_macros::{scenario, then, when};
+
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 1,
+    harness = BevyHarness,
+    attributes = rstest_bdd_harness_bevy::BevyAttributePolicy
+)]
+fn steps_share_one_application_across_ticks() {}
+
+#[when("the schedule advances {count:u32} times")]
+fn when_schedule_advances(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+    count: u32,
+) -> StepResult<(), String> {
+    scenario.update_times(count);
+    Ok(())
+}
+
+#[then("the frame count reads {expected:u32}")]
+fn then_frame_count_reads(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+    expected: u32,
+) -> StepResult<(), String> {
+    let observed = scenario.with_world(|world| world.resource::<FrameCount>().0);
+    if observed == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "the frame count must read {expected}, but it read {observed}"
+        ))
+    }
+}
+```
+
+The harness does not advance the app by itself: call `scenario.update()` or
+`scenario.update_times(count)` explicitly. A count of zero still checks that
+the application can advance. Fallible steps return `StepResult` and let the
+harness report the scenario diagnostic; they do not panic or call `.expect()`.
+Profile hooks return `HarnessResult`, and a hook that constructs an error uses
+the idiom `HarnessError::RuntimeBuildFailed(std::io::Error::other(message))`.
+
+`BevyScenario` clones share one application. A clone must not outlive the
+scenario that produced it, and steps should request `&BevyScenario`. A profile's
+`cleanup` hook releases scenario resources and must not advance the
+application. The harness never calls `App::run`, `App::finish`, or
+`App::cleanup`, so `add_plugins` remains legal inside steps; a profile that
+finalizes the app itself gives up that ability. For deterministic time, install
+`TimeUpdateStrategy::FixedTimesteps(n)` in the profile's `configure` hook.
+
+`add_minimal_plugins` adds Bevy's minimal plugin set to an existing `App`, and
+`minimal_app` creates a fresh application with that set already installed. Both
+avoid window, renderer, asset, and audio plugins and remain available for tests
+that do not need a scenario:
 
 ```rust
 use rstest_bdd_harness_bevy::{bevy::diagnostic::FrameCount, minimal_app};

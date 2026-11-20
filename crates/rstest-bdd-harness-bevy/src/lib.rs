@@ -1,5 +1,4 @@
-//! Reusable headless Bevy harness scaffolding for `rstest-bdd` behavioural
-//! tests.
+//! Reusable headless Bevy harness adapter for `rstest-bdd` behavioural tests.
 //!
 //! This crate incubates in the Skyjoust workspace but depends on no Skyjoust or
 //! Lille code, so it can move to its own repository as a directory move plus a
