@@ -14,6 +14,8 @@ replay tests, and the bounded Stateright depth-first search (DFS) property
 check. It should run before changing the state graph, action set, trace format,
 or scoring rules.
 
+<!-- tested-example: validator-contract-command -->
+
 ```sh
 cargo test -p skyjoust-stateright-validator
 ```
@@ -27,6 +29,8 @@ causes:
 - a reachability path disappeared after a guard change.
 
 Worked example:
+
+<!-- tested-example: validator-contract-output -->
 
 ```plaintext
 running 1 test
@@ -43,6 +47,8 @@ The Explorer starts an interactive browser view of the bounded interaction
 model. It shows reachable states, enabled actions, invariant failures, and
 counterexample paths.
 
+<!-- tested-example: stateright-explorer-command -->
+
 ```sh
 cargo run -p skyjoust-stateright-validator --example serve_explorer
 ```
@@ -53,6 +59,8 @@ reachable. Counterexample paths list the exact action sequence that violates a
 property.
 
 Worked example:
+
+<!-- tested-example: stateright-explorer-output -->
 
 ```plaintext
 attempting to serve Stateright Explorer at localhost:3000
@@ -68,6 +76,8 @@ The `validate_trace` binary replays a concrete JSON action array against the
 same guards and invariants as the model checker. Standard input carries the
 trace, standard output carries the JSON result, and standard error carries
 optional diagnostics.
+
+<!-- tested-example: trace-validation-command -->
 
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace \
@@ -87,12 +97,16 @@ well-formed JSON but failed the Skyjoust interaction contract.
 
 Worked example:
 
+<!-- tested-example: trace-validation-pipe-command -->
+
 ```sh
 printf '%s\n' '["AssetsLoaded","StartSkirmish","CommitRewards"]' \
   | cargo run -p skyjoust-stateright-validator --bin validate_trace
 ```
 
 Expected result:
+
+<!-- tested-example: trace-validation-result -->
 
 ```json
 {
@@ -168,12 +182,16 @@ Expected result:
 
 Longer traces can raise the replay depth bound:
 
+<!-- tested-example: trace-validation-max-depth-command -->
+
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace -- --max-depth 64 < trace.json
 ```
 
 Verbose diagnostics print each replayed action and the final summary to
 standard error:
+
+<!-- tested-example: trace-validation-verbose-command -->
 
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace -- --verbose < trace.json
@@ -187,6 +205,8 @@ headless Bevy application. The crate is currently workspace-only
 development dependency. Add a direct `rstest-bdd-harness` dependency as well:
 the scenario macro uses the base harness API path for non-first-party
 harnesses, and steps need its `StepResult` type.
+
+<!-- tested-example: bevy-harness-dev-dependencies -->
 
 ```toml
 [dev-dependencies]
