@@ -58,6 +58,10 @@ impl BevyScenario {
 
     /// Returns the metadata for the scenario this handle belongs to.
     ///
+    /// # Returns
+    ///
+    /// The metadata the harness supplied for this scenario run.
+    ///
     /// # Examples
     ///
     /// ```
@@ -69,6 +73,15 @@ impl BevyScenario {
     pub fn metadata(&self) -> &ScenarioMetadata { &self.metadata }
 
     /// Runs `operation` with mutable access to the scenario application.
+    ///
+    /// # Parameters
+    ///
+    /// - `operation`: the work to run; it is called once with the application and its result is
+    ///   returned unchanged.
+    ///
+    /// # Returns
+    ///
+    /// The value `operation` produces.
     ///
     /// # Panics
     ///
@@ -92,6 +105,15 @@ impl BevyScenario {
     }
 
     /// Runs `operation` with mutable access to the scenario world.
+    ///
+    /// # Parameters
+    ///
+    /// - `operation`: the work to run; it is called once with the world and its result is returned
+    ///   unchanged.
+    ///
+    /// # Returns
+    ///
+    /// The value `operation` produces.
     ///
     /// # Panics
     ///
@@ -135,6 +157,10 @@ impl BevyScenario {
     /// A count of zero still checks that the application can advance, so a
     /// scenario that silently lost its `Main` schedule fails even when its
     /// steps request no ticks.
+    ///
+    /// # Parameters
+    ///
+    /// - `count`: the number of frames to advance.
     ///
     /// # Panics
     ///

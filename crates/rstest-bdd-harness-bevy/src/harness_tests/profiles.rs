@@ -77,6 +77,24 @@ impl BevyProfile for ConfigurePanics {
     }
 }
 
+/// Resource whose drop panics, exercising the harness's guarded drops.
+#[derive(Resource)]
+pub struct PanicOnDrop;
+
+impl Drop for PanicOnDrop {
+    fn drop(&mut self) { panic_any("drop boom"); }
+}
+
+/// Profile whose configure hook installs [`PanicOnDrop`] and then panics.
+pub enum ConfigurePanicsWithDrop {}
+
+impl BevyProfile for ConfigurePanicsWithDrop {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.insert_resource(PanicOnDrop);
+        panic_any("configure boom");
+    }
+}
+
 /// Profile whose cleanup increments the counter and then panics.
 pub enum CleanupPanics {}
 

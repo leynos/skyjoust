@@ -361,6 +361,19 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   plus doctests), `make spelling` (6 s on the re-run after fixing two `-ise`
   spellings in this plan), `make markdownlint` (7 s), and `make nixie` (<1 s).
   Logs: `/tmp/gate-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
+- [x] (2026-11-20) EP-M3 review follow-up: the local CodeRabbit CLI review of
+  `f33ca3a..12813a4` (0.9.6, 729 s, 18 files) found four trivial gaps, all
+  confirmed and repaired. Two guarded-drop tests now prove a panicking
+  application `Drop` cannot replace the step or configure message and is
+  recorded with the `cleanup` or `configure` phase; one test proves
+  `update_times(0)` still rejects a missing `Main` schedule; the recorder now
+  reports a harness-marked `ERROR` record that omits a contract field instead
+  of dropping it silently; and the public API gains the `# Parameters` and
+  `# Returns` sections the style guide requires. The three plausible faulty
+  implementations named by the review (plain step drop, plain configure drop,
+  schedule check inside the loop) were each rejected and reverted
+  byte-for-byte. Logs:
+  `/tmp/followup-{tests,clippy,fault-a,fault-b,fault-c}-...-public-api*.out`.
 - [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
 
@@ -610,6 +623,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   recognized set. The local function is pinned by `rstest` cases for its three
   classes and by the three phase snapshots. Date/Author: 2026-11-20,
   implementer.
+- Decision (2026-11-20, EP-M3 review): the test-only recorder treats an
+  `ERROR` event carrying `harness_type` but missing `phase`, `scenario_name`, or
+  `error` as a malformed harness record and makes `capture_errors` panic,
+  while an event without the harness marker is ignored. Rationale: defaulting a
+  missing field would let a broken diagnostic pass a zero-record assertion, and
+  treating every foreign `ERROR` as harness output would couple the tests to
+  unrelated producers; the harness always emits its type beside the three
+  contract fields, so the marker is the honest discriminator. Date/Author:
+  2026-11-20, implementer acting on the milestone review.
 
 ## Outcomes & retrospective
 
