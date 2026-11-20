@@ -331,6 +331,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `make typecheck` (1 s), `make test` (14 s, 279/279), `make spelling` (5 s),
   `make markdownlint` (8 s), and `make nixie` (<1 s). Logs:
   `/tmp/*-skyjoust-0-1-2-bevy-harness-public-api-5.out`.
+- [x] (2026-11-20) EP-M2 follow-up: the CodeRabbit finding is repaired by
+  narrowing `BevyProfile::cleanup`'s rustdoc (see `Decision log`). The
+  pre-commit gate caught one spelling regression from `b5ece74`: a hyphenated
+  form of `handwritten` in a `harness.rs` doc comment (log
+  `/tmp/spelling-skyjoust-0-1-2-bevy-harness-public-api-7.out`). It is fixed in
+  the follow-up commit, which re-runs the full gate set.
 - [ ] EP-M3: panic and cleanup path.
 - [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
@@ -545,6 +551,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   remains roadmap `0.1.5`. Rationale: AGENTS.md requires user-facing API
   changes to be documented when they land. Date/Author: 2026-10-18, design
   review.
+- Decision (2026-11-20, EP-M2 review): narrow `BevyProfile::cleanup`'s rustdoc
+  to normal-path completion in a follow-up EP-M2 commit. The local CodeRabbit
+  CLI review (0.9.6, committed range `f33ca3a..b5ece74`) found that the printed
+  contract promised panic-path cleanup before EP-M3 implements it. The finding
+  is valid for the EP-M2 plateau, so the rustdoc now states only delivered
+  behaviour; EP-M3 restores the full contract alongside the panic path and its
+  tests. Evidence:
+  `/tmp/coderabbit-skyjoust-0-1-2-bevy-harness-public-api.out`. Date/Author:
+  2026-11-20, implementer acting on the milestone review.
 
 ## Outcomes & retrospective
 

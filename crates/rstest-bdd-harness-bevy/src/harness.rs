@@ -64,7 +64,7 @@ impl<P> BevyHarness<P> {
     ///
     /// Generated scenario tests construct the harness through
     /// `Default::default()`; this constructor is equivalent and serves
-    /// hand-written tests and doctests.
+    /// handwritten tests and doctests.
     ///
     /// # Examples
     ///
