@@ -34,12 +34,20 @@ pub struct RecordedEvent {
 #[derive(Clone, Default)]
 pub struct ErrorRecorder {
     events: Arc<Mutex<Vec<RecordedEvent>>>,
+    malformed: Arc<Mutex<Vec<String>>>,
 }
 
 impl ErrorRecorder {
     /// Returns a snapshot of the events recorded so far.
     pub fn events(&self) -> Vec<RecordedEvent> {
         self.events
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    fn malformed_events(&self) -> Vec<String> {
+        self.malformed
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
@@ -52,6 +60,12 @@ impl ErrorRecorder {
 /// the same callsite before under the no-op default subscriber; rebuilding the
 /// cache after installing the recorder makes the event reach the recorder on
 /// every run rather than only the first.
+///
+/// # Panics
+///
+/// Panics when an `ERROR` event names the harness field but omits a contract
+/// field: such a record would otherwise be invisible to a test that asserts
+/// no records, letting a malformed diagnostic pass as a clean run.
 pub fn capture_errors<T>(run: impl FnOnce() -> T) -> (T, Vec<RecordedEvent>) {
     let recorder = ErrorRecorder::default();
     let observer = recorder.clone();
@@ -59,6 +73,11 @@ pub fn capture_errors<T>(run: impl FnOnce() -> T) -> (T, Vec<RecordedEvent>) {
         tracing::callsite::rebuild_interest_cache();
         run()
     });
+    let malformed = observer.malformed_events();
+    assert!(
+        malformed.is_empty(),
+        "a harness record is missing contract fields: {malformed:?}"
+    );
     (value, observer.events())
 }
 
@@ -86,11 +105,18 @@ impl Subscriber for ErrorRecorder {
         }
         let mut visitor = FieldVisitor::default();
         event.record(&mut visitor);
-        if let Some(recorded) = visitor.into_event() {
-            self.events
+        match visitor.classify() {
+            CapturedEvent::Complete(recorded) => self
+                .events
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
-                .push(recorded);
+                .push(recorded),
+            CapturedEvent::Malformed(reason) => self
+                .malformed
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(reason),
+            CapturedEvent::Foreign => {}
         }
     }
 
@@ -99,31 +125,94 @@ impl Subscriber for ErrorRecorder {
     fn exit(&self, _span: &Id) {}
 }
 
-/// Collects the three fields the failure contract names.
+/// How one `ERROR` event relates to the harness failure contract.
+enum CapturedEvent {
+    /// A harness record carrying every contract field.
+    Complete(RecordedEvent),
+    /// A record naming the harness field but missing a contract field.
+    Malformed(String),
+    /// An event from some other producer, which this recorder ignores.
+    Foreign,
+}
+
+/// Collects the fields the failure contract names, plus the harness marker.
 #[derive(Default)]
 struct FieldVisitor {
     phase: Option<String>,
     scenario_name: Option<String>,
-    message: Option<String>,
+    error: Option<String>,
+    harness_type: Option<String>,
+    event_message: Option<String>,
 }
 
 impl FieldVisitor {
-    fn into_event(self) -> Option<RecordedEvent> {
-        Some(RecordedEvent {
-            phase: self.phase?,
-            scenario_name: self.scenario_name?,
-            message: self.message?,
-        })
+    /// Classifies the event so a malformed harness record cannot be dropped.
+    ///
+    /// The harness always emits `harness_type` beside the three contract
+    /// fields, so a record with the marker but without a field is a broken
+    /// harness record rather than another producer's event. Defaulting the
+    /// missing field would let a malformed record pass as a clean run.
+    fn classify(self) -> CapturedEvent {
+        let Self {
+            phase,
+            scenario_name,
+            error,
+            harness_type,
+            event_message,
+        } = self;
+        match (phase, scenario_name, error) {
+            (Some(phase_text), Some(name_text), Some(error_text)) => {
+                CapturedEvent::Complete(RecordedEvent {
+                    phase: phase_text,
+                    scenario_name: name_text,
+                    message: error_text,
+                })
+            }
+            (phase_slot, name_slot, error_slot) => {
+                if harness_type.is_none() {
+                    CapturedEvent::Foreign
+                } else {
+                    CapturedEvent::Malformed(missing_fields(
+                        phase_slot.as_deref(),
+                        name_slot.as_deref(),
+                        error_slot.as_deref(),
+                        event_message.as_deref(),
+                    ))
+                }
+            }
+        }
     }
 
     fn record_field(&mut self, field: &Field, value: String) {
         match field.name() {
             "phase" => self.phase = Some(value),
             "scenario_name" => self.scenario_name = Some(value),
-            "error" => self.message = Some(value),
+            "error" => self.error = Some(value),
+            "harness_type" => self.harness_type = Some(value),
+            "message" => self.event_message = Some(value),
             _ => {}
         }
     }
+}
+
+/// Describes a harness record that omitted one or more contract fields.
+fn missing_fields(
+    phase: Option<&str>,
+    scenario_name: Option<&str>,
+    error: Option<&str>,
+    event_message: Option<&str>,
+) -> String {
+    let mut missing = Vec::new();
+    if phase.is_none() {
+        missing.push("phase");
+    }
+    if scenario_name.is_none() {
+        missing.push("scenario_name");
+    }
+    if error.is_none() {
+        missing.push("error");
+    }
+    format!("missing required fields {missing:?} in ERROR event {event_message:?}")
 }
 
 impl Visit for FieldVisitor {
@@ -135,5 +224,39 @@ impl Visit for FieldVisitor {
         // `%value` fields arrive through the `Display`-to-`Debug` adapter, whose
         // `Debug` output is the display text without quotes.
         self.record_field(field, format!("{value:?}"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Tests proving a malformed harness record cannot pass as a clean run.
+
+    use super::capture_errors;
+
+    #[test]
+    #[should_panic(expected = "missing required fields")]
+    fn a_harness_record_missing_a_contract_field_is_reported() {
+        capture_errors(|| {
+            tracing::error!(
+                harness_type = "test::Harness",
+                phase = "steps",
+                scenario_name = "Demo scenario",
+                "a record without an error field"
+            );
+        });
+    }
+
+    #[test]
+    fn a_foreign_error_event_is_ignored() {
+        let (value, events) = capture_errors(|| {
+            tracing::error!("an unrelated producer");
+            7_u32
+        });
+        assert_eq!(value, 7, "the observed run's value is returned");
+        assert_eq!(
+            events.len(),
+            0,
+            "an event without the harness marker is not a harness record"
+        );
     }
 }

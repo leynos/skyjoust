@@ -17,7 +17,11 @@ use crate::BevyScenario;
 /// schedule runner — no window and no renderer, so the application advances
 /// under `cargo test` without a display server.
 ///
-/// # Example
+/// # Parameters
+///
+/// - `app`: the application that gains [`MinimalPlugins`].
+///
+/// # Examples
 ///
 /// ```
 /// use bevy::app::App;
@@ -35,7 +39,11 @@ pub fn add_minimal_plugins(app: &mut App) { app.add_plugins(MinimalPlugins); }
 /// without a scenario. Each call returns a fresh application whose frame count
 /// starts at zero and whose time plugin reads wall-clock time.
 ///
-/// # Example
+/// # Returns
+///
+/// A new application that carries [`MinimalPlugins`].
+///
+/// # Examples
 ///
 /// ```
 /// use bevy::diagnostic::FrameCount;
@@ -88,6 +96,15 @@ pub fn minimal_app() -> App {
 pub trait BevyProfile: 'static {
     /// Configures the fresh application before any step runs.
     ///
+    /// # Parameters
+    ///
+    /// - `app`: the freshly created application to extend.
+    /// - `metadata`: identity of the scenario being configured.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` when the application is ready for the runner.
+    ///
     /// # Errors
     ///
     /// Returns [`rstest_bdd_harness::HarnessError`] when the profile cannot
@@ -120,6 +137,15 @@ pub trait BevyProfile: 'static {
     /// The default implementation does nothing. Cleanup runs exactly once
     /// after a successful [`configure`](Self::configure), including when a
     /// step panicked. A cleanup hook must not advance the application.
+    ///
+    /// # Parameters
+    ///
+    /// - `scenario`: the handle the runner used, still usable during cleanup.
+    /// - `metadata`: identity of the scenario being released.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` when the scenario resources are released.
     ///
     /// # Errors
     ///

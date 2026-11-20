@@ -29,6 +29,8 @@ use super::{
         CleanupFails,
         CleanupPanics,
         ConfigurePanics,
+        ConfigurePanicsWithDrop,
+        PanicOnDrop,
         Recording,
         RunnerCalls,
     },
@@ -257,6 +259,69 @@ fn a_cleanup_panic_after_a_step_panic_is_recorded_not_raised() {
         .expect("the cleanup panic is the second record");
     expect_that!(cleanup.phase.as_str(), eq("cleanup"));
     expect_that!(cleanup.message.as_str(), contains_substring("cleanup boom"));
+}
+
+#[gtest]
+fn a_panicking_drop_after_a_step_panic_keeps_the_step_phase() {
+    let harness = BevyHarness::<Recording>::new();
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(|scenario: BevyScenario| -> u32 {
+            scenario.with_world(|world| world.insert_resource(PanicOnDrop));
+            panic_any("step boom")
+        }),
+    );
+
+    let (outcome, events) =
+        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
+
+    let payload = outcome.expect_err("the step panic must reach the caller");
+    let message = panic_text(payload.as_ref());
+    expect_phase_message(message, "steps", "step boom");
+    assert!(
+        !message.contains("drop boom"),
+        "the drop panic must not replace the step message, got {message:?}",
+    );
+    expect_that!(events.len(), eq(2));
+    let drop_record = events.get(1).expect("the drop panic is the second record");
+    expect_that!(drop_record.phase.as_str(), eq("cleanup"));
+    expect_that!(
+        drop_record.message.as_str(),
+        contains_substring("drop boom")
+    );
+}
+
+#[gtest]
+fn a_panicking_drop_after_a_configure_panic_keeps_the_configure_phase() {
+    let harness = BevyHarness::<ConfigurePanicsWithDrop>::new();
+    let runner_called = Rc::new(RefCell::new(false));
+    let flag = Rc::clone(&runner_called);
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(move |_scenario: BevyScenario| -> u32 {
+            *flag.borrow_mut() = true;
+            0
+        }),
+    );
+
+    let (outcome, events) =
+        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
+
+    let payload = outcome.expect_err("the configure panic must reach the caller");
+    let message = panic_text(payload.as_ref());
+    expect_phase_message(message, "configure", "configure boom");
+    assert!(
+        !message.contains("drop boom"),
+        "the drop panic must not replace the configure message, got {message:?}",
+    );
+    expect_that!(*runner_called.borrow(), eq(false));
+    expect_that!(events.len(), eq(1));
+    let drop_record = events.first().expect("the drop panic leaves one record");
+    expect_that!(drop_record.phase.as_str(), eq("configure"));
+    expect_that!(
+        drop_record.message.as_str(),
+        contains_substring("drop boom")
+    );
 }
 
 #[gtest]

@@ -14,7 +14,7 @@ use googletest::prelude::*;
 use rstest::rstest;
 use rstest_bdd_harness::ScenarioMetadata;
 
-use super::BevyScenario;
+use super::{BevyScenario, MISSING_MAIN_MESSAGE};
 use crate::minimal_app;
 
 /// A resource the accessor tests write and read back.
@@ -135,23 +135,31 @@ fn the_scenario_is_borrowable_after_a_caught_panic() {
     expect_that!(frames, eq(1));
 }
 
-#[gtest]
-fn a_panicking_system_leaves_a_diagnosable_application() {
+/// Builds a scenario whose first update panics in a system, removing `Main`.
+fn scenario_with_broken_main() -> BevyScenario {
     let scenario = test_scenario();
     scenario.with_app(|app| {
         app.add_systems(Update, || panic!("system boom"));
     });
     let first_update = catch_unwind(AssertUnwindSafe(|| scenario.update()));
     expect_that!(first_update.is_err(), eq(true));
+    scenario
+}
 
+#[gtest]
+fn a_panicking_system_leaves_a_diagnosable_application() {
+    let scenario = scenario_with_broken_main();
     let second_update = catch_unwind(AssertUnwindSafe(|| scenario.update()));
     let payload = second_update.expect_err("the second update must panic");
     let message = panic_message(payload.as_ref());
-    expect_that!(
-        message.contains(
-            "the Main schedule is missing; a system panicked during an earlier update, so this \
-             application cannot advance"
-        ),
-        eq(true)
-    );
+    expect_that!(message.contains(MISSING_MAIN_MESSAGE), eq(true));
+}
+
+#[gtest]
+fn update_times_zero_still_rejects_a_missing_main_schedule() {
+    let scenario = scenario_with_broken_main();
+    let zero_update = catch_unwind(AssertUnwindSafe(|| scenario.update_times(0)));
+    let payload = zero_update.expect_err("zero ticks must still check the Main schedule");
+    let message = panic_message(payload.as_ref());
+    expect_that!(message.contains(MISSING_MAIN_MESSAGE), eq(true));
 }
