@@ -1,41 +1,81 @@
-//! Validates the users' guide's executable examples before rustdoc runs them.
+//! Validates the users' guide's fenced examples before rustdoc runs them.
 //!
 //! `lib.rs` includes the guide under `cfg(doctest)`, so rustdoc compiles every
 //! Rust fence from the published text. Rustdoc ignores the `tested-example`
 //! markers, so this module enforces the documentation style guide's loader
-//! rules for that document: each Rust fence must be preceded by a marker with
-//! a non-empty identifier, identifiers must be unique, a marker must precede
-//! its fence with no intervening prose, and every fence must be terminated.
+//! rules for that document: every fence, whatever its language, must be
+//! preceded by a marker with a non-empty identifier, identifiers must be
+//! unique, a marker must precede its fence with no intervening prose, and
+//! every fence must be terminated. Fences are recognized in both CommonMark
+//! forms rustdoc accepts, backtick and tilde, indented by up to three spaces.
 
 use std::collections::BTreeSet;
 
 const GUIDE: &str = include_str!("../../../docs/users-guide.md");
 
 /// One fenced block and the marker immediately above it, if any.
+#[derive(Debug)]
 struct Fence<'a> {
     language: &'a str,
     marker: Option<&'a str>,
 }
 
+/// A fence delimiter: the repeated character and the length of its run.
+#[derive(Clone, Copy, Debug)]
+struct Delimiter {
+    character: char,
+    length: usize,
+}
+
+impl Delimiter {
+    /// Whether `self`, found on a candidate closing line, closes `opener`.
+    ///
+    /// CommonMark requires the same character and at least the opener's run
+    /// length. A closing fence may carry only trailing spaces; any other text
+    /// makes the line content rather than a boundary.
+    fn closes(self, opener: Self, trailing: &str) -> bool {
+        self.character == opener.character
+            && self.length >= opener.length
+            && trailing.trim().is_empty()
+    }
+}
+
+/// An open fence awaiting its closing delimiter.
+struct OpenFence<'a> {
+    delimiter: Delimiter,
+    language: &'a str,
+    marker: Option<&'a str>,
+}
+
 #[test]
-fn every_rust_fence_has_a_marker() {
+fn every_fence_has_a_marker() {
+    let fences = parse_fences(GUIDE).expect("the users' guide parses");
+
+    assert!(
+        !fences.is_empty(),
+        "the users' guide must contain at least one fence, or the doctest loader has nothing to \
+         check"
+    );
+    for fence in &fences {
+        assert!(
+            fence.marker.is_some(),
+            "the {:?} fence in the users' guide has no tested-example marker",
+            fence.language
+        );
+    }
+}
+
+#[test]
+fn guide_contains_a_rust_example() {
     let fences = parse_fences(GUIDE).expect("the users' guide parses");
 
     assert!(
         fences
             .iter()
             .any(|fence| fence.language.starts_with("rust")),
-        "the users' guide must contain at least one Rust fence, or the doctest loader has nothing \
-         to check"
+        "the users' guide must contain at least one Rust fence, or the doctest loader checks \
+         nothing"
     );
-    for fence in &fences {
-        if fence.language.starts_with("rust") {
-            assert!(
-                fence.marker.is_some(),
-                "a Rust fence in the users' guide has no tested-example marker"
-            );
-        }
-    }
 }
 
 #[test]
@@ -59,6 +99,77 @@ fn tested_example_identifiers_are_unique_and_non_empty() {
     }
 }
 
+#[test]
+fn unmarked_tilde_fence_is_detected() {
+    let fences = parse_fences("~~~rust\nlet value = 1;\n~~~\n").expect("the tilde fence parses");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "a tilde fence must be recorded exactly once"
+    );
+    let fence = fences
+        .first()
+        .expect("the fixture records exactly one fence");
+    assert_eq!(
+        fence.language, "rust",
+        "the text after the delimiter names the language"
+    );
+    assert!(
+        fence.marker.is_none(),
+        "the fixture leaves the fence unmarked so the marker check can reject it"
+    );
+}
+
+#[test]
+fn unmarked_indented_fence_is_detected() {
+    let fences =
+        parse_fences("   ```rust\n   let value = 1;\n   ```\n").expect("the indented fence parses");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "an indented backtick fence must be recorded exactly once"
+    );
+    let fence = fences
+        .first()
+        .expect("the fixture records exactly one fence");
+    assert!(
+        fence.marker.is_none(),
+        "the fixture leaves the fence unmarked so the marker check can reject it"
+    );
+}
+
+#[test]
+fn closer_with_a_different_character_does_not_close() {
+    let error =
+        parse_fences("~~~rust\n```\n").expect_err("a backtick line must not close a tilde fence");
+
+    assert!(
+        error.contains("not terminated"),
+        "the error must report the unterminated fence, got {error:?}"
+    );
+}
+
+#[test]
+fn longer_closer_closes_the_fence() {
+    let fences =
+        parse_fences("```rust\nlet value = 1;\n`````\n").expect("a longer closer parses the block");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "a closer longer than its opener must still close the block"
+    );
+    let fence = fences
+        .first()
+        .expect("the fixture records exactly one fence");
+    assert_eq!(
+        fence.language, "rust",
+        "the block keeps the opener's language"
+    );
+}
+
 /// Splits the guide into fenced blocks, enforcing marker placement.
 ///
 /// Blank lines may separate a marker from its fence, as the Markdown
@@ -74,8 +185,7 @@ fn parse_fences(text: &str) -> Result<Vec<Fence<'_>>, String> { FenceParser::def
 struct FenceParser<'a> {
     fences: Vec<Fence<'a>>,
     pending_marker: Option<(&'a str, usize)>,
-    open_language: Option<&'a str>,
-    open_marker: Option<&'a str>,
+    open: Option<OpenFence<'a>>,
 }
 
 impl<'a> FenceParser<'a> {
@@ -91,8 +201,7 @@ impl<'a> FenceParser<'a> {
         if let Some(identifier) = marker_identifier(line) {
             return self.open_marker(identifier, line_number);
         }
-        if let Some(language) = line.strip_prefix("```") {
-            self.toggle_fence(language.trim());
+        if self.fence_line(line) {
             return Ok(());
         }
         if line.trim().is_empty() {
@@ -102,7 +211,7 @@ impl<'a> FenceParser<'a> {
     }
 
     fn open_marker(&mut self, identifier: &'a str, line_number: usize) -> Result<(), String> {
-        if self.open_language.is_some() {
+        if self.open.is_some() {
             return Err(format!(
                 "marker on line {line_number} appears inside a fenced block"
             ));
@@ -112,16 +221,28 @@ impl<'a> FenceParser<'a> {
         Ok(())
     }
 
-    fn toggle_fence(&mut self, language: &'a str) {
-        if let Some(open) = self.open_language.take() {
-            self.fences.push(Fence {
-                language: open,
-                marker: self.open_marker.take(),
-            });
-        } else {
-            self.open_language = Some(language);
-            self.open_marker = self.pending_marker.take().map(|(identifier, _)| identifier);
+    /// Applies a fence opener or closer, reporting whether `line` was one.
+    fn fence_line(&mut self, line: &'a str) -> bool {
+        let Some((delimiter, trailing)) = fence_delimiter(line) else {
+            return false;
+        };
+        match self.open.take() {
+            Some(open) if delimiter.closes(open.delimiter, trailing) => {
+                self.fences.push(Fence {
+                    language: open.language,
+                    marker: open.marker,
+                });
+            }
+            Some(open) => self.open = Some(open),
+            None => {
+                self.open = Some(OpenFence {
+                    delimiter,
+                    language: trailing.trim(),
+                    marker: self.pending_marker.take().map(|(identifier, _)| identifier),
+                });
+            }
         }
+        true
     }
 
     fn reject_dangling_marker(&self) -> Result<(), String> {
@@ -134,12 +255,35 @@ impl<'a> FenceParser<'a> {
     }
 
     fn finish(self) -> Result<Vec<Fence<'a>>, String> {
-        if let Some(open) = self.open_language {
-            return Err(format!("the fenced block {open:?} is not terminated"));
+        if let Some(open) = self.open {
+            return Err(format!(
+                "the fenced block {:?} is not terminated",
+                open.language
+            ));
         }
         self.reject_dangling_marker()?;
         Ok(self.fences)
     }
+}
+
+/// Recognises a fence opener or closer.
+///
+/// Returns the delimiter and the text after it. CommonMark permits up to three
+/// leading spaces and a run of at least three backticks or tildes.
+fn fence_delimiter(line: &str) -> Option<(Delimiter, &str)> {
+    let rest = line.trim_start_matches(' ');
+    if line.len() - rest.len() > 3 {
+        return None;
+    }
+    let character = rest.chars().next().filter(|c| *c == '`' || *c == '~')?;
+    let length = rest.chars().take_while(|c| *c == character).count();
+    if length < 3 {
+        return None;
+    }
+    // Delimiters are ASCII, so the run's character count is also its byte
+    // length; the checked split keeps the helper free of panicking indexing.
+    let (_, trailing) = rest.split_at_checked(length)?;
+    Some((Delimiter { character, length }, trailing))
 }
 
 /// Returns the identifier when `line` is a `tested-example` marker.

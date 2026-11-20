@@ -467,7 +467,21 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   body rustdoc executes. Both were proven by seeded faults: an unmarked Rust
   fence and a duplicated identifier each failed the new checks, and changing
   the expected frame count failed the doctest (logs
-  `/tmp/fault-{i,j,k}-review2-...-public-api.out`).
+  `/tmp/fault-{i,j,k}-review2-...-public-api.out`). A third CLI review of the
+  follow-up commit `cc2346e` (234 s, 4 files, exit 0) found two more minor gaps
+  against the style guide's marker rule: only Rust fences were checked, and the
+  parser recognized only column-zero backtick fences. `src/guide_tests.rs` now
+  requires a marker on every fence whatever its language, recognizes CommonMark
+  backtick and tilde fences indented by up to three spaces, and applies the
+  matching closing rules; `docs/users-guide.md` gains markers on its other ten
+  fences. Seeded faults proved both repairs: removing the `toml` marker failed
+  with "the \"toml\" fence … has no tested-example marker", and rewriting an
+  unmarked fence as `~~~json` was detected as a `json` fence and rejected (logs
+  `/tmp/fault-{l,m}-round3-...-public-api.out`). The re-gate then passed all
+  seven gates: `check-fmt` (1 s), `lint` (16 s), `typecheck` (4 s), `test` (33
+  s, 314/314 plus 27 doctests), `markdownlint` (4 s), `nixie` (1 s), and
+  `spelling` (2 s); logs
+  `/tmp/gate6-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
 
 ## Surprises & discoveries
 
@@ -582,6 +596,14 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `tested-example` markers, so `src/guide_tests.rs` now enforces marker
   placement, non-empty identifiers, uniqueness, and fence termination for that
   document.
+- Observation (2026-11-20, EP-M5 review): the style guide's tested-example rule
+  covers every fenced example in a user-facing document, not only executable
+  Rust examples, and rustdoc follows CommonMark, which also accepts tilde
+  fences and fences indented by up to three spaces. A loader that checked only
+  column-zero backtick Rust fences would let an unmarked `toml` block and an
+  unmarked tilde-delimited block pass. Impact: `src/guide_tests.rs` now checks
+  every fence and recognizes both CommonMark fence forms, and every fence in
+  `docs/users-guide.md` carries a marker.
 
 ## Decision log
 
@@ -773,12 +795,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   Markdown example parser. Rationale: the style guide requires documented
   examples to be exercised from the published text, and rustdoc already
   compiles every Rust fence in an included document; the `cfg` keeps the item
-  out of normal builds, rendered documentation, and the public API. The two
-  affected fences carry stable `tested-example` markers, and
-  `src/guide_tests.rs` enforces the marker rules for that document, because
-  rustdoc itself ignores the markers. The scope is the users' guide: a
-  repository-wide scan over every user-facing document remains future work.
-  Date/Author: 2026-11-20, implementer acting on the milestone review.
+  out of normal builds, rendered documentation, and the public API. Every fence
+  in the guide carries a stable `tested-example` marker, and
+  `src/guide_tests.rs` enforces the marker and CommonMark fence rules for that
+  document, because rustdoc itself ignores the markers. The scope is the users'
+  guide: a repository-wide scan over the other user-facing documents remains
+  future work. Date/Author: 2026-11-20, implementer acting on the milestone
+  review.
 
 ## Outcomes & retrospective
 
@@ -1805,3 +1828,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   and every gate run are recorded in `Progress`, `Decision log`, and
   `Outcomes & retrospective`. No requirement, signature, tolerance, or
   milestone changed.
+- Revision 6, 2026-11-20: three CLI review rounds on the EP-M5 deliverables
+  hardened the guide-example loader. Round one added the `cfg(doctest)` include
+  and markers on both Rust fences; round two added marker and fence validation
+  in `src/guide_tests.rs` and made the minimal-application example executable;
+  round three extended the rule to every fence, whatever its language, and to
+  CommonMark tilde and indented fence forms. Each repair was proven by a seeded
+  fault, and every re-gate passed all seven gates. No requirement, signature,
+  tolerance, or milestone changed.
