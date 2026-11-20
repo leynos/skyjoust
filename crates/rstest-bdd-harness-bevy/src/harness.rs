@@ -4,9 +4,16 @@
 //! configure a fresh `App`, hands the runner a cloneable [`BevyScenario`], and
 //! releases scenario resources through the profile's cleanup hook. Profile
 //! errors are wrapped with the phase that produced them so an `Err` from
-//! cleanup is distinguishable from an `Err` from configuration.
+//! cleanup is distinguishable from an `Err` from configuration. Panics from
+//! any phase are re-raised with the phase-tagged message fixed by ADR 010, and
+//! cleanup runs before a step panic is re-raised.
 
-use std::{any::type_name, fmt, marker::PhantomData};
+use std::{
+    any::{Any, type_name},
+    fmt,
+    marker::PhantomData,
+    panic::{self, AssertUnwindSafe},
+};
 
 use bevy::app::App;
 use rstest_bdd_harness::{
@@ -20,6 +27,7 @@ use rstest_bdd_harness::{
 
 use crate::{
     BevyScenario,
+    panic::{Phase, payload_text, scenario_panic_message},
     profile::{BevyProfile, MinimalBevyProfile},
 };
 
@@ -112,10 +120,23 @@ impl<P: BevyProfile> HarnessAdapter for BevyHarness<P> {
     fn run<T>(&self, request: ScenarioRunRequest<'_, BevyScenario, T>) -> HarnessResult<T> {
         let (metadata, runner) = request.into_parts();
         emit_start::<P>(&metadata);
-        let scenario = configure_app::<P>(metadata)?;
-        let value = run_steps(runner, &scenario);
-        finish_scenario::<P>(&scenario)?;
-        Ok(value)
+        let scenario = match configure_app::<P>(&metadata) {
+            Ok(scenario) => scenario,
+            Err(ConfigureFailure::Failed(error)) => return Err(error),
+            Err(ConfigureFailure::Panicked(payload)) => {
+                raise_configure_panic::<P>(payload, &metadata)
+            }
+        };
+        match run_steps(runner, &scenario) {
+            StepOutcome::Returned(value) => match finish_scenario::<P>(&scenario) {
+                CleanupOutcome::Completed => Ok(value),
+                CleanupOutcome::Failed(error) => Err(error),
+                CleanupOutcome::Panicked(payload) => {
+                    raise_cleanup_panic::<P>(payload, &metadata, scenario)
+                }
+            },
+            StepOutcome::Panicked(payload) => raise_step_panic::<P>(payload, &metadata, scenario),
+        }
     }
 }
 
@@ -130,40 +151,173 @@ fn emit_start<P>(metadata: &ScenarioMetadata) {
     );
 }
 
+/// Why configuration did not produce a runnable scenario.
+enum ConfigureFailure {
+    /// The profile returned an error, wrapped with the configure phase.
+    Failed(HarnessError),
+    /// The profile panicked; the application has already been dropped.
+    Panicked(Box<dyn Any + Send>),
+}
+
 /// Builds the application through the profile and wraps it for the runner.
-fn configure_app<P: BevyProfile>(metadata: ScenarioMetadata) -> HarnessResult<BevyScenario> {
+///
+/// The `App` is created before the catch boundary so a configure panic still
+/// leaves the application owned here; it is dropped under a guard on that path
+/// rather than while the original panic unwinds.
+fn configure_app<P: BevyProfile>(
+    metadata: &ScenarioMetadata,
+) -> Result<BevyScenario, ConfigureFailure> {
     let mut app = App::new();
-    P::configure(&mut app, &metadata)
-        .map_err(|error| wrap_profile_error(Phase::Configure, error))?;
-    Ok(BevyScenario::new(app, metadata))
+    match panic::catch_unwind(AssertUnwindSafe(|| P::configure(&mut app, metadata))) {
+        Ok(Ok(())) => Ok(BevyScenario::new(app, metadata.clone())),
+        Ok(Err(error)) => Err(ConfigureFailure::Failed(wrap_profile_error(
+            Phase::Configure,
+            error,
+        ))),
+        Err(payload) => {
+            drop_app_guarded::<P>(app, metadata);
+            Err(ConfigureFailure::Panicked(payload))
+        }
+    }
+}
+
+/// The runner's outcome, with a caught panic kept as its payload.
+enum StepOutcome<T> {
+    Returned(T),
+    Panicked(Box<dyn Any + Send>),
 }
 
 /// Hands the runner a clone of the handle so the harness keeps its own.
-fn run_steps<T>(runner: ScenarioRunner<'_, BevyScenario, T>, scenario: &BevyScenario) -> T {
-    runner.run(scenario.clone())
-}
-
-/// Runs the profile cleanup hook on the normal path.
-fn finish_scenario<P: BevyProfile>(scenario: &BevyScenario) -> HarnessResult<()> {
-    P::cleanup(scenario, scenario.metadata())
-        .map_err(|error| wrap_profile_error(Phase::Cleanup, error))
-}
-
-/// The lifecycle phase whose hook produced an error.
-#[derive(Clone, Copy, Debug)]
-enum Phase {
-    Configure,
-    Cleanup,
-}
-
-impl fmt::Display for Phase {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = match self {
-            Self::Configure => "configure",
-            Self::Cleanup => "cleanup",
-        };
-        formatter.write_str(name)
+fn run_steps<T>(
+    runner: ScenarioRunner<'_, BevyScenario, T>,
+    scenario: &BevyScenario,
+) -> StepOutcome<T> {
+    match panic::catch_unwind(AssertUnwindSafe(|| runner.run(scenario.clone()))) {
+        Ok(value) => StepOutcome::Returned(value),
+        Err(payload) => StepOutcome::Panicked(payload),
     }
+}
+
+/// The cleanup hook's outcome on the normal path.
+enum CleanupOutcome {
+    Completed,
+    Failed(HarnessError),
+    Panicked(Box<dyn Any + Send>),
+}
+
+/// Runs the profile cleanup hook after the runner returned.
+fn finish_scenario<P: BevyProfile>(scenario: &BevyScenario) -> CleanupOutcome {
+    match panic::catch_unwind(AssertUnwindSafe(|| {
+        P::cleanup(scenario, scenario.metadata())
+    })) {
+        Ok(Ok(())) => CleanupOutcome::Completed,
+        Ok(Err(error)) => CleanupOutcome::Failed(wrap_profile_error(Phase::Cleanup, error)),
+        Err(payload) => CleanupOutcome::Panicked(payload),
+    }
+}
+
+/// Re-raises a configure panic with the phase-tagged message.
+fn raise_configure_panic<P>(payload: Box<dyn Any + Send>, metadata: &ScenarioMetadata) -> ! {
+    let message = message_for::<P>(Phase::Configure, payload.as_ref(), metadata);
+    forget_then_raise(payload, message)
+}
+
+/// Runs cleanup on the panic path, recording rather than propagating failure.
+///
+/// A step panic must keep its identity, so a cleanup error or panic becomes a
+/// second `tracing::error!` record and is never returned or raised.
+fn cleanup_after_step_panic<P: BevyProfile>(scenario: &BevyScenario, metadata: &ScenarioMetadata) {
+    match panic::catch_unwind(AssertUnwindSafe(|| P::cleanup(scenario, metadata))) {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => record_error::<P>(
+            Phase::Cleanup,
+            "Bevy scenario cleanup failed after a step panic",
+            &wrap_profile_error(Phase::Cleanup, error).to_string(),
+            metadata,
+        ),
+        Err(payload) => record_error::<P>(
+            Phase::Cleanup,
+            "Bevy scenario cleanup panicked after a step panic",
+            &payload_text(payload.as_ref()),
+            metadata,
+        ),
+    }
+}
+
+/// Re-raises a step panic after cleanup and the guarded application drop.
+fn raise_step_panic<P: BevyProfile>(
+    payload: Box<dyn Any + Send>,
+    metadata: &ScenarioMetadata,
+    scenario: BevyScenario,
+) -> ! {
+    let message = message_for::<P>(Phase::Steps, payload.as_ref(), metadata);
+    record_error::<P>(Phase::Steps, "Bevy scenario panicked", &message, metadata);
+    cleanup_after_step_panic::<P>(&scenario, metadata);
+    drop_scenario_guarded::<P>(scenario, metadata);
+    forget_then_raise(payload, message)
+}
+
+/// Re-raises a cleanup panic with its own phase tag and no error record.
+fn raise_cleanup_panic<P: BevyProfile>(
+    payload: Box<dyn Any + Send>,
+    metadata: &ScenarioMetadata,
+    scenario: BevyScenario,
+) -> ! {
+    let message = message_for::<P>(Phase::Cleanup, payload.as_ref(), metadata);
+    drop_scenario_guarded::<P>(scenario, metadata);
+    forget_then_raise(payload, message)
+}
+
+/// Formats the phase-tagged message for the harness type `P`.
+fn message_for<P>(phase: Phase, payload: &(dyn Any + Send), metadata: &ScenarioMetadata) -> String {
+    scenario_panic_message(phase, payload, type_name::<BevyHarness<P>>(), metadata)
+}
+
+/// Drops the last scenario handle under a guard, recording a panicking drop.
+fn drop_scenario_guarded<P>(scenario: BevyScenario, metadata: &ScenarioMetadata) {
+    if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(move || drop(scenario))) {
+        record_error::<P>(
+            Phase::Cleanup,
+            "Bevy scenario application drop panicked",
+            &payload_text(payload.as_ref()),
+            metadata,
+        );
+    }
+}
+
+/// Drops the partially configured application under a guard.
+fn drop_app_guarded<P>(app: App, metadata: &ScenarioMetadata) {
+    if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(move || drop(app))) {
+        record_error::<P>(
+            Phase::Configure,
+            "Bevy application drop panicked after a configure panic",
+            &payload_text(payload.as_ref()),
+            metadata,
+        );
+    }
+}
+
+/// Leaks the transcribed payload before raising, so its drop cannot double-panic.
+fn forget_then_raise(payload: Box<dyn Any + Send>, message: String) -> ! {
+    // The payload's text is already in `message`. An arbitrary payload `Drop`
+    // must not run during the new unwind, because a panic there aborts the
+    // process instead of reporting the scenario failure.
+    std::mem::forget(payload);
+    panic::panic_any(message)
+}
+
+/// Emits one structured error record for a scenario failure.
+fn record_error<P>(phase: Phase, summary: &str, error: &str, metadata: &ScenarioMetadata) {
+    tracing::error!(
+        phase = %phase,
+        harness_type = type_name::<BevyHarness<P>>(),
+        feature_path = metadata.feature_path(),
+        scenario_name = metadata.scenario_name(),
+        scenario_line = metadata.scenario_line(),
+        error = %error,
+        "{}",
+        summary
+    );
 }
 
 /// A profile hook error tagged with its lifecycle phase.

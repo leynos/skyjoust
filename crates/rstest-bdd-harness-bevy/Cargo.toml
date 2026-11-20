@@ -17,6 +17,7 @@ tracing = "0.1"
 
 [dev-dependencies]
 googletest = "0.14.3"
+insta = "1"
 pretty_assertions = "1"
 proptest = "1"
 rstest = "0.28"

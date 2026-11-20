@@ -2,7 +2,8 @@
 //!
 //! The normal-path rows of ADR 010's lifecycle table run here: a configure
 //! error, a returning runner with cleanup success, and a returning runner with
-//! cleanup failure. The panic rows arrive with the panic path at EP-M3.
+//! cleanup failure. The panic rows live in `panics` and share the profiles and
+//! the error recorder declared alongside this module.
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -13,8 +14,14 @@ use rstest_bdd_harness::{HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, S
 use super::BevyHarness;
 use crate::{BareBevyProfile, BevyScenario};
 
+#[path = "harness_tests/panics.rs"]
+mod panics;
+
 #[path = "harness_tests/profiles.rs"]
 mod profiles;
+
+#[path = "harness_tests/recorder.rs"]
+mod recorder;
 
 use profiles::{
     CleanupCalls,
@@ -27,6 +34,7 @@ use profiles::{
     Recording,
     RunnerCalls,
 };
+use recorder::capture_errors;
 
 fn metadata() -> ScenarioMetadata {
     ScenarioMetadata::new(
@@ -50,8 +58,10 @@ fn a_configure_error_is_wrapped_and_skips_the_runner() {
         }),
     );
 
-    let error = harness.run(request).expect_err("configure must fail");
+    let (result, events) = capture_errors(|| harness.run(request));
+    let error = result.expect_err("configure must fail");
 
+    expect_that!(events.len(), eq(0));
     expect_that!(*runner_called.borrow(), eq(false));
     expect_that!(
         error.to_string(),
@@ -79,10 +89,10 @@ fn a_returning_runner_result_is_propagated_and_cleanup_runs_once() {
         }),
     );
 
-    let value = harness
-        .run(request)
-        .expect("the recording profile must succeed");
+    let (result, events) = capture_errors(|| harness.run(request));
+    let value = result.expect("the recording profile must succeed");
 
+    expect_that!(events.len(), eq(0));
     expect_that!(value, eq(7));
     let scenario = stashed
         .borrow()
@@ -116,8 +126,10 @@ fn a_cleanup_error_is_wrapped_after_the_runner_ran() {
         }),
     );
 
-    let error = harness.run(request).expect_err("cleanup must fail");
+    let (result, events) = capture_errors(|| harness.run(request));
+    let error = result.expect_err("cleanup must fail");
 
+    expect_that!(events.len(), eq(0));
     expect_that!(
         error.to_string(),
         eq(concat!(

@@ -337,7 +337,30 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   form of `handwritten` in a `harness.rs` doc comment (log
   `/tmp/spelling-skyjoust-0-1-2-bevy-harness-public-api-7.out`). It is fixed in
   the follow-up commit, which re-runs the full gate set.
-- [ ] EP-M3: panic and cleanup path.
+- [x] (2026-11-20) EP-M3: panic and cleanup path. Red observed as the expected
+  `E0432` unresolved imports for `Phase`, `payload_text`, and
+  `scenario_panic_message` (log
+  `/tmp/focused-skyjoust-0-1-2-bevy-harness-public-api-m3-red.out`).
+  `src/panic.rs` implements the pure message contract;
+  `src/harness_tests/recorder.rs` counts `ERROR` records;
+  `src/harness_tests/panics.rs` covers rows 2, 5, 6, 7, and 8 plus the
+  panic-path leak row; three `insta` snapshots pin the message format. The
+  focused library suite passes 39/39 (log
+  `/tmp/focused-skyjoust-0-1-2-bevy-harness-public-api-m3-green3.out`, and
+  again after the fault seeding). All four hand-seeded faults were rejected and
+  reverted byte-for-byte: skipping panic-path cleanup failed rows 6–8 (cleanup
+  count 0, missing second records); running cleanup twice failed rows 6–8
+  (count 2, three records); tagging a step panic as `cleanup` failed rows 6–8
+  on the phase prefix; and cleaning up after a configure error failed row 1 via
+  the tripwire. Logs: `/tmp/fault{1,2,3,4}-...-public-api.out`. `run` contains
+  no `panic!` or `assert!`, branches only on outcome tags, and never inspects
+  payload, error, or metadata contents. `BevyProfile::cleanup`'s rustdoc is
+  restored to the full delivered contract, closing the EP-M2 review deferral.
+  The full gate set passed on the milestone tree: `make lint` (6 s),
+  `make check-fmt` (1 s), `make typecheck` (5 s), `make test` (52 s, 291/291
+  plus doctests), `make spelling` (6 s on the re-run after fixing two `-ise`
+  spellings in this plan), `make markdownlint` (7 s), and `make nixie` (<1 s).
+  Logs: `/tmp/gate-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
 - [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
 
@@ -407,6 +430,24 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   update and then asserts one fixed tick per subsequent update, which is the
   steady-state contract a deterministic profile relies on; the decision is
   recorded in `Decision log`.
+- Observation (2026-11-20, EP-M3): `rstest_bdd::panic_message`, the helper the
+  GPUI harness reuses, is unreachable from this crate's runtime code because
+  `rstest-bdd` is a dev-dependency only, and ADR 010 fixes a narrower three-arm
+  payload mapping (including the literal `Box<dyn Any>` placeholder) than that
+  helper's wider recognized set. Evidence:
+  `rstest-bdd-0.6.0/src/panic_support.rs` and
+  `rstest-bdd-harness-gpui-0.6.0/src/gpui_harness/mod.rs:159-168`. Impact:
+  `src/panic.rs` implements a pure local `payload_text` under the
+  abstraction-policy sweep instead of promoting `rstest-bdd` to a runtime
+  dependency; the decision is recorded in `Decision log`.
+- Observation (2026-11-20, EP-M3): `tracing` routes events through a global
+  callsite interest cache, so a recorder installed with
+  `tracing::subscriber::with_default` sees nothing once the same callsite has
+  been emitted under the no-op default subscriber. Evidence: the first recorder
+  draft counted zero events from the second run of a test binary onwards.
+  Impact: the recorder returns `Interest::sometimes()` and `capture_errors`
+  calls `tracing::callsite::rebuild_interest_cache()` after installing it, so
+  every run observes its own records deterministically.
 
 ## Decision log
 
@@ -560,6 +601,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   tests. Evidence:
   `/tmp/coderabbit-skyjoust-0-1-2-bevy-harness-public-api.out`. Date/Author:
   2026-11-20, implementer acting on the milestone review.
+- Decision (2026-11-20, EP-M3): implement `payload_text` locally rather than
+  reusing `rstest_bdd::panic_message`. Rationale: the abstraction-policy sweep
+  found the upstream helper reachable only through the `rstest-bdd`
+  dev-dependency (promoting it to a runtime dependency for one function is
+  disproportionate), and ADR 010 fixes a narrower three-arm contract
+  (`&'static str`, `String`, literal `Box<dyn Any>`) than that helper's wider
+  recognized set. The local function is pinned by `rstest` cases for its three
+  classes and by the three phase snapshots. Date/Author: 2026-11-20,
+  implementer.
 
 ## Outcomes & retrospective
 

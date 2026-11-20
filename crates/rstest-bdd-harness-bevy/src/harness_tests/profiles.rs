@@ -64,6 +64,38 @@ impl BevyProfile for ConfigureFails {
     }
 }
 
+/// Profile whose configure hook panics before the runner can run.
+pub enum ConfigurePanics {}
+
+impl BevyProfile for ConfigurePanics {
+    fn configure(_app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        panic_any("configure boom");
+    }
+
+    fn cleanup(_scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        panic_any("tripwire: cleanup must not run after a configure panic");
+    }
+}
+
+/// Profile whose cleanup increments the counter and then panics.
+pub enum CleanupPanics {}
+
+impl BevyProfile for CleanupPanics {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<CleanupCalls>();
+        app.init_resource::<RunnerCalls>();
+        Ok(())
+    }
+
+    fn cleanup(scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        scenario.with_world(|world| {
+            world.resource_mut::<CleanupCalls>().0 += 1;
+        });
+        panic_any("cleanup boom");
+    }
+}
+
 /// Profile whose cleanup increments the counter and then fails.
 pub enum CleanupFails {}
 
@@ -71,6 +103,7 @@ impl BevyProfile for CleanupFails {
     fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
         app.add_plugins(MinimalPlugins);
         app.init_resource::<CleanupCalls>();
+        app.init_resource::<RunnerCalls>();
         Ok(())
     }
 
