@@ -81,6 +81,129 @@ pub fn capture_errors<T>(run: impl FnOnce() -> T) -> (T, Vec<RecordedEvent>) {
     (value, observer.events())
 }
 
+/// One captured `DEBUG` start event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StartRecord {
+    pub harness_type: String,
+    pub feature_path: String,
+    pub scenario_name: String,
+    pub scenario_line: String,
+    pub message: String,
+}
+
+/// Records the harness's `DEBUG` start events in a shared vector.
+#[derive(Clone, Default)]
+pub struct StartRecorder {
+    records: Arc<Mutex<Vec<StartRecord>>>,
+}
+
+/// Runs `run` with a [`StartRecorder`] installed and returns its records.
+///
+/// The interest-cache treatment mirrors [`capture_errors`], because the start
+/// event's callsite is also shared across runs.
+pub fn capture_start<T>(run: impl FnOnce() -> T) -> (T, Vec<StartRecord>) {
+    let recorder = StartRecorder::default();
+    let observer = recorder.clone();
+    let value = tracing::subscriber::with_default(recorder, || {
+        tracing::callsite::rebuild_interest_cache();
+        run()
+    });
+    let records = observer
+        .records
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    (value, records)
+}
+
+impl Subscriber for StartRecorder {
+    fn enabled(&self, metadata: &Metadata<'_>) -> bool { metadata.level() == &Level::DEBUG }
+
+    fn max_level_hint(&self) -> Option<LevelFilter> { Some(LevelFilter::DEBUG) }
+
+    fn register_callsite(&self, _metadata: &Metadata<'_>) -> Interest { Interest::sometimes() }
+
+    fn new_span(&self, _span: &Attributes<'_>) -> Id { Id::from_u64(1) }
+
+    fn record(&self, _span: &Id, _values: &Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
+
+    fn event(&self, event: &Event<'_>) {
+        if event.metadata().level() != &Level::DEBUG {
+            return;
+        }
+        let mut visitor = StartVisitor::default();
+        event.record(&mut visitor);
+        if let Some(record) = visitor.finish() {
+            self.records
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(record);
+        }
+    }
+
+    fn enter(&self, _span: &Id) {}
+
+    fn exit(&self, _span: &Id) {}
+}
+
+/// Collects the fields the start event promises.
+#[derive(Default)]
+struct StartVisitor {
+    harness_type: Option<String>,
+    feature_path: Option<String>,
+    scenario_name: Option<String>,
+    scenario_line: Option<String>,
+    message: Option<String>,
+}
+
+impl StartVisitor {
+    /// Returns a record only when every promised field is present.
+    fn finish(self) -> Option<StartRecord> {
+        Some(StartRecord {
+            harness_type: self.harness_type?,
+            feature_path: self.feature_path?,
+            scenario_name: self.scenario_name?,
+            scenario_line: self.scenario_line?,
+            message: self.message?,
+        })
+    }
+
+    fn record_field(&mut self, field: &Field, value: String) {
+        match field.name() {
+            "harness_type" => self.harness_type = Some(value),
+            "feature_path" => self.feature_path = Some(value),
+            "scenario_name" => self.scenario_name = Some(value),
+            "scenario_line" => self.scenario_line = Some(value),
+            "message" => self.message = Some(value),
+            _ => {}
+        }
+    }
+}
+
+impl Visit for StartVisitor {
+    fn record_str(&mut self, field: &Field, value: &str) {
+        self.record_field(field, value.to_owned());
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        self.record_field(field, value.to_string());
+    }
+
+    fn record_i64(&mut self, field: &Field, value: i64) {
+        self.record_field(field, value.to_string());
+    }
+
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        self.record_field(field, value.to_string());
+    }
+
+    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+        self.record_field(field, format!("{value:?}"));
+    }
+}
+
 impl Subscriber for ErrorRecorder {
     fn enabled(&self, metadata: &Metadata<'_>) -> bool { metadata.level() == &Level::ERROR }
 
