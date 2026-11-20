@@ -11,8 +11,8 @@ use bevy::diagnostic::FrameCount;
 use googletest::prelude::*;
 use rstest_bdd_harness::{HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, ScenarioRunner};
 
-use super::BevyHarness;
-use crate::{BareBevyProfile, BevyScenario};
+use super::{BevyHarness, ProfileHookError};
+use crate::{BareBevyProfile, BevyScenario, panic::Phase};
 
 #[path = "harness_tests/panics.rs"]
 mod panics;
@@ -34,7 +34,7 @@ use profiles::{
     Recording,
     RunnerCalls,
 };
-use recorder::capture_errors;
+use recorder::{capture_errors, capture_start};
 
 fn metadata() -> ScenarioMetadata {
     ScenarioMetadata::new(
@@ -213,6 +213,8 @@ fn new_and_default_harnesses_are_equivalent() {
     let default_debug = format!("{from_default:?}");
 
     expect_that!(new_debug.as_str(), eq(default_debug.as_str()));
+    expect_that!(new_debug.as_str(), contains_substring("BevyHarness"));
+    expect_that!(new_debug.as_str(), contains_substring("Recording"));
 
     let new_result = from_new
         .run(ScenarioRunRequest::new(
@@ -234,6 +236,53 @@ fn new_and_default_harnesses_are_equivalent() {
         .expect("the default harness must run");
 
     expect_that!(new_result, eq(default_result));
+}
+
+#[gtest]
+fn the_start_event_carries_the_scenario_identity() {
+    let harness = BevyHarness::<Recording>::new();
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(|_scenario: BevyScenario| 0_u32),
+    );
+
+    let (result, records) = capture_start(|| harness.run(request));
+    result.expect("the recording profile must succeed");
+
+    expect_that!(records.len(), eq(1));
+    let record = records
+        .first()
+        .expect("the run must emit exactly one start event");
+    expect_that!(record.message.as_str(), eq("starting Bevy scenario"));
+    expect_that!(
+        record.feature_path.as_str(),
+        eq("tests/features/demo.feature")
+    );
+    expect_that!(record.scenario_name.as_str(), eq("Demo scenario"));
+    expect_that!(record.scenario_line.as_str(), eq("12"));
+    expect_that!(
+        record.harness_type.as_str(),
+        contains_substring("BevyHarness")
+    );
+}
+
+#[gtest]
+fn a_profile_hook_error_exposes_its_source() {
+    let source = rstest_bdd_harness::HarnessError::RuntimeBuildFailed(std::io::Error::other(
+        "configure sentinel",
+    ));
+    let hook_error = ProfileHookError {
+        phase: Phase::Configure,
+        source,
+    };
+
+    let exposed = std::error::Error::source(&hook_error)
+        .expect("the hook error must expose the failure it wraps");
+
+    expect_that!(
+        exposed.to_string(),
+        contains_substring("configure sentinel")
+    );
 }
 
 #[gtest]
