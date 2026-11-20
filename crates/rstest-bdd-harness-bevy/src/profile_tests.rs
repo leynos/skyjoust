@@ -1,10 +1,17 @@
 //! Unit tests for the headless plugin configuration.
 
-use bevy::{app::App, diagnostic::FrameCount, time::TimePlugin};
+use bevy::{
+    app::App,
+    diagnostic::FrameCount,
+    ecs::resource::Resource,
+    prelude::Update,
+    time::TimePlugin,
+};
 use googletest::prelude::*;
 use rstest::rstest;
+use rstest_bdd_harness::ScenarioMetadata;
 
-use super::{add_minimal_plugins, minimal_app};
+use super::{BareBevyProfile, BevyProfile, MinimalBevyProfile, add_minimal_plugins, minimal_app};
 
 #[gtest]
 #[rstest]
@@ -28,6 +35,43 @@ fn minimal_app_adds_the_time_plugin() {
 fn an_unconfigured_app_omits_the_time_plugin() {
     let app = App::new();
     expect_that!(app.is_plugin_added::<TimePlugin>(), eq(false));
+}
+
+#[gtest]
+fn bare_profile_leaves_the_app_unconfigured() {
+    let mut app = App::new();
+    let result = BareBevyProfile::configure(&mut app, &ScenarioMetadata::default());
+    expect_that!(result.is_ok(), eq(true));
+    expect_that!(app.is_plugin_added::<TimePlugin>(), eq(false));
+    expect_that!(
+        app.world().get_resource::<FrameCount>().is_some(),
+        eq(false)
+    );
+}
+
+#[gtest]
+fn bare_profile_still_runs_update_systems() {
+    #[derive(Resource)]
+    struct Ticks(u32);
+
+    fn count_tick(mut ticks: bevy::ecs::system::ResMut<Ticks>) { ticks.0 += 1; }
+
+    let mut app = App::new();
+    let result = BareBevyProfile::configure(&mut app, &ScenarioMetadata::default());
+    app.insert_resource(Ticks(0));
+    app.add_systems(Update, count_tick);
+    app.update();
+    expect_that!(result.is_ok(), eq(true));
+    expect_that!(app.world().resource::<Ticks>().0, eq(1));
+}
+
+#[gtest]
+fn minimal_profile_adds_the_minimal_plugins() {
+    let mut app = App::new();
+    let result = MinimalBevyProfile::configure(&mut app, &ScenarioMetadata::default());
+    expect_that!(result.is_ok(), eq(true));
+    expect_that!(app.is_plugin_added::<TimePlugin>(), eq(true));
+    expect_that!(app.world().get_resource::<FrameCount>().is_some(), eq(true));
 }
 
 #[gtest]

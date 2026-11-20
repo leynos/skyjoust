@@ -6,12 +6,22 @@
 //! dependency rewire. Game-specific setup belongs in downstream profile types,
 //! never here.
 
+mod context;
+mod harness;
 mod policy;
 mod profile;
 
 pub use bevy;
+pub use context::BevyScenario;
+pub use harness::BevyHarness;
 pub use policy::BevyAttributePolicy;
-pub use profile::{add_minimal_plugins, minimal_app};
+pub use profile::{
+    BareBevyProfile,
+    BevyProfile,
+    MinimalBevyProfile,
+    add_minimal_plugins,
+    minimal_app,
+};
 pub use rstest_bdd_harness::{
     AttributePolicy,
     HarnessAdapter,
