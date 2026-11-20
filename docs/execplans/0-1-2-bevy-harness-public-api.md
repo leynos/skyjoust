@@ -374,6 +374,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   schedule check inside the loop) were each rejected and reverted
   byte-for-byte. Logs:
   `/tmp/followup-{tests,clippy,fault-a,fault-b,fault-c}-...-public-api*.out`.
+  The repair is committed as `8e1cade` after the full gate set (296/296 plus
+  doctests). A fresh CLI review of `12813a4..8e1cade` (100 s, 8 files) reported
+  zero findings (log
+  `/tmp/coderabbit-skyjoust-0-1-2-bevy-harness-public-api-m3-followup.out`).
 - [ ] EP-M4: harness-backed behavioural scenarios and tick properties.
 - [ ] EP-M5: documentation, mutation audit, roadmap, and final gates.
 
