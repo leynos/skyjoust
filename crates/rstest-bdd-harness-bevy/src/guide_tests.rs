@@ -7,7 +7,9 @@
 //! preceded by a marker with a non-empty identifier, identifiers must be
 //! unique, a marker must precede its fence with no intervening prose, and
 //! every fence must be terminated. Fences are recognized in both CommonMark
-//! forms rustdoc accepts, backtick and tilde, indented by up to three spaces.
+//! forms rustdoc accepts, backtick and tilde, indented by up to three spaces,
+//! at the top level and inside block quotes. A marker must itself be a
+//! top-level line.
 
 use std::collections::BTreeSet;
 
@@ -42,6 +44,11 @@ impl Delimiter {
 
 /// An open fence awaiting its closing delimiter.
 struct OpenFence<'a> {
+    /// Block-quote nesting depth at the opener.
+    ///
+    /// Only a delimiter at the same depth closes the block; a quoted line
+    /// inside a top-level fence is content.
+    depth: usize,
     delimiter: Delimiter,
     language: &'a str,
     marker: Option<&'a str>,
@@ -170,6 +177,63 @@ fn longer_closer_closes_the_fence() {
     );
 }
 
+#[test]
+fn unmarked_block_quoted_fence_is_detected() {
+    let fences = parse_fences("> ~~~rust\n> let value = 1;\n> ~~~\n")
+        .expect("the block-quoted fence parses");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "a fence inside a block quote must be recorded exactly once"
+    );
+    let fence = fences
+        .first()
+        .expect("the fixture records exactly one fence");
+    assert_eq!(
+        fence.language, "rust",
+        "the info string inside the quote names the language"
+    );
+    assert!(
+        fence.marker.is_none(),
+        "the fixture leaves the fence unmarked so the marker check can reject it"
+    );
+}
+
+#[test]
+fn marker_above_a_block_quoted_fence_is_attached() {
+    let fences = parse_fences(
+        "<!-- tested-example: quoted-fence -->\n\n> ```rust\n> let value = 1;\n> ```\n",
+    )
+    .expect("the marked block-quoted fence parses");
+
+    let marker = fences.first().and_then(|fence| fence.marker);
+    assert_eq!(
+        marker,
+        Some("quoted-fence"),
+        "a marker above a block-quoted fence must be attached to it"
+    );
+}
+
+#[test]
+fn quoted_delimiter_does_not_close_a_top_level_fence() {
+    let fences = parse_fences("```text\n> ~~~\n```\n").expect("the top-level fence parses");
+
+    assert_eq!(
+        fences.len(),
+        1,
+        "a quoted delimiter is content inside a top-level fence"
+    );
+    assert_eq!(
+        fences
+            .first()
+            .map(|fence| fence.language)
+            .expect("the fixture records exactly one fence"),
+        "text",
+        "the fence keeps its opener's language"
+    );
+}
+
 /// Splits the guide into fenced blocks, enforcing marker placement.
 ///
 /// Blank lines may separate a marker from its fence, as the Markdown
@@ -223,11 +287,11 @@ impl<'a> FenceParser<'a> {
 
     /// Applies a fence opener or closer, reporting whether `line` was one.
     fn fence_line(&mut self, line: &'a str) -> bool {
-        let Some((delimiter, trailing)) = fence_delimiter(line) else {
+        let Some((depth, delimiter, trailing)) = fence_delimiter(line) else {
             return false;
         };
         match self.open.take() {
-            Some(open) if delimiter.closes(open.delimiter, trailing) => {
+            Some(open) if depth == open.depth && delimiter.closes(open.delimiter, trailing) => {
                 self.fences.push(Fence {
                     language: open.language,
                     marker: open.marker,
@@ -236,6 +300,7 @@ impl<'a> FenceParser<'a> {
             Some(open) => self.open = Some(open),
             None => {
                 self.open = Some(OpenFence {
+                    depth,
                     delimiter,
                     language: trailing.trim(),
                     marker: self.pending_marker.take().map(|(identifier, _)| identifier),
@@ -268,13 +333,11 @@ impl<'a> FenceParser<'a> {
 
 /// Recognises a fence opener or closer.
 ///
-/// Returns the delimiter and the text after it. CommonMark permits up to three
-/// leading spaces and a run of at least three backticks or tildes.
-fn fence_delimiter(line: &str) -> Option<(Delimiter, &str)> {
-    let rest = line.trim_start_matches(' ');
-    if line.len() - rest.len() > 3 {
-        return None;
-    }
+/// Returns the block-quote depth, the delimiter, and the text after it.
+/// CommonMark permits a fence inside a block quote and up to three leading
+/// spaces before the delimiter itself.
+fn fence_delimiter(line: &str) -> Option<(usize, Delimiter, &str)> {
+    let (depth, rest) = fence_content(line)?;
     let character = rest.chars().next().filter(|c| *c == '`' || *c == '~')?;
     let length = rest.chars().take_while(|c| *c == character).count();
     if length < 3 {
@@ -283,7 +346,27 @@ fn fence_delimiter(line: &str) -> Option<(Delimiter, &str)> {
     // Delimiters are ASCII, so the run's character count is also its byte
     // length; the checked split keeps the helper free of panicking indexing.
     let (_, trailing) = rest.split_at_checked(length)?;
-    Some((Delimiter { character, length }, trailing))
+    Some((depth, Delimiter { character, length }, trailing))
+}
+
+/// Returns the block-quote depth and the text a fence delimiter would start.
+///
+/// `None` when the content is indented by four or more spaces: such a line is
+/// an indented code block, whose text is literal rather than a fence.
+fn fence_content(line: &str) -> Option<(usize, &str)> {
+    let mut rest = line;
+    let mut depth = 0;
+    loop {
+        let trimmed = rest.trim_start_matches(' ');
+        if rest.len() - trimmed.len() > 3 {
+            return None;
+        }
+        let Some(after_quote) = trimmed.strip_prefix('>') else {
+            return Some((depth, trimmed));
+        };
+        rest = after_quote.strip_prefix(' ').unwrap_or(after_quote);
+        depth += 1;
+    }
 }
 
 /// Returns the identifier when `line` is a `tested-example` marker.
