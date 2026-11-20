@@ -481,7 +481,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   seven gates: `check-fmt` (1 s), `lint` (16 s), `typecheck` (4 s), `test` (33
   s, 314/314 plus 27 doctests), `markdownlint` (4 s), `nixie` (1 s), and
   `spelling` (2 s); logs
-  `/tmp/gate6-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
+  `/tmp/gate6-*-skyjoust-0-1-2-bevy-harness-public-api.out`. The committed
+  tree, including this record, passed the same seven gates again; logs
+  `/tmp/gate7-*-skyjoust-0-1-2-bevy-harness-public-api.out`. A fourth CLI
+  review of `66dcae6` (347 s, 3 files, exit 0) reported no verified findings
+  and one unverified concern: a fence inside a CommonMark block quote escapes
+  the checker. A probe showed the concern is real, because rustdoc compiles a
+  block-quoted Rust fence as a doctest, so `fence_delimiter` now looks through
+  block-quote prefixes and records the opener's depth; only a delimiter at the
+  same depth closes a fence, keeping a quoted line inside a top-level fence as
+  content. A seeded fault appended an unmarked `> ~~~toml` block, which failed
+  with the container fence's language in the diagnostic (log
+  `/tmp/fault-n-round4-...-public-api.out`). The final re-gate passed all seven
+  gates: `check-fmt` (1 s), `lint` (5 s), `typecheck` (1 s), `test` (32 s,
+  317/317 plus 27 doctests), `markdownlint` (3 s), `nixie` (<1 s), and
+  `spelling` (1 s); logs
+  `/tmp/gate8-*-skyjoust-0-1-2-bevy-harness-public-api.out`.
 
 ## Surprises & discoveries
 
@@ -604,6 +619,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   unmarked tilde-delimited block pass. Impact: `src/guide_tests.rs` now checks
   every fence and recognizes both CommonMark fence forms, and every fence in
   `docs/users-guide.md` carries a marker.
+- Observation (2026-11-20, EP-M5 review): CommonMark permits a fenced block
+  inside a block quote, and rustdoc compiles a block-quoted Rust fence as a
+  doctest; a probe fence prefixed with `>` ran and failed on its seeded
+  assertion. Impact: a checker that reads only top-level fences would miss a
+  compiled but unmarked example. `src/guide_tests.rs` now strips block-quote
+  prefixes and tracks the opener's depth, so a delimiter closes only a fence at
+  the same depth and quoted lines inside a top-level fence stay content.
 
 ## Decision log
 
@@ -1836,3 +1858,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   CommonMark tilde and indented fence forms. Each repair was proven by a seeded
   fault, and every re-gate passed all seven gates. No requirement, signature,
   tolerance, or milestone changed.
+- Revision 7, 2026-11-20: a fourth review round closed the last fence-checker
+  gap. CommonMark permits fences inside block quotes, and a probe confirmed
+  rustdoc compiles a block-quoted Rust fence as a doctest, so the parser now
+  looks through block-quote prefixes and matches closing delimiters at the
+  opener's depth. Three regression tests cover an unmarked quoted fence, a
+  marker above a quoted fence, and a quoted delimiter inside a top-level fence;
+  a seeded fault and a fresh seven-gate run are recorded in `Progress`. No
+  requirement, signature, tolerance, or milestone changed.
