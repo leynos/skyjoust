@@ -70,6 +70,9 @@ impl Containers {
     /// The identity of the innermost open container, or zero at the top level.
     pub(super) fn innermost(&self) -> usize { self.entries.last().map_or(0, |entry| entry.id) }
 
+    /// Container identities open at the current line, outermost first.
+    pub(super) fn path(&self) -> Vec<usize> { self.entries.iter().map(|entry| entry.id).collect() }
+
     pub(super) fn quote_depth(&self) -> usize {
         self.entries
             .iter()

@@ -717,6 +717,44 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   fixed by extracting `drop_guarded` rather than suppressing the rule. Both
   files now score 10.00 and the focused suite still passes 93/93 with 18/18
   doctests.
+- [x] (2026-11-21) Revision 15 completeness-assessment repair: the follow-up
+  assessment reply `7054801959` (base `2268c56`, head `9b52da6`, plan Revision
+  15) returned four findings. The first, second, and fourth are repaired; the
+  third is escalated with a tracking issue.
+  - Finding 1 (valid, fixed): the normal path released the scenario, and the
+    configure-error path released the partially configured application, outside
+    any catch boundary, so a panicking resource destructor escaped `run` or
+    replaced the promised configure error. `finish_run` now releases the
+    scenario through `drop_scenario_guarded`, and
+    `drop_app_after_configure_error` releases the failed application before the
+    wrapped error is returned. The runner's value or the configure/cleanup
+    error stays the primary outcome; a drop panic is recorded as a secondary
+    `tracing::error!`. Two new rows in
+    `src/harness_tests/panics/release.rs` pin both paths.
+  - Finding 2 (valid, fixed): a pending marker stored no container identity, so
+    a marker at the end of one list item attached to the fence in the next
+    item. `PendingMarker` now stores the container path, and a fence accepts
+    the marker only when its own path starts with that path; a sibling
+    container produces a diagnostic instead.
+    `a_marker_in_a_sibling_list_item_is_rejected` pins the rule while the
+    top-level-marker-before-quote and marker-inside-list positives still pass.
+  - Finding 3 (escalated): exercising the guide's `sh`, `json`, `toml`, and
+    `plaintext` fences needs either binaries owned by other workspace packages
+    (including a long-running server) or new parsing dependencies, both of
+    which the plan's `Dependencies` tolerance and `EP-REQ-5` forbid. The
+    deviation is recorded in `Decision log` and tracked as issue #206.
+  - Finding 4 (valid, fixed): the `BevyHarness` rustdoc example now implements
+    only `configure`, as the plan's obligation requires; the cleanup assertion
+    remains in `a_returning_runner_result_is_propagated_and_cleanup_runs_once`.
+  Seeded-fault evidence, each restored byte-for-byte (`harness.rs` sha256
+  `290a69ba…`, `parser.rs` sha256 `2afe93ab…`): removing both guarded releases
+  makes the two release rows fail with the raw `drop boom` panic escaping
+  `run`, while the two pre-existing leak rows still pass; removing the
+  container-path check makes the sibling-marker row fail on `expect_err` while
+  all 18 other parser rows pass. The release rows moved to
+  `src/harness_tests/panics/release.rs` because `panics.rs` reached 440 lines.
+  Focused evidence: the crate suite passed 79/79 library tests, 4 extraction, 7
+  scenario, 1 macro UI, 5 property tests, and 18/18 doctests.
 
 ## Surprises & discoveries
 
@@ -930,6 +968,21 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   content rather than rejected, and the fence behind it was never seen. Impact:
   every prefix strip in `FenceParser::scan` now re-runs the rejection on the
   remaining fragment, so a tab cannot hide a fence at any nesting depth.
+- Observation (2026-11-21, Revision 15 assessment): the guarded drops covered
+  only the panic routes. The returning routes — a successful run and a
+  configure error — released the application unguarded, because the contract
+  was phrased around panics. A resource destructor is caller-supplied code on
+  every route, not only while a panic unwinds. Impact: `finish_run` and
+  `drop_app_after_configure_error` treat release on every route as the same
+  hazard, and the release rows sit beside the panic rows in
+  `harness_tests/panics/release.rs`.
+- Observation (2026-11-21, Revision 15 assessment): a marker needs its
+  container's identity, not just a depth. Two sibling list items share both
+  depth and indentation, so any rule that compares only those numbers attaches
+  the first item's marker to the second item's fence. Impact: `PendingMarker`
+  carries the container path, and attachment requires the fence's path to start
+  with it; an ancestor marker is still accepted, which keeps the documented
+  top-level-marker-before-quote example working.
 
 ## Decision log
 
@@ -1210,6 +1263,48 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   helper taking those three inputs removes the duplication rather than hiding
   it; `cs check` then scores both files 10.00. Date/Author: 2026-11-21,
   implementer acting on the delta.
+- Decision (2026-11-21, Revision 15 assessment): guard the application release
+  on the returning paths as well as the panic routes, and give the primary
+  outcome precedence. Rationale: a profile-installed resource destructor is
+  caller-supplied code whichever route releases the application; on the normal
+  path an escaping destructor panic reaches the caller in place of the runner's
+  value, and on the configure-error path it replaces the wrapped configure
+  error. The runner's value, the cleanup error, and the configure error are
+  outcomes the harness has already produced, so each remains primary and a drop
+  panic becomes a secondary `tracing::error!` tagged with the phase of the
+  release (`cleanup` for the scenario, `configure` for the failed application).
+  Evidence: removing both guarded releases fails the two new release rows with
+  the raw `drop boom` payload while the earlier leak rows still pass.
+  Date/Author: 2026-11-21, implementer acting on the assessment.
+- Decision (2026-11-21, Revision 15 assessment): associate a pending marker
+  with the container path it was found in, and accept it only for a fence in
+  the same container or a descendant. Rationale: a depth count cannot
+  distinguish the list item that held the marker from its sibling, so the
+  previous rule attributed one example's identifier to another example's code.
+  An ancestor prefix keeps the two documented positives — a top-level marker
+  introducing a block-quoted fence, and a marker above a fence inside one list
+  item — while rejecting the sibling case. Evidence: removing the check fails
+  the sibling row and leaves the 18 other parser rows, including both
+  positives, passing. Date/Author: 2026-11-21, implementer acting on the
+  assessment.
+- Decision (2026-11-21, Revision 15 assessment): escalate the non-Rust guide
+  examples rather than executing them in this crate. Rationale: the `sh` fences
+  invoke binaries owned by other workspace packages and start a long-running
+  server, and the `json`, `toml`, and `plaintext` fences need parsers or
+  command output. Both routes breach the plan's `Dependencies` tolerance or
+  `EP-REQ-5`'s no-Skyjoust-dependency rule, so the choice belongs to the
+  maintainer; issue #206 records the gap, the constraints, and three remedies.
+  The Rust fences remain compiled and executed from the published guide, and
+  every fence keeps its marker enforcement. Date/Author: 2026-11-21,
+  implementer acting on the assessment.
+- Decision (2026-11-21, Revision 15 assessment): move the release rows to
+  `crates/rstest-bdd-harness-bevy/src/harness_tests/panics/release.rs`.
+  Rationale: `panics.rs` reached 440 lines when the two new rows were added,
+  beyond the 400-line limit; the release rows answer a different question —
+  when the application is released and how a panicking destructor is reported —
+  from the phase-tagged panic rows, so a child module follows the existing
+  `hostile` split rather than compressing the new coverage. Date/Author:
+  2026-11-21, implementer acting on the assessment.
 
 ## Outcomes & retrospective
 
@@ -1570,6 +1665,17 @@ their `phase` and `scenario_name` fields, installed with
   `src/harness_tests/panics.rs` and the profiles above. Non-vacuity: removing
   `std::mem::forget` from `transcribe_and_forget` makes all three fail with
   `payload drop boom`, exit 101; restoring it passes all three.
+- Obligation: EP-INV-3 on the returning paths. Method: two `#[gtest]` rows in
+  `src/harness_tests/panics/release.rs` whose profile installs `PanicOnDrop`;
+  one runner returns a value and one configure hook returns an error. Each
+  asserts the primary outcome survives (the runner's value, or the wrapped
+  configure error), the drop text never appears in it, and exactly one secondary
+  `tracing::error!` record carries the phase of the release. Artefacts:
+  `src/harness_tests/panics/release.rs` and the `SucceedsWithDrop` and
+  `ConfigureFailsWithDrop` profiles. Non-vacuity: removing both guarded
+  releases makes each row fail with the raw `drop boom` panic escaping `run`,
+  while the two pre-existing leak rows still pass, so the new rows detect the
+  defect rather than repeating older coverage.
 - Obligation: the cleanup-error half of L1 when a step panic must survive. A
   profile error is caller-supplied, so its `Display` and its `Drop` are both
   hostile code, and one error may host both. Method: three `#[gtest]` cases
@@ -1603,6 +1709,15 @@ their `phase` and `scenario_name` fields, installed with
   for a fence in a list inside a block quote, whose prefixes must be stripped
   quote-first. Non-vacuity: ordering the stack walk items-first makes the row
   fail with zero recorded fences, reproducing the reported miss.
+- Obligation: marker attachment follows container ancestry. Method: a named
+  case whose marker sits in one list item and whose fence sits in the next,
+  asserting the parser returns the container-mismatch diagnostic; the two
+  positive cases (a top-level marker before a block-quoted fence, and a marker
+  above a list item's fence) must keep passing. Artefacts:
+  `src/guide_tests/parser/tests.rs` and `src/guide_tests/parser.rs`.
+  Non-vacuity: removing the container-path check makes the new case fail on
+  `expect_err` while all 18 other parser rows pass, so the positives do not
+  cover the sibling hole.
 - Obligation: EP-INV-7 for the nested accessor pair. Method: a `#[gtest]` that
   nests `with_app` inside `with_app` and asserts the crate's borrow prefix.
   Non-vacuity: replacing `try_borrow_mut` with `borrow_mut` fails the case on
@@ -1700,12 +1815,17 @@ crates/rstest-bdd-harness-bevy/
 |   |-- policy_tests.rs
 |   |-- context.rs         BevyScenario
 |   |-- context_tests.rs
-|   |-- harness.rs         BevyHarness<P>, HarnessAdapter impl, phase helpers,
-|   |                      ProfileHookError
-|   |-- harness_tests.rs   lifecycle table, leak, finalize, Send/Sync checks
+|   |-- harness.rs         BevyHarness<P>, HarnessAdapter impl, configure and
+|   |                      step orchestration, cleanup outcome
+|   |-- harness/failure.rs panic re-raising, guarded drops, error wrapping
+|   |-- harness_tests.rs   lifecycle table, finalize, Send/Sync checks
 |   |-- harness_tests/
 |   |   |-- profiles.rs    tripwire and recording test profiles
-|   |   `-- recorder.rs    handwritten tracing subscriber for tests
+|   |   |-- recorder.rs    handwritten tracing subscriber for tests
+|   |   |-- panics.rs      phase-tagged panic rows
+|   |   `-- panics/
+|   |       |-- hostile.rs hostile payload and error rows
+|   |       `-- release.rs release ordering and guarded-release rows
 |   |-- panic.rs           pure: Phase, payload_text, scenario_panic_message
 |   |-- panic_tests.rs
 |   `-- snapshots/         insta snapshots of the augmented message
@@ -2417,3 +2537,20 @@ Downstream consumers need direct development dependencies on `rstest`,
   requirement, signature, or milestone changed, and the maintainer's decision
   on the size overage remains outstanding; the Revision 15 head `65409a7`
   measures 40 non-ExecPlan paths and 4,964 net added lines.
+- Revision 16, 2026-11-21: the follow-up assessment reply `7054801959`
+  verified the Revision 15 tree (head `9b52da6`) and returned four findings.
+  Three are repaired. The harness now guards the application release on the
+  returning paths as well as the panic routes, so a destructor panic can no
+  longer replace the runner's value or a configure error; a pending marker is
+  bound to its container path, so a marker at the end of one list item can no
+  longer label the next item's fence; and the `BevyHarness` rustdoc example
+  implements only `configure`. The fourth finding, exercising the guide's
+  non-Rust fences, is escalated to issue #206 because it requires either
+  another package's binaries or dependencies the plan forbids; `Decision log`
+  records the deviation. Both behavioural repairs were proven by seeded faults
+  restored byte-for-byte, and the release rows moved to
+  `harness_tests/panics/release.rs` to keep `panics.rs` inside the 400-line
+  limit. `Progress`, `Surprises & discoveries`, `Decision log`,
+  `Verification plan`, and `Artefacts and notes` carry the details; no
+  requirement, signature, or milestone changed, and the maintainer's decision
+  on the size overage remains outstanding.

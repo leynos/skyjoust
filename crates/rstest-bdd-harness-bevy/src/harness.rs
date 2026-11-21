@@ -35,7 +35,9 @@ use crate::{
 mod failure;
 
 use failure::{
-    drop_app_guarded,
+    drop_app_after_configure_error,
+    drop_app_after_configure_panic,
+    drop_scenario_guarded,
     raise_cleanup_panic,
     raise_configure_panic,
     raise_step_panic,
@@ -53,12 +55,11 @@ use failure::{
 /// # Examples
 ///
 /// A downstream crate runs a hand-built request against its own profile to
-/// unit-test the configuration and clean-up its generated scenario tests will
-/// use.
+/// exercise the configuration its generated scenario tests will use. The
+/// profile supplies only `configure`; the default cleanup hook is a no-op, and
+/// the lifecycle tests cover a profile that overrides it.
 ///
 /// ```
-/// use std::sync::atomic::{AtomicUsize, Ordering};
-///
 /// use bevy::{app::App, prelude::MinimalPlugins};
 /// use rstest_bdd_harness::{
 ///     HarnessAdapter,
@@ -69,18 +70,11 @@ use failure::{
 /// };
 /// use rstest_bdd_harness_bevy::{BevyHarness, BevyProfile, BevyScenario};
 ///
-/// static CLEANUPS: AtomicUsize = AtomicUsize::new(0);
-///
 /// enum DemoProfile {}
 ///
 /// impl BevyProfile for DemoProfile {
 ///     fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
 ///         app.add_plugins(MinimalPlugins);
-///         Ok(())
-///     }
-///
-///     fn cleanup(_scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
-///         CLEANUPS.fetch_add(1, Ordering::Relaxed);
 ///         Ok(())
 ///     }
 /// }
@@ -96,11 +90,6 @@ use failure::{
 ///     .run(request)
 ///     .expect("the demo profile configures");
 /// assert_eq!(frames, 1, "one update advances exactly one frame");
-/// assert_eq!(
-///     CLEANUPS.load(Ordering::Relaxed),
-///     1,
-///     "the profile's clean-up runs once",
-/// );
 /// ```
 pub struct BevyHarness<P = MinimalBevyProfile> {
     profile: PhantomData<fn() -> P>,
@@ -171,16 +160,29 @@ impl<P: BevyProfile> HarnessAdapter for BevyHarness<P> {
             }
         };
         match run_steps(runner, &scenario) {
-            StepOutcome::Returned(value) => match finish_scenario::<P>(&scenario) {
-                CleanupOutcome::Completed => Ok(value),
-                CleanupOutcome::Failed(error) => Err(error),
-                CleanupOutcome::Panicked(payload) => {
-                    raise_cleanup_panic::<P>(payload, &metadata, scenario)
-                }
-            },
+            StepOutcome::Returned(value) => finish_run::<P, T>(value, scenario, &metadata),
             StepOutcome::Panicked(payload) => raise_step_panic::<P>(payload, &metadata, scenario),
         }
     }
+}
+
+/// Finishes a returning run: cleanup, then the guarded release of the scenario.
+///
+/// The runner's value or the cleanup error is the primary result. Releasing
+/// the scenario afterwards runs profile-installed destructors, and a panic
+/// there must become a secondary record rather than replace that result.
+fn finish_run<P: BevyProfile, T>(
+    value: T,
+    scenario: BevyScenario,
+    metadata: &ScenarioMetadata,
+) -> HarnessResult<T> {
+    let result = match finish_scenario::<P>(&scenario) {
+        CleanupOutcome::Completed => Ok(value),
+        CleanupOutcome::Failed(error) => Err(error),
+        CleanupOutcome::Panicked(payload) => raise_cleanup_panic::<P>(payload, metadata, scenario),
+    };
+    drop_scenario_guarded::<P>(scenario, metadata);
+    result
 }
 
 /// Records the scenario identity before configuration can fail.
@@ -205,20 +207,24 @@ enum ConfigureFailure {
 /// Builds the application through the profile and wraps it for the runner.
 ///
 /// The `App` is created before the catch boundary so a configure panic still
-/// leaves the application owned here; it is dropped under a guard on that path
-/// rather than while the original panic unwinds.
+/// leaves the application owned here. Both failure paths release it under a
+/// guard: a panicking destructor must neither unwind while the original panic
+/// is unwinding nor replace the profile's own error.
 fn configure_app<P: BevyProfile>(
     metadata: &ScenarioMetadata,
 ) -> Result<BevyScenario, ConfigureFailure> {
     let mut app = App::new();
     match panic::catch_unwind(AssertUnwindSafe(|| P::configure(&mut app, metadata))) {
         Ok(Ok(())) => Ok(BevyScenario::new(app, metadata.clone())),
-        Ok(Err(error)) => Err(ConfigureFailure::Failed(wrap_profile_error(
-            Phase::Configure,
-            error,
-        ))),
+        Ok(Err(error)) => {
+            drop_app_after_configure_error::<P>(app, metadata);
+            Err(ConfigureFailure::Failed(wrap_profile_error(
+                Phase::Configure,
+                error,
+            )))
+        }
         Err(payload) => {
-            drop_app_guarded::<P>(app, metadata);
+            drop_app_after_configure_panic::<P>(app, metadata);
             Err(ConfigureFailure::Panicked(payload))
         }
     }

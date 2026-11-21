@@ -118,7 +118,12 @@ fn message_for<P>(phase: Phase, payload: &(dyn Any + Send), metadata: &ScenarioM
 }
 
 /// Drops the last scenario handle under a guard, recording a panicking drop.
-fn drop_scenario_guarded<P>(scenario: BevyScenario, metadata: &ScenarioMetadata) {
+///
+/// Every route that releases the harness's own handle goes through this
+/// function: the normal path after cleanup, a step panic, and a cleanup panic.
+/// The scenario owns the application, so its release runs profile-installed
+/// destructors, which are caller-supplied code.
+pub(super) fn drop_scenario_guarded<P>(scenario: BevyScenario, metadata: &ScenarioMetadata) {
     drop_guarded::<P, _>(
         scenario,
         Phase::Cleanup,
@@ -127,8 +132,8 @@ fn drop_scenario_guarded<P>(scenario: BevyScenario, metadata: &ScenarioMetadata)
     );
 }
 
-/// Drops the partially configured application under a guard.
-pub(super) fn drop_app_guarded<P>(app: App, metadata: &ScenarioMetadata) {
+/// Drops a partially configured application after the configure hook panicked.
+pub(super) fn drop_app_after_configure_panic<P>(app: App, metadata: &ScenarioMetadata) {
     drop_guarded::<P, _>(
         app,
         Phase::Configure,
@@ -137,11 +142,26 @@ pub(super) fn drop_app_guarded<P>(app: App, metadata: &ScenarioMetadata) {
     );
 }
 
+/// Drops a partially configured application after the configure hook failed.
+///
+/// The profile's own error remains the reported failure; a destructor that
+/// panics while the application is released is recorded as a secondary
+/// diagnostic so it cannot replace that error.
+pub(super) fn drop_app_after_configure_error<P>(app: App, metadata: &ScenarioMetadata) {
+    drop_guarded::<P, _>(
+        app,
+        Phase::Configure,
+        "Bevy application drop panicked after a configure error",
+        metadata,
+    );
+}
+
 /// Drops `value` under a guard, recording a panicking destructor.
 ///
-/// The destructor is caller-supplied code, so running it unguarded during an
+/// The destructor is caller-supplied code. Running it unguarded during an
 /// existing unwind would abort the process instead of reporting the scenario
-/// failure.
+/// failure, and running it unguarded on a returning path would let a
+/// destructor panic replace an outcome the harness had already produced.
 fn drop_guarded<P, T>(value: T, phase: Phase, summary: &str, metadata: &ScenarioMetadata) {
     if let Err(payload) = panic::catch_unwind(AssertUnwindSafe(move || drop(value))) {
         let text = transcribe_and_forget(payload);

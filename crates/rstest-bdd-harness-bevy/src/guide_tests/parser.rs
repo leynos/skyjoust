@@ -4,9 +4,11 @@
 //! tilde, indented by up to three spaces relative to their container, at the
 //! top level, inside block quotes, and inside list items. It also enforces the
 //! documentation style guide's marker placement: every fence must be preceded
-//! by a `tested-example` marker on the line immediately above it at the same
-//! container level, blank lines may separate the two, prose may not, and a
-//! contained fence must stay contained until it closes. A shallower line,
+//! by a `tested-example` marker on the line immediately above it, in the same
+//! container or one enclosing it. A marker in a sibling container—typically
+//! the previous list item—does not carry over. Blank lines may separate the
+//! two, prose may not, and a contained fence must stay contained until it
+//! closes. A shallower line,
 //! including a blank one, ends a block quote; a dedented line ends a list item
 //! and leaves its fence unterminated.
 
@@ -69,6 +71,18 @@ pub(super) fn parse_fences(text: &str) -> Result<Vec<Fence<'_>>, String> {
     FenceParser::default().parse(text)
 }
 
+/// A marker waiting for the fence it introduces.
+struct PendingMarker<'a> {
+    identifier: &'a str,
+    line_number: usize,
+    /// Container identities enclosing the marker, outermost first.
+    ///
+    /// A fence may inherit the marker only when this path is a prefix of the
+    /// fence's own container path. A marker in a sibling list item shares the
+    /// marker's depth but not its identity, so it must not label the fence.
+    path: Vec<usize>,
+}
+
 /// Incremental parser state for [`parse_fences`].
 ///
 /// The state is a struct rather than a group of locals so each transition owns
@@ -76,7 +90,7 @@ pub(super) fn parse_fences(text: &str) -> Result<Vec<Fence<'_>>, String> {
 #[derive(Default)]
 struct FenceParser<'a> {
     fences: Vec<Fence<'a>>,
-    pending_marker: Option<(&'a str, usize)>,
+    pending_marker: Option<PendingMarker<'a>>,
     open: Option<OpenFence<'a>>,
     containers: Containers,
 }
@@ -93,7 +107,8 @@ impl<'a> FenceParser<'a> {
     fn visit(&mut self, line: &'a str, line_number: usize) -> Result<(), String> {
         let scan = self.scan(line)?;
         if let Some(identifier) = scan.content.and_then(marker_identifier) {
-            return self.open_marker(identifier, line_number);
+            let path = self.containers.path();
+            return self.open_marker(identifier, line_number, path);
         }
         // Containment is checked before delimiter processing: a shallower
         // delimiter line ends the container, so it must not be mistaken for a
@@ -114,7 +129,7 @@ impl<'a> FenceParser<'a> {
                 ));
             }
         }
-        if self.fence_line(&scan) {
+        if self.fence_line(&scan, line_number)? {
             return Ok(());
         }
         if line.trim().is_empty() {
@@ -123,24 +138,33 @@ impl<'a> FenceParser<'a> {
         self.reject_dangling_marker()
     }
 
-    fn open_marker(&mut self, identifier: &'a str, line_number: usize) -> Result<(), String> {
+    fn open_marker(
+        &mut self,
+        identifier: &'a str,
+        line_number: usize,
+        path: Vec<usize>,
+    ) -> Result<(), String> {
         if self.open.is_some() {
             return Err(format!(
                 "marker on line {line_number} appears inside a fenced block"
             ));
         }
         self.reject_dangling_marker()?;
-        self.pending_marker = Some((identifier, line_number));
+        self.pending_marker = Some(PendingMarker {
+            identifier,
+            line_number,
+            path,
+        });
         Ok(())
     }
 
     /// Applies a fence opener or closer, reporting whether `line` was one.
-    fn fence_line(&mut self, scan: &ContainerScan<'a>) -> bool {
+    fn fence_line(&mut self, scan: &ContainerScan<'a>, line_number: usize) -> Result<bool, String> {
         let Some(content) = scan.content else {
-            return false;
+            return Ok(false);
         };
         let Some((delimiter, trailing)) = fence_delimiter(content) else {
-            return false;
+            return Ok(false);
         };
         match self.open.take() {
             Some(open) if closes_open(scan, &open, delimiter, trailing) => {
@@ -151,17 +175,38 @@ impl<'a> FenceParser<'a> {
             }
             Some(open) => self.open = Some(open),
             None => {
+                let marker = self.take_marker(line_number)?;
                 self.open = Some(OpenFence {
                     container: scan.container,
                     quote_depth: scan.quote_depth,
                     list_depth: scan.list_depth,
                     delimiter,
                     language: trailing.trim(),
-                    marker: self.pending_marker.take().map(|(identifier, _)| identifier),
+                    marker,
                 });
             }
         }
-        true
+        Ok(true)
+    }
+
+    /// Claims the pending marker for a fence opening in the current containers.
+    ///
+    /// A marker in a sibling container belongs to another block—often the
+    /// previous list item—so associating it here would attribute one example's
+    /// identifier to another example's code. A marker in an enclosing container
+    /// is still accepted: a top-level marker introduces a block-quoted example
+    /// in the same way it introduces a top-level one.
+    fn take_marker(&mut self, line_number: usize) -> Result<Option<&'a str>, String> {
+        let fence_path = self.containers.path();
+        match self.pending_marker.take() {
+            None => Ok(None),
+            Some(pending) if fence_path.starts_with(&pending.path) => Ok(Some(pending.identifier)),
+            Some(pending) => Err(format!(
+                "the marker on line {} is not in an enclosing container of the fenced block on \
+                 line {line_number}",
+                pending.line_number
+            )),
+        }
     }
 
     /// Strips the containers around `line` and records container openings.
@@ -213,12 +258,12 @@ impl<'a> FenceParser<'a> {
     }
 
     fn reject_dangling_marker(&self) -> Result<(), String> {
-        match self.pending_marker {
-            Some((_, earlier)) => Err(format!(
-                "marker on line {earlier} is not followed by a fence"
-            )),
-            None => Ok(()),
-        }
+        self.pending_marker.as_ref().map_or(Ok(()), |pending| {
+            Err(format!(
+                "marker on line {} is not followed by a fence",
+                pending.line_number
+            ))
+        })
     }
 
     fn finish(self) -> Result<Vec<Fence<'a>>, String> {
