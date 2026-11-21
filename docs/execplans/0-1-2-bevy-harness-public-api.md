@@ -205,8 +205,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   non-ExecPlan paths and 5,146 net added lines (31 paths and 4,435 net added
   lines counting only code and tests), the extra path being
   `harness_tests/panics/release.rs`, which keeps `panics.rs` inside the
-  400-line limit. `Decision log` records the escalation and its disposition;
-  this bullet does not claim a separate numeric approval.
+  400-line limit. The Revision 16 assessment repair head `fc9766f` measures the
+  same 41 non-ExecPlan paths and 5,333 net added lines (31 paths and 4,622 net
+  added lines counting only code and tests); the four new regression rows and
+  two guard helpers add lines inside existing paths, so no path count changed.
+  `Decision log` records the escalation and its disposition; this bullet does
+  not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -2641,12 +2645,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   limit. `Progress`, `Surprises & discoveries`, `Decision log`,
   `Verification plan`, and `Artefacts and notes` carry the details; no
   requirement, signature, or milestone changed, and the maintainer's decision
-  on the size overage remains outstanding. The repair head `55e8c68` measures
-  41 non-ExecPlan paths and 5,146 net added lines. All seven commit gates
-  passed against the repair tree: `make lint` re-ran green after the
-  `clippy::option_if_let_else` fix, and the other six gates re-ran afterwards
-  in order. CodeScene reports 10.00 for every touched file and no issue in
-  `cs delta 9b52da6`.
+  on the size overage remains outstanding. All seven commit gates passed
+  against the repair tree, sequentially: `check-fmt`, `lint` (interrogate 100%,
+  Rustdoc warnings denied, Clippy `-D warnings`, Whitaker Dylint), `typecheck`,
+  `test` (345 nextest tests passed, 0 skipped; doctests passed in all four
+  suites), `markdownlint`, `nixie`, and `spelling`. The repair head `fc9766f`
+  measures 41 non-ExecPlan paths and 5,333 net added lines. The repair head
+  `55e8c68` measures 41 non-ExecPlan paths and 5,146 net added lines. All seven
+  commit gates passed against the repair tree: `make lint` re-ran green after
+  the `clippy::option_if_let_else` fix, and the other six gates re-ran
+  afterwards in order. CodeScene reports 10.00 for every touched file and no
+  issue in `cs delta 9b52da6`.
 - Revision 17, 2026-11-21: the follow-up assessment reply `7055999055`
   verified the Revision 16 tree (head `b0909fc`) and returned one finding,
   which is valid and repaired. The harness now releases the runner's value and
