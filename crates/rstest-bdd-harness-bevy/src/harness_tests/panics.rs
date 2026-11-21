@@ -4,22 +4,18 @@
 //! their own phase tags and without error records. Rows 6 to 8 prove that a
 //! step panic is re-raised with phase `steps`, that cleanup still runs exactly
 //! once, and that a cleanup failure becomes a `tracing::error!` record rather
-//! than masking the step panic. The leak row proves the application is dropped
-//! before the panic reaches the caller. The hostile-payload rows, where a
-//! secondary payload's own destructor panics, live in [`hostile`].
+//! than masking the step panic. The release rows, which prove when the
+//! application is dropped and how a panicking destructor is recorded, live in
+//! [`release`]. The hostile-payload rows, where a secondary payload's own
+//! destructor panics, live in [`hostile`].
 
 use std::{
     any::Any,
     cell::RefCell,
     panic::{AssertUnwindSafe, catch_unwind, panic_any},
     rc::Rc,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
 };
 
-use bevy::ecs::resource::Resource;
 use googletest::prelude::*;
 use rstest::rstest;
 use rstest_bdd_harness::{HarnessAdapter, ScenarioRunRequest, ScenarioRunner};
@@ -43,13 +39,8 @@ use crate::{BevyHarness, BevyProfile, BevyScenario};
 #[path = "panics/hostile.rs"]
 mod hostile;
 
-/// Resource whose drop records that the application was released.
-#[derive(Resource)]
-struct DropFlag(Arc<AtomicBool>);
-
-impl Drop for DropFlag {
-    fn drop(&mut self) { self.0.store(true, Ordering::SeqCst); }
-}
+#[path = "panics/release.rs"]
+mod release;
 
 /// Downcasts the re-raised payload to the contract's `String` message.
 fn panic_text(payload: &(dyn Any + Send)) -> &str {
@@ -343,56 +334,4 @@ fn a_panicking_drop_after_a_configure_panic_keeps_the_configure_phase() {
     expect_phase_message(&message, &expected);
     expect_that!(*runner_called.borrow(), eq(false));
     expect_drop_record(&message, &events, 0, RecordedPhase::Configure);
-}
-
-/// Builds a request whose runner inserts a [`DropFlag`] and calls `runner`.
-///
-/// The runner asserts the application is still alive before it hands control
-/// to `runner`, so each test proves the flag it checks afterwards was set by
-/// the harness rather than by the fixture.
-fn request_with_drop_flag(
-    flag: Arc<AtomicBool>,
-    runner: impl FnOnce(BevyScenario) -> u32 + 'static,
-) -> ScenarioRunRequest<'static, BevyScenario, u32> {
-    ScenarioRunRequest::new(
-        metadata(),
-        ScenarioRunner::new(move |scenario: BevyScenario| -> u32 {
-            scenario.with_world(|world| world.insert_resource(DropFlag(Arc::clone(&flag))));
-            assert!(
-                !flag.load(Ordering::SeqCst),
-                "the application must still be alive inside the runner",
-            );
-            runner(scenario)
-        }),
-    )
-}
-
-#[gtest]
-fn the_application_is_dropped_before_a_step_panic_reaches_the_caller() {
-    let dropped = Arc::new(AtomicBool::new(false));
-    let harness = BevyHarness::<Recording>::new();
-    let request = request_with_drop_flag(Arc::clone(&dropped), |_scenario| -> u32 {
-        panic_any("step boom")
-    });
-
-    let (outcome, events) =
-        capture_errors(|| catch_unwind(AssertUnwindSafe(|| harness.run(request))));
-
-    let _payload = outcome.expect_err("the step panic must reach the caller");
-    expect_that!(dropped.load(Ordering::SeqCst), eq(true));
-    expect_that!(events.len(), eq(1));
-}
-
-#[gtest]
-fn the_application_is_dropped_before_the_runner_result_returns() {
-    let dropped = Arc::new(AtomicBool::new(false));
-    let harness = BevyHarness::<Recording>::new();
-    let request = request_with_drop_flag(Arc::clone(&dropped), |_scenario| 41);
-
-    let (result, events) = capture_errors(|| harness.run(request));
-    let value = result.expect("the recording profile must succeed");
-
-    expect_that!(value, eq(41));
-    expect_that!(dropped.load(Ordering::SeqCst), eq(true));
-    expect_that!(events.len(), eq(0));
 }

@@ -113,6 +113,31 @@ impl BevyProfile for ConfigurePanicsWithDrop {
     }
 }
 
+/// Profile whose configure hook installs [`PanicOnDrop`] and then fails.
+pub enum ConfigureFailsWithDrop {}
+
+impl BevyProfile for ConfigureFailsWithDrop {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.insert_resource(PanicOnDrop);
+        Err(HarnessError::RuntimeBuildFailed(std::io::Error::other(
+            "configure sentinel",
+        )))
+    }
+}
+
+/// Profile whose configure hook installs [`PanicOnDrop`] and then succeeds.
+///
+/// The runner returns normally, so the application is released on the harness's
+/// success path rather than while a panic unwinds.
+pub enum SucceedsWithDrop {}
+
+impl BevyProfile for SucceedsWithDrop {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.insert_resource(PanicOnDrop);
+        Ok(())
+    }
+}
+
 /// Profile whose configure hook installs a hostile drop and then panics.
 pub enum ConfigurePanicsWithHostileDrop {}
 

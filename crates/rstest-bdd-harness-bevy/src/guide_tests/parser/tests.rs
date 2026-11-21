@@ -4,8 +4,9 @@
 //! up-to-three-space indentation, closing-delimiter matching, block-quote
 //! nesting depth, list-item content indentation, tab padding after a quote
 //! marker, the rejection of a tab exposed as indentation by a container
-//! prefix, marker attachment, and the end of a contained block. The guide-wide
-//! assertions live in the parent module.
+//! prefix, marker attachment, the rejection of a marker in a sibling
+//! container, and the end of a contained block. The guide-wide assertions live
+//! in the parent module.
 
 use rstest::rstest;
 
@@ -85,6 +86,18 @@ fn marker_above_a_contained_fence_is_attached(
         fence.marker,
         Some(expected),
         "{description} must be attached to its fence"
+    );
+}
+
+#[test]
+fn a_marker_in_a_sibling_list_item_is_rejected() {
+    let error =
+        parse_fences("- <!-- tested-example: misplaced -->\n- ```rust\n  let value = 1;\n  ```\n")
+            .expect_err("a marker in a sibling item must not label the next item's fence");
+
+    assert!(
+        error.contains("enclosing container"),
+        "the error must explain the container mismatch, got {error:?}"
     );
 }
 
