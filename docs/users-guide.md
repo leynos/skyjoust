@@ -14,6 +14,8 @@ replay tests, and the bounded Stateright depth-first search (DFS) property
 check. It should run before changing the state graph, action set, trace format,
 or scoring rules.
 
+<!-- tested-example: validator-contract-command -->
+
 ```sh
 cargo test -p skyjoust-stateright-validator
 ```
@@ -27,6 +29,8 @@ causes:
 - a reachability path disappeared after a guard change.
 
 Worked example:
+
+<!-- tested-example: validator-contract-output -->
 
 ```plaintext
 running 1 test
@@ -43,6 +47,8 @@ The Explorer starts an interactive browser view of the bounded interaction
 model. It shows reachable states, enabled actions, invariant failures, and
 counterexample paths.
 
+<!-- tested-example: stateright-explorer-command -->
+
 ```sh
 cargo run -p skyjoust-stateright-validator --example serve_explorer
 ```
@@ -53,6 +59,8 @@ reachable. Counterexample paths list the exact action sequence that violates a
 property.
 
 Worked example:
+
+<!-- tested-example: stateright-explorer-output -->
 
 ```plaintext
 attempting to serve Stateright Explorer at localhost:3000
@@ -68,6 +76,8 @@ The `validate_trace` binary replays a concrete JSON action array against the
 same guards and invariants as the model checker. Standard input carries the
 trace, standard output carries the JSON result, and standard error carries
 optional diagnostics.
+
+<!-- tested-example: trace-validation-command -->
 
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace \
@@ -87,12 +97,16 @@ well-formed JSON but failed the Skyjoust interaction contract.
 
 Worked example:
 
+<!-- tested-example: trace-validation-pipe-command -->
+
 ```sh
 printf '%s\n' '["AssetsLoaded","StartSkirmish","CommitRewards"]' \
   | cargo run -p skyjoust-stateright-validator --bin validate_trace
 ```
 
 Expected result:
+
+<!-- tested-example: trace-validation-result -->
 
 ```json
 {
@@ -168,6 +182,8 @@ Expected result:
 
 Longer traces can raise the replay depth bound:
 
+<!-- tested-example: trace-validation-max-depth-command -->
+
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace -- --max-depth 64 < trace.json
 ```
@@ -175,36 +191,114 @@ cargo run -p skyjoust-stateright-validator --bin validate_trace -- --max-depth 6
 Verbose diagnostics print each replayed action and the final summary to
 standard error:
 
+<!-- tested-example: trace-validation-verbose-command -->
+
 ```sh
 cargo run -p skyjoust-stateright-validator --bin validate_trace -- --verbose < trace.json
 ```
 
 ## 4. Use the headless Bevy test helpers
 
-`rstest-bdd-harness-bevy` provides small helpers for tests that need a headless
-Bevy application. The crate is currently workspace-only (`publish = false`), so
-tests in this workspace's root package use a path development dependency:
+`rstest-bdd-harness-bevy` provides a `rstest-bdd` harness for tests that need a
+headless Bevy application. The crate is currently workspace-only
+(`publish = false`), so tests in this workspace's root package use a path
+development dependency. Add a direct `rstest-bdd-harness` dependency as well:
+the scenario macro uses the base harness API path for non-first-party
+harnesses, and steps need its `StepResult` type.
+
+<!-- tested-example: bevy-harness-dev-dependencies -->
 
 ```toml
 [dev-dependencies]
+rstest-bdd = "0.6.0"
+rstest-bdd-macros = "0.6.0"
+rstest-bdd-harness = "0.6.0"
 rstest-bdd-harness-bevy = { path = "crates/rstest-bdd-harness-bevy" }
 ```
 
-The crate supports Bevy `0.19.1`. Its `add_minimal_plugins` function adds
-Bevy's minimal plugin set to an existing `App`; `minimal_app` creates a fresh
-application with that set already installed. Both avoid window, renderer,
-asset, and audio plugins. The schedule runner does not advance the app for a
-test: call `app.update()` explicitly whenever the scenario should advance.
+The crate supports Bevy `0.20.1`. Select the default minimal profile with
+`harness = BevyHarness`, or a downstream profile through a type alias such as
+`type GameHarness = BevyHarness<GameProfile>;`. A scenario step requests the
+shared application through the reserved harness-context fixture. The consuming
+package supplies the feature file: create
+`tests/features/bevy_scenario.feature` with the scenario this example binds
+(the repository's copy is
+`crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`), where
+`index = 1` selects its second scenario, "Steps share one application across
+ticks".
+
+<!-- tested-example: bevy-harness-scenario -->
+
+```rust
+use rstest_bdd::StepResult;
+use rstest_bdd_harness_bevy::{BevyHarness, BevyScenario, bevy::diagnostic::FrameCount};
+use rstest_bdd_macros::{scenario, then, when};
+
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 1,
+    harness = BevyHarness,
+    attributes = rstest_bdd_harness_bevy::BevyAttributePolicy
+)]
+fn steps_share_one_application_across_ticks() {}
+
+#[when("the schedule advances {count:u32} times")]
+fn when_schedule_advances(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+    count: u32,
+) -> StepResult<(), String> {
+    scenario.update_times(count);
+    Ok(())
+}
+
+#[then("the frame count reads {expected:u32}")]
+fn then_frame_count_reads(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+    expected: u32,
+) -> StepResult<(), String> {
+    let observed = scenario.with_world(|world| world.resource::<FrameCount>().0);
+    if observed == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "the frame count must read {expected}, but it read {observed}"
+        ))
+    }
+}
+```
+
+The harness does not advance the app by itself: call `scenario.update()` or
+`scenario.update_times(count)` explicitly. A count of zero still checks that
+the application can advance. Fallible steps return `StepResult` and let the
+harness report the scenario diagnostic; they do not panic or call `.expect()`.
+Profile hooks return `HarnessResult`, and a hook that constructs an error uses
+the idiom `HarnessError::RuntimeBuildFailed(std::io::Error::other(message))`.
+
+`BevyScenario` clones share one application. A clone must not outlive the
+scenario that produced it, and steps should request `&BevyScenario`. A profile's
+`cleanup` hook releases scenario resources and must not advance the
+application. The harness never calls `App::run`, `App::finish`, or
+`App::cleanup`, so `add_plugins` remains legal inside steps; a profile that
+finalizes the app itself gives up that ability. For deterministic time, install
+`TimeUpdateStrategy::FixedTimesteps(n)` in the profile's `configure` hook.
+
+`add_minimal_plugins` adds Bevy's minimal plugin set to an existing `App`, and
+`minimal_app` creates a fresh application with that set already installed. Both
+avoid window, renderer, asset, and audio plugins and remain available for tests
+that do not need a scenario. A test body reads:
+
+<!-- tested-example: minimal-headless-app -->
 
 ```rust
 use rstest_bdd_harness_bevy::{bevy::diagnostic::FrameCount, minimal_app};
 
-#[test]
-fn advances_one_headless_frame() {
-    let mut app = minimal_app();
-    app.update();
-    assert_eq!(app.world().resource::<FrameCount>().0, 1);
-}
+let mut app = minimal_app();
+app.update();
+assert_eq!(
+    app.world().resource::<FrameCount>().0,
+    1,
+    "one update advances exactly one frame"
+);
 ```
 
 For the crate's full test setup and extension guidance, see the

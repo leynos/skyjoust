@@ -94,7 +94,7 @@ informs later runtime testing in Phase 1. See
     This status follow-up changes documentation only, so the live PR checks
     must confirm the final head. The roadmap item remains checked for implementation
     completion, not PR acceptance.
-- [ ] 0.1.2. Implement the reusable Bevy harness public API.
+- [x] 0.1.2. Implement the reusable Bevy harness public API.
   - Requires 0.1.1.
   - Add `BevyScenario`, `BevyProfile`, `BevyHarness`, `BareBevyProfile`,
     `MinimalBevyProfile`, and `BevyAttributePolicy`.
@@ -104,15 +104,21 @@ informs later runtime testing in Phase 1. See
   - Success: generated scenarios can instantiate the harness through
     `<Harness as Default>::default()` and receive the wrapper through
     `rstest_bdd_harness_context`.
-- [ ] 0.1.3. Validate harness behaviour with unit, behavioural, panic, and
-  macro-shape coverage.
+  - Implementation is complete and all seven local commit gates pass; the
+    acceptance evidence is recorded in
+    `docs/execplans/0-1-2-bevy-harness-public-api.md`. The item is checked for
+    implementation completion, not PR acceptance; hosted CI and review remain
+    pending.
+- [ ] 0.1.3. Complete the remaining harness validation coverage.
   - Requires 0.1.2.
-  - Cover metadata retention, profile configure and cleanup hooks, Bevy
-    `Update` ticks, cleanup after panic, and a `trybuild` compile-pass fixture
-    for a harness type alias.
+  - Add a `trybuild` compile-pass fixture for a harness type alias,
+    process-level standard-error and tracing-output snapshots, and broader
+    panic-path scenarios such as outlines. Metadata retention, profile
+    configure and cleanup hooks, `Update` ticks, and cleanup after panic are
+    covered by `0.1.2`.
   - See `docs/rstest-bdd-harness-bevy-design.md` §§6, 7, and 10.
-  - Success: the tests prove the reusable harness without depending on
-    Skyjoust runtime modules.
+  - Success: the remaining macro-shape and process-output contracts are proven
+    without depending on Skyjoust runtime modules.
 - [ ] 0.1.4. Add the Skyjoust smoke profile once runtime resources exist.
   - Requires 0.1.3 and 1.3.1.
   - Define `SkyjoustBevyProfile` outside the reusable harness crate.

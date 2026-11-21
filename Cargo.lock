@@ -2800,6 +2800,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "googletest",
+ "insta",
  "pretty_assertions",
  "proptest",
  "rstest",

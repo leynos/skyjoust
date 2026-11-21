@@ -77,6 +77,12 @@ The current Architecture Decision Records (ADRs) live under `docs/adrs/`.
 - [ADR 009: In-tree incubation of the Bevy BDD harness crate](adrs/adr-0009-in-tree-incubation-of-the-bevy-bdd-harness-crate.md)
   - accepted decision to incubate `rstest-bdd-harness-bevy` in-tree and adopt
   the published `rstest-bdd` 0.6.0 family with implicit caret requirements.
+- [ADR 010: Bevy harness scenario failure contract](adrs/adr-0010-bevy-harness-failure-contract.md)
+  - accepted decision fixing the configure, steps, and cleanup lifecycle, the
+  phase-tagged panic message, and the error-wrapping scheme. Amended by ADR 011.
+- [ADR 011: Correct the Bevy harness never-finish guidance](adrs/adr-0011-correct-bevy-harness-never-finish-guidance.md)
+  - accepted amendment clarifying that a finalized profile cannot add plugins
+  inside steps, while the harness itself never finalizes.
 
 ## Execution plans
 
@@ -84,6 +90,8 @@ The current Architecture Decision Records (ADRs) live under `docs/adrs/`.
   - approval-gated plan for roadmap task `1.1.1`.
 - [Add `rstest-bdd-harness-bevy` as a workspace member](execplans/0-1-1-add-rstest-bdd-harness-bevy-workspace-member.md)
   - execution plan for roadmap task `0.1.1`.
+- [Implement the reusable Bevy harness public API](execplans/0-1-2-bevy-harness-public-api.md)
+  - approval-gated plan for roadmap task `0.1.2`.
 
 ## State graph references and artefacts
 
