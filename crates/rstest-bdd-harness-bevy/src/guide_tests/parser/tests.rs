@@ -3,7 +3,8 @@
 //! Each fixture exercises one recognition rule: tilde and backtick openers,
 //! up-to-three-space indentation, closing-delimiter matching, block-quote
 //! nesting depth, list-item content indentation, tab padding after a quote
-//! marker, marker attachment, and the end of a contained block. The guide-wide
+//! marker, the rejection of a tab exposed as indentation by a container
+//! prefix, marker attachment, and the end of a contained block. The guide-wide
 //! assertions live in the parent module.
 
 use rstest::rstest;
@@ -102,6 +103,17 @@ fn a_top_level_delimiter_does_not_close_a_list_fence() {
 fn tab_indented_list_content_is_rejected() {
     let error = parse_fences("- Item\n\n\t```rust\n\tlet value = 1;\n\t```\n")
         .expect_err("tab-indented list content must be rejected");
+
+    assert!(
+        error.contains("tab-indented"),
+        "the error must explain the tab rejection, got {error:?}"
+    );
+}
+
+#[test]
+fn tab_indented_content_after_a_quote_prefix_is_rejected() {
+    let error = parse_fences("> - Item\n>\n> \t```rust\n> \tlet value = 1;\n> \t```\n")
+        .expect_err("a tab exposed after a block-quote prefix must be rejected");
 
     assert!(
         error.contains("tab-indented"),

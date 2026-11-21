@@ -197,8 +197,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   measures 38 paths and 6,465 net added lines including the plan, 37 and 4,339
   without it, and 27 and 3,651 counting only code and tests. The Revision 13
   assessment measured head `030334b` at 39 non-ExecPlan paths and 4,479 net
-  added lines. `Decision log` records the escalation and its disposition; this
-  bullet does not claim a separate numeric approval.
+  added lines. The Revision 14 assessment measured head `f40e434` at the same
+  39 non-ExecPlan paths and 4,772 net added lines. `Decision log` records the
+  escalation and its disposition; this bullet does not claim a separate numeric
+  approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -672,6 +674,47 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   the crate suite passed 74/74 library tests, 4 extraction, 7 scenario, 1 macro
   UI, and 5 property tests plus doctests; the five hostile-payload rows pass
   after the fold.
+- [x] (2026-11-21) Revision 14 completeness-assessment repair: the follow-up
+  assessment `SKYJOUST-PR136-EP-COMPLETE-R14-20261121T002352Z` (base `2268c56`,
+  head `f40e434`, plan Revision 14) returned three findings, all verified
+  against the source.
+  - Finding 1 (valid, fixed): the Revision 13 guard formatted the wrapped error
+    and dropped it inside a single caught step, so an error whose `Display` and
+    `Drop` both panic panics while that first panic unwinds; Rust aborts the
+    process rather than unwinding to a catch boundary. `transcribe_profile_error`
+    now binds the wrapped error, formats it by borrow in one `catch_unwind`,
+    and disposes of it in a second, recording the disposal panic's text. A
+    combined `PanicOnDisplayAndDrop` error and
+    `CleanupFailsWithHostileDisplayAndDrop` profile back a new regression row.
+  - Finding 2 (valid, fixed): the tab rejection ran on the raw line only, so a
+    tab exposed after a block-quote prefix — a quote marker, one space of
+    marker padding, then the tab — became ordinary content and the fence was
+    silently skipped. `Line::reject_tab_indent` now runs on the fragment left
+    by every prefix strip in `FenceParser::scan`; a quoted-list fixture pins
+    the diagnostic.
+  - Finding 3 (valid, fixed): the plan requires `BevyHarness`'s rustdoc example
+    to show a profile author running a hand-built `ScenarioRunRequest` against
+    their own profile, and the example still used the default profile. It now
+    defines `DemoProfile`, implements only `configure`, and runs a hand-built
+    request through `BevyHarness::<DemoProfile>`.
+  - Finding 4 (scope): the assessed head measures 39 non-ExecPlan paths and
+    4,772 net added lines. The overage stays recorded without a claimed
+    approval; the maintainer's decision remains outstanding.
+  Seeded-fault evidence, each restored byte-for-byte (`harness.rs` sha256
+  `f68dfc5d…`, `parser.rs` sha256 `2daf5103…`): reinstating the single caught
+  step makes the combined row abort the test process with
+  `panic in a destructor during cleanup` and `SIGABRT`, and removing the
+  post-prefix tab check makes the quoted-list fixture parse to an empty fence
+  list while the top-level tab case still passes. Focused evidence: the crate
+  suite passed 93/93 and 18/18 doctests.
+- [x] (2026-11-21) Revision 14 gate returns: the first full gate run rejected
+  `clippy::shadow_reuse` on a rebound parser line, fixed by naming the fragment
+  `rest`; the second rejected Whitaker's `module-max-lines` on `harness.rs` at
+  431 lines, fixed by moving the failure path into `harness/failure.rs` (264
+  and 204 lines); `cs check` then reported Code Duplication in the new file,
+  fixed by extracting `drop_guarded` rather than suppressing the rule. Both
+  files now score 10.00 and the focused suite still passes 93/93 with 18/18
+  doctests.
 
 ## Surprises & discoveries
 
@@ -871,6 +914,20 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   step-panic route now formats and disposes of the wrapped error inside
   `catch_unwind`, records a transcribed hostile panic instead, and two
   regression rows use a `Display`-panicking and a `Drop`-panicking error.
+- Observation (2026-11-21, Revision 14 assessment): a `Display` panic and a
+  `Drop` panic on the same error cannot share one caught step. When `Display`
+  panics, the wrapped temporary is still live; releasing it while that panic
+  unwinds runs `Drop`, whose own panic is a "panic in a destructor during
+  cleanup" and aborts the process instead of unwinding, losing the step panic
+  the path exists to preserve. Impact: `transcribe_profile_error` formats by
+  borrow, then disposes in a separate `catch_unwind`, and a combined hostile
+  row proves the step panic survives both panics.
+- Observation (2026-11-21, Revision 14 assessment): the tab rejection inspected
+  the raw line, but container prefixes are stripped afterwards. A tab that
+  became leading only after the quote marker was therefore measured as ordinary
+  content rather than rejected, and the fence behind it was never seen. Impact:
+  every prefix strip in `FenceParser::scan` now re-runs the rejection on the
+  remaining fragment, so a tab cannot hide a fence at any nesting depth.
 
 ## Decision log
 
@@ -1107,6 +1164,50 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   defects published while the same question waited. The numeric question is the
   maintainer's to answer, and the escalation stays explicit and unanswered.
   Date/Author: 2026-11-21, implementer.
+- Decision (2026-11-21, Revision 14 assessment): format a profile's error and
+  dispose of it in two separate caught steps, recording the disposal panic's
+  text when it fires. Rationale: one caught step cannot hold both panics. If
+  formatting panics, the wrapped error is dropped while that panic unwinds, and
+  a second panic there aborts the process instead of unwinding; the disposal is
+  therefore the step that must be caught separately. The disposal is also the
+  later failure, so its text is the more accurate record. Evidence: restoring
+  the single caught step aborts the combined regression row with
+  `panic in a destructor during cleanup` and `SIGABRT`; the split passes.
+  Date/Author: 2026-11-21, implementer acting on the assessment.
+- Decision (2026-11-21, Revision 14 assessment): re-run the fail-closed tab
+  rejection after every container prefix strip, rather than handling tab
+  columns or leaving post-prefix tabs as content. Rationale: the guide uses
+  spaces everywhere, column arithmetic would add a second indentation model to
+  prove, and a tab that only becomes leading after a prefix is stripped is
+  exactly the ambiguity the existing rule refuses to guess at. Evidence: the
+  quoted-list fixture fails with an empty fence list when the re-check is
+  removed, while the pre-existing top-level case still passes, so the new case
+  covers the hole rather than repeating the old one. Date/Author: 2026-11-21,
+  implementer acting on the assessment.
+- Decision (2026-11-21, Revision 14 assessment): carry the scope escalation
+  forward again after the reassessment measured 39 non-ExecPlan paths and 4,772
+  net added lines on head `f40e434`. Rationale: the three defects that
+  assessment raised are repaired in this revision, and none of the repairs
+  widened a requirement, signature, or milestone; halting would leave known
+  defects published while the same unanswered numeric question waited. The
+  overage stays explicit and unapproved. Date/Author: 2026-11-21, implementer.
+- Decision (2026-11-21, Revision 14 gate return): move the whole early-exit
+  path (panic re-raising, cleanup-on-panic, guarded drops, error wrapping, and
+  `ProfileHookError`) into
+  `crates/rstest-bdd-harness-bevy/src/harness/failure.rs`, leaving `harness.rs`
+  to own configuration, step execution, and the normal cleanup outcome.
+  Rationale: Whitaker's `module-max-lines` limit is 400, and the Revision 14
+  repair pushed `harness.rs` to 431; the split follows the existing failure
+  path's boundary rather than inventing one, and both files now sit well inside
+  the limit (264 and 204 lines). Re-running `make lint` after the split is the
+  acceptance evidence. Date/Author: 2026-11-21, implementer acting on the gate.
+- Decision (2026-11-21, Revision 14 gate return): extract one
+  `drop_guarded::<P, T>` helper for the two guarded drops instead of
+  suppressing CodeScene's Code Duplication rule. Rationale: the two functions
+  differed only in the value dropped, its phase, and its summary, so a single
+  helper taking those three inputs removes the duplication rather than hiding
+  it; `cs check` then scores both files 10.00. Date/Author: 2026-11-21,
+  implementer acting on the delta.
 
 ## Outcomes & retrospective
 
@@ -1469,22 +1570,37 @@ their `phase` and `scenario_name` fields, installed with
   `payload drop boom`, exit 101; restoring it passes all three.
 - Obligation: the cleanup-error half of L1 when a step panic must survive. A
   profile error is caller-supplied, so its `Display` and its `Drop` are both
-  hostile code. Method: two `#[gtest]` cases whose cleanup returns an error
-  that panics on display and on drop respectively; each asserts the step phase
-  and payload survive and the hostile text appears only in the recorded
-  secondary event. Artefacts: `src/harness_tests/panics/hostile.rs` and the
-  `CleanupFailsWithHostileDisplay` and `CleanupFailsWithHostileDrop` profiles.
-  Non-vacuity: replacing the guarded formatting with a direct `to_string()`
-  makes both fail (exit 101) with the harness unable to downcast the hostile
-  payload; restoring the guard passes both.
+  hostile code, and one error may host both. Method: three `#[gtest]` cases
+  whose cleanup returns an error that panics on display, on drop, and on both;
+  each asserts the step phase and payload survive and the hostile text appears
+  only in the recorded secondary event. Artefacts:
+  `src/harness_tests/panics/hostile.rs` and the
+  `CleanupFailsWithHostileDisplay`, `CleanupFailsWithHostileDrop`, and
+  `CleanupFailsWithHostileDisplayAndDrop` profiles. Non-vacuity: replacing the
+  guarded formatting with a direct `to_string()` makes the two single-failure
+  cases fail (exit 101) with the harness unable to downcast the hostile
+  payload; collapsing the two guarded steps into one makes the combined case
+  abort with `panic in a destructor during cleanup` and `SIGABRT`, which is the
+  defect the split exists to prevent.
+- Obligation: the fail-closed tab rule at every container depth. Method: named
+  cases for a tab-indented fence inside an open list item and for a tab exposed
+  after a block-quote prefix inside a list inside a quote. Artefacts:
+  `src/guide_tests/parser/tests.rs` and `src/guide_tests/parser.rs`.
+  Non-vacuity: removing the raw-line guard fails the first case with an empty
+  fence list, and removing the per-prefix re-check fails the quoted case the
+  same way while the first still passes, so the two cases cover distinct holes.
+- Obligation: the documented downstream profile workflow. Method: the
+  `BevyHarness` rustdoc example defines a profile of its own, implements only
+  `configure`, and runs a hand-built `ScenarioRunRequest` through
+  `BevyHarness::<DemoProfile>`; it is compiled and executed as a doctest.
+  Artefacts: `src/harness.rs`, doctest `harness::BevyHarness`. Non-vacuity: the
+  example is a compiled program, so a harness that rejected a non-default
+  profile, or a request that could only be built by generated code, fails the
+  doctest rather than passing as prose.
 - Obligation: container nesting order. Method: a parameterized detection row
   for a fence in a list inside a block quote, whose prefixes must be stripped
   quote-first. Non-vacuity: ordering the stack walk items-first makes the row
   fail with zero recorded fences, reproducing the reported miss.
-- Obligation: the fail-closed tab rule. Method: a named case that places a
-  tab-indented fence inside an open list item and asserts the diagnostic.
-  Non-vacuity: removing the tab guard makes the case fail with an empty fence
-  list, so the rule is load-bearing rather than incidental.
 - Obligation: EP-INV-7 for the nested accessor pair. Method: a `#[gtest]` that
   nests `with_app` inside `with_app` and asserts the crate's borrow prefix.
   Non-vacuity: replacing `try_borrow_mut` with `borrow_mut` fails the case on
@@ -2282,3 +2398,19 @@ Downstream consumers need direct development dependencies on `rstest`,
   defects possible, and `Tolerances` records the Revision 13 size measurement.
   No requirement, signature, or milestone changed; the maintainer's decision on
   the size overage remains outstanding.
+- Revision 15, 2026-11-21: the follow-up completeness assessment
+  `SKYJOUST-PR136-EP-COMPLETE-R14-20261121T002352Z` verified the Revision 14
+  tree (head `f40e434`) against the plan and returned two correctness defects,
+  one documentation omission, and the still-open scope decision. All three
+  findings are repaired. A profile error whose `Display` and `Drop` both panic
+  can no longer abort the process, because formatting and disposal are now
+  separate caught steps with the disposal panic recorded. The fence scanner
+  re-runs its fail-closed tab rejection after every container prefix, so a tab
+  can no longer hide a fence behind a block quote. The `BevyHarness` rustdoc
+  example now shows a downstream profile author running a hand-built
+  `ScenarioRunRequest` through their own profile. Both behavioural repairs were
+  proven by seeded faults restored byte-for-byte, with the pre-fix combined
+  case aborting under `SIGABRT`. `Progress`, `Surprises & discoveries`,
+  `Decision log`, `Verification plan`, and `Tolerances` carry the details; no
+  requirement, signature, or milestone changed, and the maintainer's decision
+  on the size overage remains outstanding at 39 paths and 4,772 net added lines.

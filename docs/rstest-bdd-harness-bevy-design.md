@@ -231,6 +231,12 @@ path, cleanup errors become `tracing::error!` records with the same scenario
 metadata, and the original augmented panic resumes. This preserves scenario
 failure identity for `cargo test`, `cargo nextest`, and log subscribers.
 
+A profile's error is caller-supplied code, so its `Display` and its `Drop` are
+treated as hostile. Formatting the wrapped error and disposing of it are
+separate caught steps: an error that panics in both is recorded, with the
+disposal text, rather than aborting the process while the formatting panic
+unwinds.
+
 The delivered formatter (`src/panic.rs`) produces this form, wrapped here for
 width:
 
