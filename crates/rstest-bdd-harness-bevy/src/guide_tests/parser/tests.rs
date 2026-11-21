@@ -4,9 +4,9 @@
 //! up-to-three-space indentation, closing-delimiter matching, block-quote
 //! nesting depth, list-item content indentation, tab padding after a quote
 //! marker, the rejection of a tab exposed as indentation by a container
-//! prefix, marker attachment, the rejection of a marker in a sibling
-//! container, and the end of a contained block. The guide-wide assertions live
-//! in the parent module.
+//! prefix, marker attachment, the blank-line allowance in its raw and quoted
+//! forms, the rejection of a marker in a sibling container, and the end of a
+//! contained block. The guide-wide assertions live in the parent module.
 
 use rstest::rstest;
 
@@ -86,6 +86,31 @@ fn marker_above_a_contained_fence_is_attached(
         fence.marker,
         Some(expected),
         "{description} must be attached to its fence"
+    );
+}
+
+#[test]
+fn a_quoted_blank_line_keeps_the_marker_attached() {
+    let fence = single_fence(
+        "> <!-- tested-example: quoted-gap -->\n>\n> ```rust\n> let value = 1;\n> ```\n",
+        "a marker and fence separated by a quoted blank line",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("quoted-gap"),
+        "the quoted blank line must not detach the marker"
+    );
+}
+
+#[test]
+fn an_indented_code_line_does_not_excuse_a_dangling_marker() {
+    let error = parse_fences("<!-- tested-example: dangling -->\n    let value = 1;\n")
+        .expect_err("an indented code line must not stand in for the fence");
+
+    assert!(
+        error.contains("not followed by a fence"),
+        "the error must report the dangling marker, got {error:?}"
     );
 }
 

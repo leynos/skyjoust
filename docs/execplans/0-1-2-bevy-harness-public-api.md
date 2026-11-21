@@ -212,6 +212,9 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   The Revision 18 tree, which consolidates that coverage into one case table
   after CodeScene flagged the four rows as duplicated, measures the same 41
   non-ExecPlan paths and 5,419 net added lines (31 paths and 4,708 net added
+  lines counting only code and tests). The Revision 19 tree, which repairs the
+  quoted blank-line finding in the guide checker, measures the same 41
+  non-ExecPlan paths and 5,454 net added lines (31 paths and 4,743 net added
   lines counting only code and tests). `Decision log` records the escalation
   and its disposition; this bullet does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
@@ -804,6 +807,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `harness.rs` was restored byte-for-byte and re-verified by sha256 before the
   plan was updated. `cs check` reports 10.00 for the file and
   `cs delta b0909fc` reports no new issue.
+- [x] (2026-11-21) Revision 19: the Revision 18 assessment reply `7057710950`
+  (base `2268c56`, head `478ea1e`, plan Revision 18) confirmed the caller-value
+  repair and returned one finding in the guide checker, which is valid and
+  repaired.
+  - Finding (valid, fixed): the fence scanner allows blank lines between a
+    marker and its fence, but `visit` tested the raw line. A blank line inside
+    a block quote is written `>` rather than left empty, so a quoted blank line
+    between a quoted marker and its fence made `reject_dangling_marker` report
+    the marker as dangling before the fence was reached.
+    `is_blank_line` now also accepts a line whose container-stripped content is
+    empty, and an indented code line, which strips to no content at all, stays
+    non-blank so it cannot excuse a dangling marker.
+  Evidence: `a_quoted_blank_line_keeps_the_marker_attached` failed with
+  `marker on line 1 is not followed by a fence` before the fix and passes after
+  it; `an_indented_code_line_does_not_excuse_a_dangling_marker` pins the
+  distinction the helper's second clause turns on, and the sibling-container
+  rejection still passes. Focused evidence: all 21 parser tests pass, 0 failed.
 
 ## Surprises & discoveries
 
@@ -1052,6 +1072,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   one parameterized case table whose cases dispatch to a shared assertion
   helper, which keeps each outcome named and separately reportable while
   removing the duplicated structure.
+- Observation (2026-11-21, Revision 19 assessment): "blank" is a property of
+  the text left after a line's container prefixes are stripped, not of the raw
+  line. A blank line inside a block quote is the quote marker alone, which is
+  not empty text, so the raw-line test treated an allowed quoted blank line as
+  prose. Impact: the blank-line allowance is decided by `is_blank_line`, which
+  also accepts a container-stripped empty line while still treating an indented
+  code line, which strips to nothing, as content that rejects a dangling marker.
 
 ## Decision log
 
@@ -1400,6 +1427,17 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   erasing it behind a runtime value. Evidence: `cs check` reports 10.00 and
   `cs delta b0909fc` reports no new issue; the seeded faults still fail the
   named cases. Date/Author: 2026-11-21, implementer.
+- Decision (2026-11-21, Revision 19 assessment): decide blankness after
+  container stripping rather than on the raw line. Rationale: the documented
+  allowance lets a blank line separate a marker from its fence, and a quoted
+  blank line is what that allowance looks like inside a block quote, so
+  rejecting it made the allowance depend on the container for no documented
+  reason. Checking the stripped content keeps the sibling-container rejection
+  and the indented-code rule intact, because neither strips to an empty line.
+  Evidence: the new quoted-blank-line fixture failed with
+  `marker on line 1 is not followed by a fence` before the change and passes
+  after it, while the indented-code and sibling-container cases still reject.
+  Date/Author: 2026-11-21, implementer acting on the assessment.
 
 ## Outcomes & retrospective
 
@@ -1852,6 +1890,15 @@ their `phase` and `scenario_name` fields, installed with
   Non-vacuity: removing the container-path check makes the new case fail on
   `expect_err` while all 18 other parser rows pass, so the positives do not
   cover the sibling hole.
+- Obligation: the blank-line allowance holds in every container. Method: a
+  named case with a marker and fence in one block quote separated by a quoted
+  blank line, plus a named case where the line after a marker is indented code
+  and must still be reported as a dangling marker. Artefacts:
+  `src/guide_tests/parser/tests.rs` and `src/guide_tests/parser.rs`.
+  Non-vacuity: testing the raw line makes the quoted case fail with
+  `marker on line 1 is not followed by a fence`, and accepting any line that
+  strips to empty without the raw-text clause would make the indented-code case
+  pass, so the two cases pin both sides of the clause.
 - Obligation: EP-INV-7 for the nested accessor pair. Method: a `#[gtest]` that
   nests `with_app` inside `with_app` and asserts the crate's borrow prefix.
   Non-vacuity: replacing `try_borrow_mut` with `borrow_mut` fails the case on
@@ -2724,3 +2771,13 @@ Downstream consumers need direct development dependencies on `rstest`,
   `Surprises & discoveries`, `Decision log`, and `Verification plan` carry the
   details; no requirement, signature, or milestone changed, and the
   maintainer's decision on the size overage remains outstanding.
+- Revision 19, 2026-11-21: the Revision 18 assessment reply `7057710950`
+  verified the caller-value repair and returned one guide-checker finding,
+  which is valid and repaired. The blank line that may separate a marker from
+  its fence is now recognized inside a block quote, where it is written `>`
+  rather than left empty, while an indented code line still rejects a dangling
+  marker. A named fixture for each direction was added, the first observed
+  failing before the change. `Progress`, `Surprises & discoveries`,
+  `Decision log`, and `Verification plan` carry the details; no requirement,
+  signature, or milestone changed, and the maintainer's decisions on the size
+  overage and the non-Rust example deviation remain outstanding.

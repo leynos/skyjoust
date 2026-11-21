@@ -132,7 +132,7 @@ impl<'a> FenceParser<'a> {
         if self.fence_line(&scan, line_number)? {
             return Ok(());
         }
-        if line.trim().is_empty() {
+        if is_blank_line(line, &scan) {
             return Ok(());
         }
         self.reject_dangling_marker()
@@ -291,6 +291,20 @@ fn closes_open(
 /// Whether `scan` is in the same container as `open`.
 fn same_container(scan: &ContainerScan<'_>, open: &OpenFence<'_>) -> bool {
     scan.container == open.container
+}
+
+/// Whether `line` holds nothing but the container prefixes around it.
+///
+/// A blank line inside a block quote is written `>` rather than left empty, so
+/// testing only the raw text would report a marker above it as dangling and
+/// break the blank-line allowance for quoted examples. An indented code line
+/// strips to no content at all; it is literal text, not a blank line, so that
+/// case stays non-blank and still rejects a dangling marker.
+fn is_blank_line(line: &str, scan: &ContainerScan<'_>) -> bool {
+    line.trim().is_empty()
+        || scan
+            .content
+            .is_some_and(|content| content.trim().is_empty())
 }
 
 /// One line after its containers were stripped.
