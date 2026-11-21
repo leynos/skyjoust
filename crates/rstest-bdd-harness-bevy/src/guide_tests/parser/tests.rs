@@ -104,6 +104,20 @@ fn a_quoted_blank_line_keeps_the_marker_attached() {
 }
 
 #[test]
+fn a_whitespace_only_quoted_blank_line_keeps_the_marker_attached() {
+    let fence = single_fence(
+        "> <!-- tested-example: quoted-gap -->\n>     \n> ```rust\n> let value = 1;\n> ```\n",
+        "a marker and fence separated by a whitespace-only quoted blank line",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("quoted-gap"),
+        "a whitespace-only line is blank, so it must not detach the marker"
+    );
+}
+
+#[test]
 fn an_indented_code_line_does_not_excuse_a_dangling_marker() {
     let error = parse_fences("<!-- tested-example: dangling -->\n    let value = 1;\n")
         .expect_err("an indented code line must not stand in for the fence");
