@@ -198,9 +198,11 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   without it, and 27 and 3,651 counting only code and tests. The Revision 13
   assessment measured head `030334b` at 39 non-ExecPlan paths and 4,479 net
   added lines. The Revision 14 assessment measured head `f40e434` at the same
-  39 non-ExecPlan paths and 4,772 net added lines. `Decision log` records the
-  escalation and its disposition; this bullet does not claim a separate numeric
-  approval.
+  39 non-ExecPlan paths and 4,772 net added lines. The Revision 15 head
+  `65409a7` measures 40 non-ExecPlan paths and 4,964 net added lines, the extra
+  path and lines coming from the `harness/failure.rs` split and its regression
+  rows. `Decision log` records the escalation and its disposition; this bullet
+  does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -2413,4 +2415,5 @@ Downstream consumers need direct development dependencies on `rstest`,
   case aborting under `SIGABRT`. `Progress`, `Surprises & discoveries`,
   `Decision log`, `Verification plan`, and `Tolerances` carry the details; no
   requirement, signature, or milestone changed, and the maintainer's decision
-  on the size overage remains outstanding at 39 paths and 4,772 net added lines.
+  on the size overage remains outstanding; the Revision 15 head `65409a7`
+  measures 40 non-ExecPlan paths and 4,964 net added lines.
