@@ -201,8 +201,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   39 non-ExecPlan paths and 4,772 net added lines. The Revision 15 head
   `65409a7` measures 40 non-ExecPlan paths and 4,964 net added lines, the extra
   path and lines coming from the `harness/failure.rs` split and its regression
-  rows. `Decision log` records the escalation and its disposition; this bullet
-  does not claim a separate numeric approval.
+  rows. The Revision 15 assessment repair head `55e8c68` measures 41
+  non-ExecPlan paths and 5,146 net added lines (31 paths and 4,435 net added
+  lines counting only code and tests), the extra path being
+  `harness_tests/panics/release.rs`, which keeps `panics.rs` inside the
+  400-line limit. `Decision log` records the escalation and its disposition;
+  this bullet does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -2553,4 +2557,9 @@ Downstream consumers need direct development dependencies on `rstest`,
   limit. `Progress`, `Surprises & discoveries`, `Decision log`,
   `Verification plan`, and `Artefacts and notes` carry the details; no
   requirement, signature, or milestone changed, and the maintainer's decision
-  on the size overage remains outstanding.
+  on the size overage remains outstanding. The repair head `55e8c68` measures
+  41 non-ExecPlan paths and 5,146 net added lines. All seven commit gates
+  passed against the repair tree: `make lint` re-ran green after the
+  `clippy::option_if_let_else` fix, and the other six gates re-ran afterwards
+  in order. CodeScene reports 10.00 for every touched file and no issue in
+  `cs delta 9b52da6`.
