@@ -195,9 +195,10 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   after that exclusion. The assessment measured the head `8c6f500` at 38 paths
   and 5,923 net added lines including this plan, and the Revision 12 tree
   measures 38 paths and 6,465 net added lines including the plan, 37 and 4,339
-  without it, and 27 and 3,651 counting only code and tests. `Decision log`
-  records the escalation and its disposition; this bullet does not claim a
-  separate numeric approval.
+  without it, and 27 and 3,651 counting only code and tests. The Revision 13
+  assessment measured head `030334b` at 39 non-ExecPlan paths and 4,479 net
+  added lines. `Decision log` records the escalation and its disposition; this
+  bullet does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -631,6 +632,46 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   s), and `spelling` (2 s); logs
   `/tmp/<gate>-skyjoust-0-1-2-bevy-harness-public-api-20261120T231042.out` for
   the seven gate names. Committed as `058f373`.
+- [x] (2026-11-21) Revision 13 completeness-assessment repair: the follow-up
+  assessment `SKYJOUST-PR136-EP-COMPLETE-R13-20261120T230817Z` (base `2268c56`,
+  head `030334b`, plan Revision 13) returned three findings, all verified
+  against the source.
+  - Finding 1 (valid, fixed): a cleanup `Err` after a step panic was formatted
+    and dropped outside the catch boundary, so a profile error whose `Display`
+    or `Drop` panics could replace the step panic.
+    `record_cleanup_error_after_step_panic` now formats and disposes of the
+    error inside `catch_unwind` and records a transcribed hostile panic
+    instead. Two regression rows use a `Display`-panicking and a
+    `Drop`-panicking error; both fail with the unguarded `to_string()`
+    (exit 101) and pass with the guard.
+  - Finding 2 (valid, fixed): list indentation was matched before the
+    block-quote prefix was stripped, so a list inside a block quote escaped
+    detection. `guide_tests/parser/list.rs` became `containers.rs`, which
+    keeps one stack in opening order and matches each line outermost-first;
+    containers carry stable ids so a sibling container cannot close a fence.
+    A detection row covers a fence in a list inside a block quote; walking the
+    stack items-first makes it fail with zero recorded fences.
+  - Finding 3 (valid, fixed): the plan-named nested `with_app` case was
+    missing, and the tab rejection had no test. Both were added; removing the
+    tab guard fails the new case with an empty fence list, and a raw
+    `borrow_mut` fails the nested case on `BorrowMutError`.
+  - Finding 4 (scope): the assessed head exceeds the plan's size limit (39
+    non-ExecPlan paths and 4,479 net added lines). The overage remains
+    recorded without a claimed approval; the maintainer's decision is
+    outstanding and is not something this agent can supply.
+  CodeScene then reported code duplication across the expanded hostile rows, so
+  the three rows that share the post-step-panic shape now call one
+  `expect_hostile_secondary_after_step_panic` helper with a `HostileRow` value;
+  `cs delta` on the working tree is clean. The folded rows were re-proved
+  against the same seeded fault, which still fails both hostile cleanup-error
+  cases, and `src/harness.rs` was restored to sha256 `6eab1a68…`. The container
+  extraction itself crossed Clippy's nesting ceiling, so
+  `Containers::match_line` now delegates to `match_open_containers` and a free
+  `match_entry`; `map_or`, `needless_lifetimes`, and `match_bool` rejected the
+  first two shapes of those helpers before this one passed. Focused evidence:
+  the crate suite passed 74/74 library tests, 4 extraction, 7 scenario, 1 macro
+  UI, and 5 property tests plus doctests; the five hostile-payload rows pass
+  after the fold.
 
 ## Surprises & discoveries
 
@@ -813,6 +854,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   tab-indented content inside an open list item is rejected with a message
   asking for spaces rather than guessed at; the guide uses spaces, so failing
   closed keeps the checker honest for the layout it receives.
+- Observation (2026-11-21, Revision 13 assessment): containers nest in opening
+  order, so the prefix that must be stripped first is whichever opened
+  outermost — a block quote outside a list needs `>` removed before the item's
+  indentation is measured, while a list outside a block quote needs the
+  reverse. Matching list indentation before the quote prefix therefore lost the
+  list entirely when a quote surrounded it. Impact: the two separate depth
+  counters became one ordered stack, each entry carrying a never-reused id so a
+  sibling container at the same depth cannot be mistaken for the fence's own
+  container.
+- Observation (2026-11-21, Revision 13 assessment): a profile's returned
+  `HarnessError` is caller-supplied code, not inert data. Its `Display` may
+  panic while formatting, and its `Drop` may panic when the temporary is
+  released; either unwinds out of a handler whose whole purpose is to preserve
+  a step panic that already happened. Impact: the cleanup-error path on the
+  step-panic route now formats and disposes of the wrapped error inside
+  `catch_unwind`, records a transcribed hostile panic instead, and two
+  regression rows use a `Display`-panicking and a `Drop`-panicking error.
 
 ## Decision log
 
@@ -1041,6 +1099,14 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   but its prompt aborted before a decision was recorded, so this plan must not
   be read as carrying a separate numeric approval; the overage and escalation
   stay explicit for the maintainer. Date/Author: 2026-11-20, implementer.
+- Decision (2026-11-21, Revision 13 assessment): carry the scope escalation
+  forward unchanged after the reassessment measured 39 non-ExecPlan paths and
+  4,479 net added lines on head `030334b`. Rationale: the three defects that
+  assessment raised are repaired in this revision, and none of those repairs
+  narrowed the deliverable; halting instead of repairing would leave known
+  defects published while the same question waited. The numeric question is the
+  maintainer's to answer, and the escalation stays explicit and unanswered.
+  Date/Author: 2026-11-21, implementer.
 
 ## Outcomes & retrospective
 
@@ -1401,6 +1467,29 @@ their `phase` and `scenario_name` fields, installed with
   `src/harness_tests/panics.rs` and the profiles above. Non-vacuity: removing
   `std::mem::forget` from `transcribe_and_forget` makes all three fail with
   `payload drop boom`, exit 101; restoring it passes all three.
+- Obligation: the cleanup-error half of L1 when a step panic must survive. A
+  profile error is caller-supplied, so its `Display` and its `Drop` are both
+  hostile code. Method: two `#[gtest]` cases whose cleanup returns an error
+  that panics on display and on drop respectively; each asserts the step phase
+  and payload survive and the hostile text appears only in the recorded
+  secondary event. Artefacts: `src/harness_tests/panics/hostile.rs` and the
+  `CleanupFailsWithHostileDisplay` and `CleanupFailsWithHostileDrop` profiles.
+  Non-vacuity: replacing the guarded formatting with a direct `to_string()`
+  makes both fail (exit 101) with the harness unable to downcast the hostile
+  payload; restoring the guard passes both.
+- Obligation: container nesting order. Method: a parameterized detection row
+  for a fence in a list inside a block quote, whose prefixes must be stripped
+  quote-first. Non-vacuity: ordering the stack walk items-first makes the row
+  fail with zero recorded fences, reproducing the reported miss.
+- Obligation: the fail-closed tab rule. Method: a named case that places a
+  tab-indented fence inside an open list item and asserts the diagnostic.
+  Non-vacuity: removing the tab guard makes the case fail with an empty fence
+  list, so the rule is load-bearing rather than incidental.
+- Obligation: EP-INV-7 for the nested accessor pair. Method: a `#[gtest]` that
+  nests `with_app` inside `with_app` and asserts the crate's borrow prefix.
+  Non-vacuity: replacing `try_borrow_mut` with `borrow_mut` fails the case on
+  the raw `BorrowMutError`, and the case's presence is what detects the missing
+  nested pair.
 - Obligation: EP-INV-8, EP-INV-9, EP-INV-12, and the `FixedTimestep` seam.
   Method: named unit tests; the upstream
   `rstest_bdd_harness::policy_conformance::assert_attribute_policy_conformance`
@@ -2177,3 +2266,19 @@ Downstream consumers need direct development dependencies on `rstest`,
   fragment type, and the `ExpectedPhase`, `RecordedPhase`, `CleanupFailure`,
   `run_and_transcribe`, and `expect_drop_record` consolidations. No
   requirement, signature, tolerance, or milestone changed.
+- Revision 14, 2026-11-21: the follow-up completeness assessment
+  `SKYJOUST-PR136-EP-COMPLETE-R13-20261120T230817Z` verified the Revision 13
+  tree against the plan and returned three defects plus the still-open scope
+  decision. All three defects are repaired. A hostile profile error can no
+  longer replace a step panic, because the cleanup-error path now formats and
+  disposes of it inside `catch_unwind`. The fence scanner keeps one container
+  stack in opening order with stable container ids, so a list inside a block
+  quote is detected and a sibling container cannot close a fence. The
+  plan-named nested `with_app` case and a test for the tab rejection were
+  added. Each repair was proven by a seeded fault that was restored
+  byte-for-byte, and the focused crate suite is recorded in `Progress`.
+  `Verification plan` gained the corresponding obligations and non-vacuity
+  evidence, `Surprises & discoveries` records the two mechanisms that made the
+  defects possible, and `Tolerances` records the Revision 13 size measurement.
+  No requirement, signature, or milestone changed; the maintainer's decision on
+  the size overage remains outstanding.

@@ -6,7 +6,7 @@
 //! because Clippy's `panic_in_result_fn` forbids panic macros inside a
 //! `Result`-returning hook.
 
-use std::{panic::panic_any, rc::Rc};
+use std::{fmt, panic::panic_any, rc::Rc};
 
 use bevy::{
     app::{App, Plugin},
@@ -175,6 +175,90 @@ impl BevyProfile for CleanupFails {
         });
         Err(HarnessError::RuntimeBuildFailed(std::io::Error::other(
             "cleanup sentinel",
+        )))
+    }
+}
+
+/// Error whose `Display` panics.
+///
+/// A profile may return any error, so the harness must treat its formatting as
+/// hostile code rather than assume it is safe to render.
+pub struct PanicOnDisplay;
+
+impl fmt::Display for PanicOnDisplay {
+    fn fmt(&self, _formatter: &mut fmt::Formatter<'_>) -> fmt::Result { panic_any("display boom") }
+}
+
+impl fmt::Debug for PanicOnDisplay {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PanicOnDisplay")
+    }
+}
+
+impl std::error::Error for PanicOnDisplay {}
+
+/// Error whose destructor panics.
+///
+/// The harness must dispose of a profile's error inside its catch boundary, or
+/// the destructor replaces the panic it was trying to record.
+pub struct PanicOnErrorDrop;
+
+impl fmt::Display for PanicOnErrorDrop {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("error drop boom")
+    }
+}
+
+impl fmt::Debug for PanicOnErrorDrop {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PanicOnErrorDrop")
+    }
+}
+
+impl std::error::Error for PanicOnErrorDrop {}
+
+impl Drop for PanicOnErrorDrop {
+    fn drop(&mut self) { panic_any("error drop boom"); }
+}
+
+/// Profile whose cleanup fails with an error that panics when displayed.
+pub enum CleanupFailsWithHostileDisplay {}
+
+impl BevyProfile for CleanupFailsWithHostileDisplay {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<CleanupCalls>();
+        app.init_resource::<RunnerCalls>();
+        Ok(())
+    }
+
+    fn cleanup(scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        scenario.with_world(|world| {
+            world.resource_mut::<CleanupCalls>().0 += 1;
+        });
+        Err(HarnessError::RuntimeBuildFailed(std::io::Error::other(
+            PanicOnDisplay,
+        )))
+    }
+}
+
+/// Profile whose cleanup fails with an error that panics when dropped.
+pub enum CleanupFailsWithHostileDrop {}
+
+impl BevyProfile for CleanupFailsWithHostileDrop {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<CleanupCalls>();
+        app.init_resource::<RunnerCalls>();
+        Ok(())
+    }
+
+    fn cleanup(scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        scenario.with_world(|world| {
+            world.resource_mut::<CleanupCalls>().0 += 1;
+        });
+        Err(HarnessError::RuntimeBuildFailed(std::io::Error::other(
+            PanicOnErrorDrop,
         )))
     }
 }

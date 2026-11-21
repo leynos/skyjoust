@@ -233,12 +233,7 @@ fn raise_configure_panic<P>(payload: Box<dyn Any + Send>, metadata: &ScenarioMet
 fn cleanup_after_step_panic<P: BevyProfile>(scenario: &BevyScenario, metadata: &ScenarioMetadata) {
     match panic::catch_unwind(AssertUnwindSafe(|| P::cleanup(scenario, metadata))) {
         Ok(Ok(())) => {}
-        Ok(Err(error)) => record_error::<P>(
-            Phase::Cleanup,
-            "Bevy scenario cleanup failed after a step panic",
-            &wrap_profile_error(Phase::Cleanup, error).to_string(),
-            metadata,
-        ),
+        Ok(Err(error)) => record_cleanup_error_after_step_panic::<P>(error, metadata),
         Err(payload) => {
             let text = transcribe_and_forget(payload);
             record_error::<P>(
@@ -249,6 +244,31 @@ fn cleanup_after_step_panic<P: BevyProfile>(scenario: &BevyScenario, metadata: &
             );
         }
     }
+}
+
+/// Records a cleanup error after a step panic, guarding its own disposal.
+///
+/// A profile's error is caller-supplied: both its `Display` and its `Drop` may
+/// panic. Formatting and dropping it inside the catch boundary makes a hostile
+/// error a recorded secondary failure instead of a panic that replaces the
+/// step panic.
+fn record_cleanup_error_after_step_panic<P: BevyProfile>(
+    error: HarnessError,
+    metadata: &ScenarioMetadata,
+) {
+    let formatted = panic::catch_unwind(AssertUnwindSafe(|| {
+        wrap_profile_error(Phase::Cleanup, error).to_string()
+    }));
+    let text = match formatted {
+        Ok(text) => text,
+        Err(payload) => transcribe_and_forget(payload),
+    };
+    record_error::<P>(
+        Phase::Cleanup,
+        "Bevy scenario cleanup failed after a step panic",
+        &text,
+        metadata,
+    );
 }
 
 /// Re-raises a step panic after cleanup and the guarded application drop.
