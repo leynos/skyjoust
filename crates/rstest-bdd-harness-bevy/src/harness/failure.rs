@@ -14,7 +14,7 @@ use std::{
 };
 
 use bevy::app::App;
-use rstest_bdd_harness::{HarnessError, ScenarioMetadata};
+use rstest_bdd_harness::{HarnessError, ScenarioMetadata, ScenarioRunner};
 
 use crate::{
     BevyScenario,
@@ -152,6 +152,40 @@ pub(super) fn drop_app_after_configure_error<P>(app: App, metadata: &ScenarioMet
         app,
         Phase::Configure,
         "Bevy application drop panicked after a configure error",
+        metadata,
+    );
+}
+
+/// Drops the runner's value when cleanup did not complete normally.
+///
+/// The value is caller-supplied code, and the harness has already produced an
+/// outcome by the time it is released on these paths: a cleanup error, or the
+/// cleanup panic queued for re-raising. An unguarded destructor panic would
+/// replace that outcome, or abort the process while the cleanup panic unwinds.
+pub(super) fn drop_runner_value_guarded<P, T>(value: T, metadata: &ScenarioMetadata) {
+    drop_guarded::<P, _>(
+        value,
+        Phase::Cleanup,
+        "The runner value drop panicked",
+        metadata,
+    );
+}
+
+/// Drops a runner that a configuration failure prevented from running.
+///
+/// The runner owns values captured by caller-supplied code, so its release
+/// follows the same rule as every other release on a failure path: the
+/// configure outcome stays primary, and a panicking destructor is recorded
+/// against the configure phase instead of replacing it or aborting the
+/// configure panic's unwind.
+pub(super) fn drop_unrun_runner_guarded<P, T>(
+    runner: ScenarioRunner<'_, BevyScenario, T>,
+    metadata: &ScenarioMetadata,
+) {
+    drop_guarded::<P, _>(
+        runner,
+        Phase::Configure,
+        "The unrun scenario runner drop panicked",
         metadata,
     );
 }

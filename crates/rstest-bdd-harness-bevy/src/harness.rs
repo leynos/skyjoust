@@ -37,7 +37,9 @@ mod failure;
 use failure::{
     drop_app_after_configure_error,
     drop_app_after_configure_panic,
+    drop_runner_value_guarded,
     drop_scenario_guarded,
+    drop_unrun_runner_guarded,
     raise_cleanup_panic,
     raise_configure_panic,
     raise_step_panic,
@@ -154,10 +156,7 @@ impl<P: BevyProfile> HarnessAdapter for BevyHarness<P> {
         emit_start::<P>(&metadata);
         let scenario = match configure_app::<P>(&metadata) {
             Ok(scenario) => scenario,
-            Err(ConfigureFailure::Failed(error)) => return Err(error),
-            Err(ConfigureFailure::Panicked(payload)) => {
-                raise_configure_panic::<P>(payload, &metadata)
-            }
+            Err(failure) => return report_configure_failure::<P, T>(failure, runner, &metadata),
         };
         match run_steps(runner, &scenario) {
             StepOutcome::Returned(value) => finish_run::<P, T>(value, scenario, &metadata),
@@ -166,11 +165,31 @@ impl<P: BevyProfile> HarnessAdapter for BevyHarness<P> {
     }
 }
 
+/// Reports a configure failure after releasing the runner it never called.
+///
+/// The runner captures caller-supplied values, so releasing it is caller code
+/// running on a failure path. It is dropped under a guard before the failure
+/// is reported: the configure error or phase-tagged panic stays the primary
+/// outcome, and a destructor panic becomes a secondary record.
+fn report_configure_failure<P: BevyProfile, T>(
+    failure: ConfigureFailure,
+    runner: ScenarioRunner<'_, BevyScenario, T>,
+    metadata: &ScenarioMetadata,
+) -> HarnessResult<T> {
+    drop_unrun_runner_guarded::<P, T>(runner, metadata);
+    match failure {
+        ConfigureFailure::Failed(error) => Err(error),
+        ConfigureFailure::Panicked(payload) => raise_configure_panic::<P>(payload, metadata),
+    }
+}
+
 /// Finishes a returning run: cleanup, then the guarded release of the scenario.
 ///
-/// The runner's value or the cleanup error is the primary result. Releasing
-/// the scenario afterwards runs profile-installed destructors, and a panic
-/// there must become a secondary record rather than replace that result.
+/// The runner's value or the cleanup error is the primary result. The value is
+/// dropped under a guard whenever cleanup did not complete normally, and the
+/// scenario is released under a guard afterwards; both release caller-supplied
+/// destructors, and a panic there must become a secondary record rather than
+/// replace that result or abort the cleanup panic's unwind.
 fn finish_run<P: BevyProfile, T>(
     value: T,
     scenario: BevyScenario,
@@ -178,8 +197,14 @@ fn finish_run<P: BevyProfile, T>(
 ) -> HarnessResult<T> {
     let result = match finish_scenario::<P>(&scenario) {
         CleanupOutcome::Completed => Ok(value),
-        CleanupOutcome::Failed(error) => Err(error),
-        CleanupOutcome::Panicked(payload) => raise_cleanup_panic::<P>(payload, metadata, scenario),
+        CleanupOutcome::Failed(error) => {
+            drop_runner_value_guarded::<P, T>(value, metadata);
+            Err(error)
+        }
+        CleanupOutcome::Panicked(payload) => {
+            drop_runner_value_guarded::<P, T>(value, metadata);
+            raise_cleanup_panic::<P>(payload, metadata, scenario)
+        }
     };
     drop_scenario_guarded::<P>(scenario, metadata);
     result
