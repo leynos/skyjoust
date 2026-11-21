@@ -207,10 +207,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `harness_tests/panics/release.rs`, which keeps `panics.rs` inside the
   400-line limit. The Revision 16 assessment repair head `fc9766f` measures the
   same 41 non-ExecPlan paths and 5,333 net added lines (31 paths and 4,622 net
-  added lines counting only code and tests); the four new regression rows and
+  added lines counting only code and tests); the new regression coverage and
   two guard helpers add lines inside existing paths, so no path count changed.
-  `Decision log` records the escalation and its disposition; this bullet does
-  not claim a separate numeric approval.
+  The Revision 18 tree, which consolidates that coverage into one case table
+  after CodeScene flagged the four rows as duplicated, measures the same 41
+  non-ExecPlan paths and 5,419 net added lines (31 paths and 4,708 net added
+  lines counting only code and tests). `Decision log` records the escalation
+  and its disposition; this bullet does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -778,17 +781,29 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     `drop_unrun_runner_guarded` before reporting the failure. Each records a
     destructor panic as a secondary `tracing::error!` tagged with the phase of
     the release: `cleanup` for the runner value, `configure` for the unrun
-    runner. Four rows in `src/harness_tests/panics/release.rs` pin the four
-    outcomes.
+    runner. One `#[gtest] #[rstest]` case table in
+    `src/harness_tests/panics/release.rs` pins the four outcomes.
   Seeded-fault evidence, each restored byte-for-byte and verified by sha256
   (`821dfe1b…` for `harness.rs`): with the two guarded drops replaced by plain
-  drops, the cleanup-error and configure-error rows fail at exit 101 with the
-  raw `value boom` and `capture boom` payloads escaping `run`; the
-  cleanup-panic row aborts with `panic in a destructor during cleanup`,
-  `thread caused non-unwinding panic. aborting.`, and `SIGABRT`; and with the
-  runner left to drop during the configure panic's unwind, the configure-panic
-  row aborts the same way. Restoring the guards passes all eight release rows.
-  Focused evidence: the eight release rows pass, 0 failed, after restoration.
+  drops, `case_1_cleanup_error` and `case_3_configure_error` fail at exit 101
+  with the raw `value boom` and `capture boom` payloads escaping `run`, and
+  `case_2_cleanup_panic` and `case_4_configure_panic` fail because the
+  destructor payload replaces the phase-tagged cleanup and configure panic
+  messages; leaving the runner value, or the unrun runner, to drop during the
+  corresponding unwind instead aborts the process with
+  `panic in a destructor during cleanup`,
+  `thread caused non-unwinding panic. aborting.`, and `SIGABRT` on
+  `case_2_cleanup_panic` and `case_4_configure_panic`. Restoring the guards
+  passes all eight release rows. Focused evidence: the eight release rows pass,
+  0 failed, after restoration.
+- [x] (2026-11-21) Revision 18: CodeScene flagged the four Revision 16
+  regression rows as a new Code Duplication finding (four functions with
+  similar structure, score 9.38), so the rows became one `#[gtest] #[rstest]`
+  case table with named cases. The seeded-fault evidence was re-run against the
+  consolidated table so the recorded case names match the tests that exist, and
+  `harness.rs` was restored byte-for-byte and re-verified by sha256 before the
+  plan was updated. `cs check` reports 10.00 for the file and
+  `cs delta b0909fc` reports no new issue.
 
 ## Surprises & discoveries
 
@@ -1027,6 +1042,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   runner's value under the guard when cleanup failed or panicked, and
   `report_configure_failure` drops the unrun runner under the guard before a
   configure failure is reported.
+- Observation (2026-11-21, Revision 18): CodeScene treats four or more sibling
+  functions with the same shape as a Code Duplication finding even when each
+  body is a single call with different literals. The Revision 16 repair added
+  four near-identical regression rows, which scored the file 9.38 and raised a
+  new delta issue; three such rows in `harness_tests/panics/hostile.rs` stay at
+  10.00, which locates the trigger at four. Sharing the assertion body was not
+  enough, because the four thin row wrappers remained. Impact: the rows became
+  one parameterized case table whose cases dispatch to a shared assertion
+  helper, which keeps each outcome named and separately reportable while
+  removing the duplicated structure.
 
 ## Decision log
 
@@ -1359,9 +1384,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   destructor panic a secondary `tracing::error!` tagged `cleanup` for the
   runner value and `configure` for the unrun runner, matching the rule already
   applied to application release. Evidence: plain drops fail the cleanup-error
-  and configure-error rows at exit 101, and abort the cleanup-panic and
-  configure-panic rows with `SIGABRT`; the guarded versions pass all four.
-  Date/Author: 2026-11-21, implementer acting on the assessment.
+  and configure-error cases at exit 101, and leaving a value to drop during the
+  unwind aborts the cleanup-panic and configure-panic cases with `SIGABRT`; the
+  guarded versions pass all four. Date/Author: 2026-11-21, implementer acting
+  on the assessment.
+- Decision (2026-11-21, Revision 18): express the four caller-value regression
+  outcomes as one `#[gtest] #[rstest]` case table instead of four row
+  functions. Rationale: CodeScene scored the four rows as a new Code
+  Duplication finding (four functions with similar structure, 9.38), and
+  sharing the assertion body left four thin wrappers that still triggered it. A
+  parameterized table states the same rule once, keeps every case named and
+  separately reported, and restores the file to 10.00, which matches the
+  estate's CodeScene gate. The profile type stays a type parameter supplied per
+  case, so the table dispatches to each profile's instantiation rather than
+  erasing it behind a runtime value. Evidence: `cs check` reports 10.00 and
+  `cs delta b0909fc` reports no new issue; the seeded faults still fail the
+  named cases. Date/Author: 2026-11-21, implementer.
 
 ## Outcomes & retrospective
 
@@ -1753,21 +1791,25 @@ their `phase` and `scenario_name` fields, installed with
   defect rather than repeating older coverage.
 - Obligation: EP-INV-3 for the harness's other caller-owned values. The
   runner's result `T` and the unrun runner are released on the failure paths
-  that carry them, and both may own destructors that panic. Method: four
-  `#[gtest]` rows in `src/harness_tests/panics/release.rs`. A runner returns
-  `PanicOnDropValue` and cleanup either fails or panics; the assertion is the
-  cleanup error or the cleanup-tagged panic message, with the value's text
-  absent and one secondary `cleanup` record. A runner captures
+  that carry them, and both may own destructors that panic. Method: one
+  `#[gtest] #[rstest]` case table,
+  `a_panicking_caller_value_cannot_replace_the_settled_outcome`, with cases
+  `case_1_cleanup_error`, `case_2_cleanup_panic`, `case_3_configure_error`, and
+  `case_4_configure_panic` in `src/harness_tests/panics/release.rs`. A runner
+  returns `PanicOnDropValue` and cleanup either fails or panics; the assertion
+  is the cleanup error or the cleanup-tagged panic message, with the value's
+  text absent and one secondary `cleanup` record. A runner captures
   `PanicOnDropCapture` and configuration either fails or panics; the assertion
   is the configure error or the configure-tagged panic message, with the
   capture's text absent and one secondary `configure` record. Artefacts:
   `src/harness_tests/panics/release.rs` and the `CleanupFails`, `CleanupPanics`,
   `ConfigureFails`, and `ConfigurePanics` profiles. Non-vacuity: plain drops
-  make the cleanup-error and configure-error rows fail at exit 101 with the raw
-  `value boom` and `capture boom` payloads escaping `run`, and abort the
-  cleanup-panic and configure-panic rows with
-  `panic in a destructor during cleanup` and `SIGABRT`; the guarded versions
-  pass all four, so each row detects a distinct abort or precedence defect.
+  make `case_1_cleanup_error` and `case_3_configure_error` fail at exit 101
+  with the raw `value boom` and `capture boom` payloads escaping `run`, and
+  leaving a value to drop during the unwind makes `case_2_cleanup_panic` and
+  `case_4_configure_panic` abort with `panic in a destructor during cleanup` and
+  `SIGABRT`; the guarded versions pass all four, so each case detects a
+  distinct abort or precedence defect.
 - Obligation: the cleanup-error half of L1 when a step panic must survive. A
   profile error is caller-supplied, so its `Display` and its `Drop` are both
   hostile code, and one error may host both. Method: three `#[gtest]` cases
@@ -2670,3 +2712,15 @@ Downstream consumers need direct development dependencies on `rstest`,
   and the abstract model carry the details; no requirement, signature, or
   milestone changed, and the maintainer's decision on the size overage remains
   outstanding.
+- Revision 18, 2026-11-21: CodeScene scored the four Revision 17 regression
+  rows as a new Code Duplication finding (four functions with similar
+  structure, 9.38), so they became one `#[gtest] #[rstest]` case table whose
+  named cases dispatch to a shared assertion helper. The coverage is unchanged:
+  all four outcomes remain separately reported, and the seeded faults were
+  re-run against the consolidated table, failing the returning cases at exit
+  101 and aborting the unwinding cases under `SIGABRT` before `harness.rs` was
+  restored to sha256 `821dfe1b…`. `cs check` reports 10.00 for the file and
+  `cs delta b0909fc` reports no new issue. `Tolerances`, `Progress`,
+  `Surprises & discoveries`, `Decision log`, and `Verification plan` carry the
+  details; no requirement, signature, or milestone changed, and the
+  maintainer's decision on the size overage remains outstanding.
