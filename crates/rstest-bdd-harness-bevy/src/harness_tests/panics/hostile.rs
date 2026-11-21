@@ -1,10 +1,11 @@
 //! Hostile-payload rows of the panic path.
 //!
 //! A caught secondary payload is a `Box<dyn Any + Send>` supplied by
-//! arbitrary caller code, so its `Drop` may itself panic. These rows prove the
-//! harness transcribes and leaks each secondary payload: the primary
-//! phase-tagged panic survives, the hostile text never replaces it, and the
-//! secondary failure is recorded instead.
+//! arbitrary caller code, so its `Drop` may itself panic. A profile's error is
+//! caller-supplied too, so formatting and disposing of it are equally hostile
+//! steps. These rows prove the harness transcribes and leaks each secondary
+//! payload: the primary phase-tagged panic survives, the hostile text never
+//! replaces it, and the secondary failure is recorded instead.
 
 use std::panic::{AssertUnwindSafe, catch_unwind, panic_any};
 
@@ -16,6 +17,7 @@ use super::{
         metadata,
         profiles::{
             CleanupFailsWithHostileDisplay,
+            CleanupFailsWithHostileDisplayAndDrop,
             CleanupFailsWithHostileDrop,
             CleanupPanicsWithHostilePayload,
             ConfigurePanicsWithHostileDrop,
@@ -199,6 +201,17 @@ fn a_hostile_cleanup_error_drop_cannot_replace_the_step_panic() {
         &HostileRow {
             hostile_text: "error drop boom",
             recorded_message: "error drop boom",
+        },
+    );
+}
+
+#[gtest]
+fn a_hostile_cleanup_error_with_panicking_display_and_drop_keeps_the_step_panic() {
+    expect_hostile_secondary_after_step_panic(
+        BevyHarness::<CleanupFailsWithHostileDisplayAndDrop>::new(),
+        &HostileRow {
+            hostile_text: "combined display boom",
+            recorded_message: "combined drop boom",
         },
     );
 }

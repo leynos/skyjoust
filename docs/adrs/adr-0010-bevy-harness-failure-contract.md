@@ -291,6 +291,23 @@ with the delivered rule — a profile that finalizes gives up in-step plugin
 registration. The decision that the harness never finalizes is unchanged, and
 no code or public API changed.
 
+### 2026-11-21: hostile profile errors are formatted and disposed separately
+
+The original panic-path paragraph said the harness "records a cleanup `Err` or
+panic as a second error record", which did not say how a cleanup `Err` is
+rendered. A profile's error is caller-supplied code, so both its `Display` and
+its `Drop` may panic. Formatting it and releasing the wrapped temporary inside
+one caught step is unsafe when an error does both: once `Display` panics, the
+release runs while that panic unwinds, and a second panic there aborts the
+process instead of unwinding to a catch boundary, losing the step panic the
+path exists to preserve.
+
+The delivered rule keeps this record's decision and adds a step boundary: the
+wrapped error is formatted by borrow in one `catch_unwind`, then dropped in a
+second `catch_unwind`, and a panicking disposal is the failure the second
+record carries. The step panic, its phase tag, the payload-text rule, and the
+public API are unchanged.
+
 ## References
 
 - [Design §6](../rstest-bdd-harness-bevy-design.md#6-panic-and-cleanup-behaviour)

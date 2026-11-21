@@ -179,7 +179,11 @@ impl<'a> FenceParser<'a> {
             if leading > 3 {
                 return Ok(self.container_scan(None));
             }
-            if let Some(after_quote) = trimmed.strip_prefix('>') {
+            // A tab exposed by the prefix just stripped would hide the fence
+            // from the container measurement below, so it is rejected here
+            // rather than treated as ordinary content.
+            let stripped = Line::new(trimmed).reject_tab_indent()?.as_str();
+            if let Some(after_quote) = stripped.strip_prefix('>') {
                 self.containers.open_quote();
                 rest = Line::new(after_quote).strip_quote_padding().as_str();
                 continue;
@@ -188,13 +192,13 @@ impl<'a> FenceParser<'a> {
             // list item. Matching existing item indentation above still
             // detects the dedent that ends the fence's container.
             if self.open.is_none()
-                && let Some((indent, content)) = list_marker(Line::new(trimmed))
+                && let Some((indent, content)) = list_marker(Line::new(stripped))
             {
                 self.containers.open_item(leading + indent);
                 rest = content.as_str();
                 continue;
             }
-            return Ok(self.container_scan(Some(trimmed)));
+            return Ok(self.container_scan(Some(stripped)));
         }
     }
 

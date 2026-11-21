@@ -11,7 +11,7 @@ use bevy::diagnostic::FrameCount;
 use googletest::prelude::*;
 use rstest_bdd_harness::{HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, ScenarioRunner};
 
-use super::{BevyHarness, ProfileHookError};
+use super::{BevyHarness, failure::ProfileHookError};
 use crate::{BareBevyProfile, BevyScenario, panic::Phase};
 
 #[path = "harness_tests/panics.rs"]

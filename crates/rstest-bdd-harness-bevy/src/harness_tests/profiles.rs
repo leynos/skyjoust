@@ -242,6 +242,53 @@ impl BevyProfile for CleanupFailsWithHostileDisplay {
     }
 }
 
+/// Error whose `Display` and `Drop` both panic.
+///
+/// Formatting one of these errors unwinds, and disposing of it afterwards
+/// unwinds again. Dropping it while the first panic unwinds would abort the
+/// process, so the harness must treat the two steps separately.
+pub struct PanicOnDisplayAndDrop;
+
+impl fmt::Display for PanicOnDisplayAndDrop {
+    fn fmt(&self, _formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        panic_any("combined display boom")
+    }
+}
+
+impl fmt::Debug for PanicOnDisplayAndDrop {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PanicOnDisplayAndDrop")
+    }
+}
+
+impl std::error::Error for PanicOnDisplayAndDrop {}
+
+impl Drop for PanicOnDisplayAndDrop {
+    fn drop(&mut self) { panic_any("combined drop boom"); }
+}
+
+/// Profile whose cleanup fails with an error that panics when displayed and
+/// dropped.
+pub enum CleanupFailsWithHostileDisplayAndDrop {}
+
+impl BevyProfile for CleanupFailsWithHostileDisplayAndDrop {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<CleanupCalls>();
+        app.init_resource::<RunnerCalls>();
+        Ok(())
+    }
+
+    fn cleanup(scenario: &BevyScenario, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        scenario.with_world(|world| {
+            world.resource_mut::<CleanupCalls>().0 += 1;
+        });
+        Err(HarnessError::RuntimeBuildFailed(std::io::Error::other(
+            PanicOnDisplayAndDrop,
+        )))
+    }
+}
+
 /// Profile whose cleanup fails with an error that panics when dropped.
 pub enum CleanupFailsWithHostileDrop {}
 

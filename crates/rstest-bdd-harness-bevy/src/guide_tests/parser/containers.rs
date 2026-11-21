@@ -39,17 +39,12 @@ pub(super) struct Containers {
 impl Containers {
     /// Matches open containers against `line`, ending those it has left.
     ///
-    /// A tab in the indentation is rejected rather than guessed at: partial
-    /// tab-stop arithmetic would either hide a fence or invent one. The guide
-    /// uses spaces, so failing closed keeps the checker honest for the layout
-    /// it actually receives.
+    /// A tab in the line's own indentation is rejected before any container is
+    /// matched, because it would make the indentation each container measures
+    /// ambiguous. Tabs exposed only after a container prefix are caught by the
+    /// scanner as it strips the next prefix.
     pub(super) fn match_line<'a>(&mut self, line: Line<'a>) -> Result<Line<'a>, String> {
-        if line.has_tab_indent() {
-            return Err(
-                "a tab-indented line inside a list item is not supported; use spaces".to_owned(),
-            );
-        }
-        let mut rest = line;
+        let mut rest = line.reject_tab_indent()?;
         let matched = self.match_open_containers(&mut rest);
         self.entries.truncate(matched);
         Ok(rest)
@@ -150,6 +145,21 @@ impl<'a> Line<'a> {
             .chars()
             .take_while(|character| character.is_whitespace())
             .any(|character| character == '\t')
+    }
+
+    /// Rejects a fragment whose indentation starts with a tab.
+    ///
+    /// `CommonMark` measures indentation in columns, and partial tab-stop
+    /// arithmetic would either hide a fence or invent one. The guide uses
+    /// spaces, so failing closed keeps the checker honest for the layout it
+    /// actually receives. The check applies after every prefix strip, because
+    /// a tab is harmless as a block quote's marker padding but ambiguous as
+    /// the indentation of anything nested inside it.
+    pub(super) fn reject_tab_indent(self) -> Result<Self, String> {
+        if self.has_tab_indent() {
+            return Err("a tab-indented line is not supported; use spaces".to_owned());
+        }
+        Ok(self)
     }
 
     fn strip_char(self, prefix: char) -> Option<Self> {
