@@ -759,6 +759,32 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `src/harness_tests/panics/release.rs` because `panics.rs` reached 440 lines.
   Focused evidence: the crate suite passed 79/79 library tests, 4 extraction, 7
   scenario, 1 macro UI, 5 property tests, and 18/18 doctests.
+- [x] (2026-11-21) Revision 16 completeness-assessment repair: the follow-up
+  assessment reply `7055999055` (base `2268c56`, head `b0909fc`, plan Revision
+  16) confirmed the Revision 15 dispositions and returned one new finding,
+  which is valid and repaired.
+  - Finding (valid, fixed): the harness owns two further caller-owned values
+    that it released unguarded. `run` retained the runner's result `T` while
+    cleanup finished, so a panicking destructor could replace a cleanup error
+    or abort the process during the cleanup panic's unwind; and it retained
+    the unrun runner after a configure failure, whose captured values could
+    replace a configure error or abort the configure panic's unwind.
+    `finish_run` now drops the value through `drop_runner_value_guarded`, and
+    `report_configure_failure` drops the unrun runner through
+    `drop_unrun_runner_guarded` before reporting the failure. Each records a
+    destructor panic as a secondary `tracing::error!` tagged with the phase of
+    the release: `cleanup` for the runner value, `configure` for the unrun
+    runner. Four rows in `src/harness_tests/panics/release.rs` pin the four
+    outcomes.
+  Seeded-fault evidence, each restored byte-for-byte and verified by sha256
+  (`821dfe1b…` for `harness.rs`): with the two guarded drops replaced by plain
+  drops, the cleanup-error and configure-error rows fail at exit 101 with the
+  raw `value boom` and `capture boom` payloads escaping `run`; the
+  cleanup-panic row aborts with `panic in a destructor during cleanup`,
+  `thread caused non-unwinding panic. aborting.`, and `SIGABRT`; and with the
+  runner left to drop during the configure panic's unwind, the configure-panic
+  row aborts the same way. Restoring the guards passes all eight release rows.
+  Focused evidence: the eight release rows pass, 0 failed, after restoration.
 
 ## Surprises & discoveries
 
@@ -987,6 +1013,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   carries the container path, and attachment requires the fence's path to start
   with it; an ancestor marker is still accepted, which keeps the documented
   top-level-marker-before-quote example working.
+- Observation (2026-11-21, Revision 16 assessment): guarding the application
+  release did not cover the rest of the harness's caller-owned values. The
+  runner's result `T` is arbitrary caller code, and the unrun runner owns
+  whatever its closure captured; both were released outside any catch boundary
+  on the failure paths that carried them. The hazard is a property of the
+  release itself, not of the value's role in the scenario, so every release a
+  failure path performs needs the same guard. Impact: `finish_run` drops the
+  runner's value under the guard when cleanup failed or panicked, and
+  `report_configure_failure` drops the unrun runner under the guard before a
+  configure failure is reported.
 
 ## Decision log
 
@@ -1309,6 +1345,19 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   from the phase-tagged panic rows, so a child module follows the existing
   `hostile` split rather than compressing the new coverage. Date/Author:
   2026-11-21, implementer acting on the assessment.
+- Decision (2026-11-21, Revision 16 assessment): guard the release of the
+  runner's value and of the unrun runner on their failure paths, with the
+  settled cleanup or configure outcome as primary. Rationale: both values are
+  caller-supplied code that the harness releases after it has already produced
+  an outcome. An unguarded destructor panic replaces a cleanup or configure
+  error on the returning path, and aborts the process when it fires during the
+  unwind of the phase-tagged panic the harness is raising. The guard makes the
+  destructor panic a secondary `tracing::error!` tagged `cleanup` for the
+  runner value and `configure` for the unrun runner, matching the rule already
+  applied to application release. Evidence: plain drops fail the cleanup-error
+  and configure-error rows at exit 101, and abort the cleanup-panic and
+  configure-panic rows with `SIGABRT`; the guarded versions pass all four.
+  Date/Author: 2026-11-21, implementer acting on the assessment.
 
 ## Outcomes & retrospective
 
@@ -1507,6 +1556,13 @@ seeded faults and the mutation audit. At the type level, `ScenarioRunner` is
 `FnOnce`, so "runner runs at most once" is guaranteed by the compiler; the
 tests establish "at least once" and the cleanup counts.
 
+Release is outside the outcome model but on every route: the harness owns the
+application, the runner's result, and the unrun runner, each of which may run
+caller-supplied destructors. Axiom A7 admits a destructor panic at any release,
+and every release the harness performs goes through `drop_guarded`. A release
+panic is a secondary `tracing::error!` record, never an outcome, so it neither
+adds a table column nor changes a row.
+
 ### Invariants and lemmas
 
 - EP-INV-1 configure precedence: the runner is invoked only after `configure`
@@ -1563,6 +1619,11 @@ structure, to be refined by implementation):
 - L3: the macro-generated test calls `run` exactly once per scenario on a
   `Default`-constructed harness (axiom A4), so EP-INV-1 to EP-INV-5 hold for
   generated scenarios, not only for hand-built requests.
+- L4: every harness-initiated release of a caller-owned value on a failure
+  path returns normally, because each goes through `drop_guarded`, which
+  catches any destructor panic and records it instead. Combined with L1 this
+  makes the settled outcome — a returned value, a wrapped error, or a raised
+  phase-tagged panic — the only thing the caller observes.
 
 ### Axioms (external assumptions, not verified here)
 
@@ -1581,6 +1642,12 @@ structure, to be refined by implementation):
 - A5 `HarnessError` exposes only `RuntimeBuildFailed(std::io::Error)`.
 - A6 Bevy: a system panic during `update` loses the `Main` schedule; the
   main sub-app's `update_schedule` label and `Schedules::contains` reveal it.
+- A7 Caller code: a destructor owned by the runner's result, the runner's
+  closure captures, a profile-installed resource, or a profile error may panic,
+  and a panic that starts while another panic unwinds aborts the process. The
+  harness therefore treats every release as hostile and never relies on a
+  destructor returning normally; the release rows exercise each such release
+  with a panicking destructor instead of assuming this axiom silently.
 
 ### Test profiles and probes
 
@@ -1680,6 +1747,23 @@ their `phase` and `scenario_name` fields, installed with
   releases makes each row fail with the raw `drop boom` panic escaping `run`,
   while the two pre-existing leak rows still pass, so the new rows detect the
   defect rather than repeating older coverage.
+- Obligation: EP-INV-3 for the harness's other caller-owned values. The
+  runner's result `T` and the unrun runner are released on the failure paths
+  that carry them, and both may own destructors that panic. Method: four
+  `#[gtest]` rows in `src/harness_tests/panics/release.rs`. A runner returns
+  `PanicOnDropValue` and cleanup either fails or panics; the assertion is the
+  cleanup error or the cleanup-tagged panic message, with the value's text
+  absent and one secondary `cleanup` record. A runner captures
+  `PanicOnDropCapture` and configuration either fails or panics; the assertion
+  is the configure error or the configure-tagged panic message, with the
+  capture's text absent and one secondary `configure` record. Artefacts:
+  `src/harness_tests/panics/release.rs` and the `CleanupFails`, `CleanupPanics`,
+  `ConfigureFails`, and `ConfigurePanics` profiles. Non-vacuity: plain drops
+  make the cleanup-error and configure-error rows fail at exit 101 with the raw
+  `value boom` and `capture boom` payloads escaping `run`, and abort the
+  cleanup-panic and configure-panic rows with
+  `panic in a destructor during cleanup` and `SIGABRT`; the guarded versions
+  pass all four, so each row detects a distinct abort or precedence defect.
 - Obligation: the cleanup-error half of L1 when a step panic must survive. A
   profile error is caller-supplied, so its `Display` and its `Drop` are both
   hostile code, and one error may host both. Method: three `#[gtest]` cases
@@ -2563,3 +2647,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   `clippy::option_if_let_else` fix, and the other six gates re-ran afterwards
   in order. CodeScene reports 10.00 for every touched file and no issue in
   `cs delta 9b52da6`.
+- Revision 17, 2026-11-21: the follow-up assessment reply `7055999055`
+  verified the Revision 16 tree (head `b0909fc`) and returned one finding,
+  which is valid and repaired. The harness now releases the runner's value and
+  the unrun runner under the same guard as the application, so a panicking
+  destructor can no longer replace a cleanup or configure error, nor abort the
+  process during a cleanup or configure panic's unwind; each such panic is a
+  secondary `tracing::error!` tagged with the release's phase. Four regression
+  rows in `harness_tests/panics/release.rs` cover both cleanup outcomes and
+  both configure outcomes, and the seeded faults restored byte-for-byte make
+  the returning rows fail at exit 101 and the panic rows abort under `SIGABRT`.
+  `Progress`, `Surprises & discoveries`, `Decision log`, `Verification plan`,
+  and the abstract model carry the details; no requirement, signature, or
+  milestone changed, and the maintainer's decision on the size overage remains
+  outstanding.
