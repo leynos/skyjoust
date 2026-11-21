@@ -10,10 +10,10 @@
 //! including a blank one, ends a block quote; a dedented line ends a list item
 //! and leaves its fence unterminated.
 
-#[path = "parser/list.rs"]
-mod list;
+#[path = "parser/containers.rs"]
+mod containers;
 
-use list::{Line, ListContainers, list_marker};
+use containers::{Containers, Line, list_marker};
 
 /// One fenced block and the marker immediately above it, if any.
 #[derive(Debug)]
@@ -44,19 +44,16 @@ impl Delimiter {
 
 /// An open fence awaiting its closing delimiter.
 struct OpenFence<'a> {
-    /// Block-quote nesting depth at the opener.
+    /// Identity of the innermost container holding the opener.
     ///
-    /// Only a delimiter at the same depth closes the block; a quoted line
-    /// inside a top-level fence is content. While the block is open, every
-    /// line must keep at least this depth, because a shallower line ends the
-    /// container and with it the fence.
-    depth: usize,
-    /// Number of list items containing the opener.
-    ///
-    /// A delimiter outside those items cannot close their fence. The count is
-    /// deliberately a depth rather than the exact marker positions: a sibling
-    /// item at the same depth is outside the fence's item, so the containment
-    /// check rejects the dedent before a sibling's delimiter is considered.
+    /// Only a delimiter in that same container closes the block; a quoted line
+    /// inside a top-level fence is content. A sibling container of equal depth
+    /// is outside the fence's container, which a depth count alone could not
+    /// distinguish.
+    container: usize,
+    /// Block-quote nesting depth at the opener, for diagnostics.
+    quote_depth: usize,
+    /// Number of list items containing the opener, for diagnostics.
     list_depth: usize,
     delimiter: Delimiter,
     language: &'a str,
@@ -81,7 +78,7 @@ struct FenceParser<'a> {
     fences: Vec<Fence<'a>>,
     pending_marker: Option<(&'a str, usize)>,
     open: Option<OpenFence<'a>>,
-    containers: ListContainers,
+    containers: Containers,
 }
 
 impl<'a> FenceParser<'a> {
@@ -101,8 +98,10 @@ impl<'a> FenceParser<'a> {
         // Containment is checked before delimiter processing: a shallower
         // delimiter line ends the container, so it must not be mistaken for a
         // closer (or for a new top-level fence) that the open block survives.
-        if let Some(open) = &self.open {
-            if open.depth > scan.depth {
+        if let Some(open) = &self.open
+            && !same_container(&scan, open)
+        {
+            if open.quote_depth > scan.quote_depth {
                 return Err(format!(
                     "the fenced block {:?} inside a block quote is not terminated",
                     open.language
@@ -153,7 +152,8 @@ impl<'a> FenceParser<'a> {
             Some(open) => self.open = Some(open),
             None => {
                 self.open = Some(OpenFence {
-                    depth: scan.depth,
+                    container: scan.container,
+                    quote_depth: scan.quote_depth,
                     list_depth: scan.list_depth,
                     delimiter,
                     language: trailing.trim(),
@@ -164,25 +164,24 @@ impl<'a> FenceParser<'a> {
         true
     }
 
-    /// Strips the containers around `line` and records list-item openings.
+    /// Strips the containers around `line` and records container openings.
+    ///
+    /// Containers are matched in their opening order, so the quote prefix of a
+    /// block quote that contains a list is removed before the item's content
+    /// indentation is measured, exactly as `CommonMark` nests them.
     fn scan(&mut self, line: &'a str) -> Result<ContainerScan<'a>, String> {
-        let mut rest = self.containers.match_indent(Line::new(line))?.as_str();
-        let mut depth = 0;
+        let mut rest = self.containers.match_line(Line::new(line))?.as_str();
         loop {
             let trimmed = rest.trim_start_matches(' ');
             let leading = rest.len() - trimmed.len();
             // Four spaces relative to the current container begin an indented
             // code block, whose fence-like lines are literal text.
             if leading > 3 {
-                return Ok(ContainerScan {
-                    depth,
-                    list_depth: self.containers.len(),
-                    content: None,
-                });
+                return Ok(self.container_scan(None));
             }
             if let Some(after_quote) = trimmed.strip_prefix('>') {
-                rest = strip_quote_padding(after_quote);
-                depth += 1;
+                self.containers.open_quote();
+                rest = Line::new(after_quote).strip_quote_padding().as_str();
                 continue;
             }
             // A marker inside an open fence is literal content, not a new
@@ -191,15 +190,21 @@ impl<'a> FenceParser<'a> {
             if self.open.is_none()
                 && let Some((indent, content)) = list_marker(Line::new(trimmed))
             {
-                self.containers.push(leading + indent);
+                self.containers.open_item(leading + indent);
                 rest = content.as_str();
                 continue;
             }
-            return Ok(ContainerScan {
-                depth,
-                list_depth: self.containers.len(),
-                content: Some(trimmed),
-            });
+            return Ok(self.container_scan(Some(trimmed)));
+        }
+    }
+
+    /// Describes the container state and content of the current line.
+    fn container_scan(&self, content: Option<&'a str>) -> ContainerScan<'a> {
+        ContainerScan {
+            container: self.containers.innermost(),
+            quote_depth: self.containers.quote_depth(),
+            list_depth: self.containers.list_depth(),
+            content,
         }
     }
 
@@ -234,15 +239,17 @@ fn closes_open(
     same_container(scan, open) && delimiter.closes(open.delimiter, trailing)
 }
 
-/// Whether `scan` is in the same block quote and list item as `open`.
+/// Whether `scan` is in the same container as `open`.
 fn same_container(scan: &ContainerScan<'_>, open: &OpenFence<'_>) -> bool {
-    scan.depth == open.depth && scan.list_depth == open.list_depth
+    scan.container == open.container
 }
 
 /// One line after its containers were stripped.
 struct ContainerScan<'a> {
+    /// Identity of the innermost containing block, zero at the top level.
+    container: usize,
     /// Block-quote nesting depth.
-    depth: usize,
+    quote_depth: usize,
     /// Number of list items containing the line.
     list_depth: usize,
     /// The line's content, or `None` when it is indented code.
@@ -264,18 +271,6 @@ fn fence_delimiter(content: &str) -> Option<(Delimiter, &str)> {
     // length; the checked split keeps the helper free of panicking indexing.
     let (_, trailing) = content.split_at_checked(length)?;
     Some((Delimiter { character, length }, trailing))
-}
-
-/// Strips the optional space or tab that may follow a block-quote marker.
-///
-/// `CommonMark` locates content by column, with tab stops every four columns, so
-/// `>\t` begins a quoted line whose content is validly indented. Treating the
-/// tab as the marker's padding keeps a following fence delimiter visible to
-/// the checker; leaving it in place would hide the fence.
-fn strip_quote_padding(text: &str) -> &str {
-    text.strip_prefix(' ')
-        .or_else(|| text.strip_prefix('\t'))
-        .unwrap_or(text)
 }
 
 /// Returns the identifier when `line` is a `tested-example` marker.

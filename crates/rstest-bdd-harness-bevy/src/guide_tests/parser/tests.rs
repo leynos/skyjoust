@@ -45,6 +45,10 @@ fn single_fence<'a>(text: &'a str, description: &str) -> Fence<'a> {
     "- Item\n\n  > ```rust\n  > let value = 1;\n  > ```\n",
     "a quoted fence inside a bullet item"
 )]
+#[case(
+    "> - Item\n>\n>     ```rust\n>     let value = 1;\n>     ```\n",
+    "a fence in a list inside a block quote"
+)]
 fn unmarked_fence_is_detected(#[case] text: &str, #[case] description: &str) {
     let fence = single_fence(text, description);
 
@@ -91,6 +95,17 @@ fn a_top_level_delimiter_does_not_close_a_list_fence() {
     assert!(
         error.contains("list item"),
         "the error must name the ended list item, got {error:?}"
+    );
+}
+
+#[test]
+fn tab_indented_list_content_is_rejected() {
+    let error = parse_fences("- Item\n\n\t```rust\n\tlet value = 1;\n\t```\n")
+        .expect_err("tab-indented list content must be rejected");
+
+    assert!(
+        error.contains("tab-indented"),
+        "the error must explain the tab rejection, got {error:?}"
     );
 }
 

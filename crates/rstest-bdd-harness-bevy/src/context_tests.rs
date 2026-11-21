@@ -122,6 +122,14 @@ fn a_nested_borrow_panics_with_the_crate_prefix() {
 }
 
 #[gtest]
+fn a_nested_with_app_panics_with_the_crate_prefix() {
+    let scenario = test_scenario();
+    expect_borrowed_panic(catch_unwind(AssertUnwindSafe(|| {
+        scenario.with_app(|_app| scenario.with_app(|_inner| ()));
+    })));
+}
+
+#[gtest]
 fn a_cross_clone_update_inside_with_world_panics_with_the_crate_prefix() {
     let scenario = test_scenario();
     let clone = scenario.clone();
