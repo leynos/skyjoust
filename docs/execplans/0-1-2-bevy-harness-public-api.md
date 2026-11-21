@@ -222,8 +222,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   authority for these figures. The Revision 21 tree, which accepts a
   whitespace-only quoted blank line in the guide checker, measures the same 41
   non-ExecPlan paths and 5,477 net added lines (31 paths and 4,766 net added
-  lines counting only code and tests). `Decision log` records the escalation
-  and its disposition; this bullet does not claim a separate numeric approval.
+  lines counting only code and tests). The Revision 22 tree, which consolidates
+  the two quoted-blank cases into one case table after CodeScene flagged them
+  as duplicated, measures the same 41 non-ExecPlan paths and 5,469 net added
+  lines (31 paths and 4,758 net added lines counting only code and tests).
+  `Decision log` records the escalation and its disposition; this bullet does
+  not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -857,7 +861,21 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   failed with `marker on line 1 is not followed by a fence` before the change
   and passes after it; the earlier quoted-blank, indented-code, and
   sibling-container cases still pass. Focused evidence: all 22 parser tests
-  pass, 0 failed.
+  pass, 0 failed. Revision 22 consolidates this fixture with the earlier quoted
+  case into `a_quoted_blank_line_keeps_the_marker_attached`, whose second case
+  preserves the same input and failure mode.
+- [x] (2026-11-21) Revision 22: CodeScene flagged the two Revision 19 and 21
+  quoted-blank fixtures as a new Code Duplication finding (file 9.38,
+  `cs delta 2268c56 4f9f53b`), which corrects the Revision 18 belief that four
+  similar functions are needed to trigger the rule. The two rows became one
+  `#[rstest]` case table, `a_quoted_blank_line_keeps_the_marker_attached`, with
+  a plain quoted blank line as `case_1` and the whitespace-only line as
+  `case_2`; both still assert marker attachment through the shared
+  `single_fence` helper. Seeded-fault evidence: with the Revision 21 change
+  reverted, `case_1` still passes and `case_2` fails with
+  `marker on line 1 is not followed by a fence`; restoring the change passes
+  both and all 22 parser tests. `cs check` reports 10.00 for the file and
+  `cs delta 2268c56` reports no new issue.
 
 ## Surprises & discoveries
 
@@ -1129,6 +1147,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   attempt tested the space-trimmed fragment instead of the remainder, then
   inverted the predicate; both mistakes failed the new fixture immediately,
   before any gate ran.
+- Observation (2026-11-21, Revision 22): CodeScene's Code Duplication rule
+  fired on two near-identical test functions, not only on the four rows seen in
+  Revision 18, so the earlier count-based reading was wrong: the trigger is
+  structural similarity between sibling functions, whatever their number. Two
+  fixtures that differ only in their input string are exactly that shape.
+  Impact: such rows belong in one `#[rstest]` case table from the start, which
+  keeps each input named as a case while giving the rule one body to score.
 
 ## Decision log
 
@@ -1500,6 +1525,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `marker on line 1 is not followed by a fence` before the change and passes
   after it; the indented-code and sibling-container cases still reject.
   Date/Author: 2026-11-21, implementer acting on the assessment.
+- Decision (2026-11-21, Revision 22): express the plain and whitespace-only
+  quoted blank-line fixtures as one `#[rstest]` case table rather than two
+  functions. Rationale: CodeScene scored the two near-identical functions as a
+  new Code Duplication finding (file 9.38), and they differ only in the
+  separator line, so a case table states the rule once while keeping each input
+  named and separately reported. Evidence: `cs check` restores the file to
+  10.00 and `cs delta 2268c56` reports no new issue; with the scanner change
+  reverted, `case_1` passes and `case_2` fails with the dangling-marker error,
+  so the table keeps the discriminating case. Date/Author: 2026-11-21,
+  implementer.
 
 ## Outcomes & retrospective
 
@@ -1952,18 +1987,19 @@ their `phase` and `scenario_name` fields, installed with
   Non-vacuity: removing the container-path check makes the new case fail on
   `expect_err` while all 18 other parser rows pass, so the positives do not
   cover the sibling hole.
-- Obligation: the blank-line allowance holds in every container. Method: three
-  named cases — a marker and fence in one block quote separated by a quoted
-  blank line (`>`), the same separated by a whitespace-only line (`>` plus
-  spaces that would otherwise begin an indented code block), and a line after a
-  marker that is indented code and must still be reported as a dangling marker.
+- Obligation: the blank-line allowance holds in every container. Method: a
+  two-case table, `a_quoted_blank_line_keeps_the_marker_attached`, whose cases
+  separate a marker from its fence in one block quote with a quoted blank line
+  (`>`) and with a whitespace-only line (`>` plus spaces that would otherwise
+  begin an indented code block), plus a named case where the line after a
+  marker is indented code and must still be reported as a dangling marker.
   Artefacts: `src/guide_tests/parser/tests.rs` and `src/guide_tests/parser.rs`.
-  Non-vacuity: testing the raw line makes both quoted cases fail with
+  Non-vacuity: testing the raw line makes both table cases fail with
   `marker on line 1 is not followed by a fence`; discarding every over-indented
-  remainder as code makes the whitespace-only case fail the same way; and
-  accepting any line that strips to empty without the raw-text clause would
-  make the indented-code case pass. The three cases pin both sides of both
-  clauses.
+  remainder as code makes the whitespace-only case fail the same way while its
+  sibling still passes, the seeded fault recorded in `Progress`; and accepting
+  any line that strips to empty without the raw-text clause would make the
+  indented-code case pass. The three cases pin both sides of both clauses.
 - Obligation: EP-INV-7 for the nested accessor pair. Method: a `#[gtest]` that
   nests `with_app` inside `with_app` and asserts the crate's borrow prefix.
   Non-vacuity: replacing `try_borrow_mut` with `borrow_mut` fails the case on
@@ -2863,3 +2899,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   `Decision log`, `Verification plan`, and `Tolerances` carry the details; no
   requirement, signature, or milestone changed, and the maintainer's decisions
   on the size overage and the non-Rust example deviation remain outstanding.
+- Revision 22, 2026-11-21: CodeScene flagged the two quoted-blank fixtures as a
+  new Code Duplication finding, so they became one `#[rstest]` case table. The
+  seeded fault shows its whitespace-only case failing while its sibling passes,
+  and `cs delta 2268c56` reports no new issue. The observation that four
+  similar functions were needed to trigger the rule is corrected: similarity,
+  not count, is the trigger. No requirement, signature, or milestone changed;
+  the maintainer's decisions on the size overage and the non-Rust example
+  deviation remain outstanding.

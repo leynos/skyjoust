@@ -4,9 +4,10 @@
 //! up-to-three-space indentation, closing-delimiter matching, block-quote
 //! nesting depth, list-item content indentation, tab padding after a quote
 //! marker, the rejection of a tab exposed as indentation by a container
-//! prefix, marker attachment, the blank-line allowance in its raw and quoted
-//! forms, the rejection of a marker in a sibling container, and the end of a
-//! contained block. The guide-wide assertions live in the parent module.
+//! prefix, marker attachment, the blank-line allowance in its raw, quoted, and
+//! whitespace-only quoted forms, the rejection of a marker in a sibling
+//! container, and the end of a contained block. The guide-wide assertions live
+//! in the parent module.
 
 use rstest::rstest;
 
@@ -89,31 +90,22 @@ fn marker_above_a_contained_fence_is_attached(
     );
 }
 
-#[test]
-fn a_quoted_blank_line_keeps_the_marker_attached() {
-    let fence = single_fence(
-        "> <!-- tested-example: quoted-gap -->\n>\n> ```rust\n> let value = 1;\n> ```\n",
-        "a marker and fence separated by a quoted blank line",
-    );
+#[rstest]
+#[case(
+    "> <!-- tested-example: quoted-gap -->\n>\n> ```rust\n> let value = 1;\n> ```\n",
+    "a quoted blank line"
+)]
+#[case(
+    "> <!-- tested-example: quoted-gap -->\n>     \n> ```rust\n> let value = 1;\n> ```\n",
+    "a whitespace-only quoted blank line"
+)]
+fn a_quoted_blank_line_keeps_the_marker_attached(#[case] text: &str, #[case] description: &str) {
+    let fence = single_fence(text, description);
 
     assert_eq!(
         fence.marker,
         Some("quoted-gap"),
-        "the quoted blank line must not detach the marker"
-    );
-}
-
-#[test]
-fn a_whitespace_only_quoted_blank_line_keeps_the_marker_attached() {
-    let fence = single_fence(
-        "> <!-- tested-example: quoted-gap -->\n>     \n> ```rust\n> let value = 1;\n> ```\n",
-        "a marker and fence separated by a whitespace-only quoted blank line",
-    );
-
-    assert_eq!(
-        fence.marker,
-        Some("quoted-gap"),
-        "a whitespace-only line is blank, so it must not detach the marker"
+        "{description} must not detach the marker"
     );
 }
 
