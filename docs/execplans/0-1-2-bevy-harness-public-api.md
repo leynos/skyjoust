@@ -211,12 +211,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   two guard helpers add lines inside existing paths, so no path count changed.
   The Revision 18 tree, which consolidates that coverage into one case table
   after CodeScene flagged the four rows as duplicated, measures the same 41
-  non-ExecPlan paths and 5,419 net added lines (31 paths and 4,708 net added
+  non-ExecPlan paths and 5,418 net added lines (31 paths and 4,707 net added
   lines counting only code and tests). The Revision 19 tree, which repairs the
   quoted blank-line finding in the guide checker, measures the same 41
-  non-ExecPlan paths and 5,454 net added lines (31 paths and 4,743 net added
-  lines counting only code and tests). `Decision log` records the escalation
-  and its disposition; this bullet does not claim a separate numeric approval.
+  non-ExecPlan paths and 5,457 net added lines (31 paths and 4,746 net added
+  lines counting only code and tests). Revision 20 re-measured both committed
+  trees against base `2268c56` and replaced the figures recorded in Revisions
+  18 and 19, which had been taken before their commits' final edits and so
+  stood one and three lines high respectively; the committed tree is the
+  authority for these figures. `Decision log` records the escalation and its
+  disposition; this bullet does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -824,6 +828,17 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   it; `an_indented_code_line_does_not_excuse_a_dangling_marker` pins the
   distinction the helper's second clause turns on, and the sibling-container
   rejection still passes. Focused evidence: all 21 parser tests pass, 0 failed.
+- [x] (2026-11-21) Revision 20: the Revision 18 assessment reply also compared
+  its own measurement with the figures in `Tolerances`: GitHub's comparison of
+  base `2268c56` to head `478ea1e` reports 5,418 non-ExecPlan net added lines,
+  one fewer than the 5,419 this plan recorded. Re-measuring every recent head
+  from the committed trees against the same base reproduced that value and
+  showed the Revision 19 figure was stale by three lines. The `Tolerances`
+  bullet now records 5,418 and 4,707 for Revision 18 (`478ea1e`) and 5,457 and
+  4,746 for Revision 19 (`ee8858a`), each reproduced by
+  `git diff --numstat 2268c56 <head> -- . ':(exclude)docs/execplans'` and by
+  the code-and-tests path list. No code, test, or requirement changed; the
+  revision exists so later readers and assessments can trust the figures.
 
 ## Surprises & discoveries
 
@@ -1079,6 +1094,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   prose. Impact: the blank-line allowance is decided by `is_blank_line`, which
   also accepts a container-stripped empty line while still treating an indented
   code line, which strips to nothing, as content that rejects a dangling marker.
+- Observation (2026-11-21, Revision 20): a scope figure measured from the
+  working tree before a commit can differ from the committed tree's value, and
+  a reviewer comparing GitHub's own count will see the difference. The Revision
+  18 figure was one line high and the Revision 19 figure three lines high for
+  that reason. Impact: scope evidence is now measured from the committed head,
+  and the `Tolerances` bullet names the commit each figure belongs to.
 
 ## Decision log
 
@@ -2781,3 +2802,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   `Decision log`, and `Verification plan` carry the details; no requirement,
   signature, or milestone changed, and the maintainer's decisions on the size
   overage and the non-Rust example deviation remain outstanding.
+- Revision 20, 2026-11-21: the Revision 18 assessment compared GitHub's
+  comparison count with this plan's figures and found the plan one line high.
+  Re-measuring every recent head from its committed tree against base `2268c56`
+  corrected Revision 18 to 5,418 non-ExecPlan net added lines (4,707 for code
+  and tests) and Revision 19 to 5,457 (4,746), the latter having been taken
+  before its commit's final test edit. No code, test, requirement, signature,
+  or milestone changed; the maintainer's decisions on the size overage and the
+  non-Rust example deviation remain outstanding.
