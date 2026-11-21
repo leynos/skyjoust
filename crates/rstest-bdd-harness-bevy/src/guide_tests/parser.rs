@@ -220,9 +220,13 @@ impl<'a> FenceParser<'a> {
             let trimmed = rest.trim_start_matches(' ');
             let leading = rest.len() - trimmed.len();
             // Four spaces relative to the current container begin an indented
-            // code block, whose fence-like lines are literal text.
+            // code block, whose fence-like lines are literal text. A line with
+            // nothing but whitespace left is not code—`CommonMark` does not
+            // start an indented code block on a blank line—so it keeps its
+            // content for `is_blank_line` to recognize as blank.
             if leading > 3 {
-                return Ok(self.container_scan(None));
+                let content = rest.trim().is_empty().then_some(rest);
+                return Ok(self.container_scan(content));
             }
             // A tab exposed by the prefix just stripped would hide the fence
             // from the container measurement below, so it is rejected here
@@ -297,9 +301,11 @@ fn same_container(scan: &ContainerScan<'_>, open: &OpenFence<'_>) -> bool {
 ///
 /// A blank line inside a block quote is written `>` rather than left empty, so
 /// testing only the raw text would report a marker above it as dangling and
-/// break the blank-line allowance for quoted examples. An indented code line
-/// strips to no content at all; it is literal text, not a blank line, so that
-/// case stays non-blank and still rejects a dangling marker.
+/// break the blank-line allowance for quoted examples. Whitespace left after
+/// the containers is still blank, because `CommonMark` does not start an
+/// indented code block on a blank line. An indented code line with any other
+/// content strips to no content at all; it is literal text, not a blank line,
+/// so that case stays non-blank and still rejects a dangling marker.
 fn is_blank_line(line: &str, scan: &ContainerScan<'_>) -> bool {
     line.trim().is_empty()
         || scan

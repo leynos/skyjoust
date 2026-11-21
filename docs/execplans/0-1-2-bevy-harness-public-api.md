@@ -219,8 +219,11 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   trees against base `2268c56` and replaced the figures recorded in Revisions
   18 and 19, which had been taken before their commits' final edits and so
   stood one and three lines high respectively; the committed tree is the
-  authority for these figures. `Decision log` records the escalation and its
-  disposition; this bullet does not claim a separate numeric approval.
+  authority for these figures. The Revision 21 tree, which accepts a
+  whitespace-only quoted blank line in the guide checker, measures the same 41
+  non-ExecPlan paths and 5,477 net added lines (31 paths and 4,766 net added
+  lines counting only code and tests). `Decision log` records the escalation
+  and its disposition; this bullet does not claim a separate numeric approval.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -839,6 +842,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `git diff --numstat 2268c56 <head> -- . ':(exclude)docs/execplans'` and by
   the code-and-tests path list. No code, test, or requirement changed; the
   revision exists so later readers and assessments can trust the figures.
+- [x] (2026-11-21) Revision 21: the Revision 20 assessment reply `7058669537`
+  (base `2268c56`, head `416efb3`, plan Revision 20) confirmed the quoted
+  blank-line repair and returned one related guide-checker finding, which is
+  valid and repaired.
+  - Finding (valid, fixed): a line inside a block quote that holds only
+    whitespace after the quote prefix was discarded as an indented code block,
+    so a marker separated from its fence by `>` plus spaces was still reported
+    as dangling. `CommonMark` does not start an indented code block on a blank
+    line, so `scan` now keeps a whitespace-only remainder as content for
+    `is_blank_line` to recognize, while a remainder holding anything else stays
+    content-free indented code.
+  Evidence: `a_whitespace_only_quoted_blank_line_keeps_the_marker_attached`
+  failed with `marker on line 1 is not followed by a fence` before the change
+  and passes after it; the earlier quoted-blank, indented-code, and
+  sibling-container cases still pass. Focused evidence: all 22 parser tests
+  pass, 0 failed.
 
 ## Surprises & discoveries
 
@@ -1100,6 +1119,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   18 figure was one line high and the Revision 19 figure three lines high for
   that reason. Impact: scope evidence is now measured from the committed head,
   and the `Tolerances` bullet names the commit each figure belongs to.
+- Observation (2026-11-21, Revision 21 assessment): inside a block quote, a
+  line holding only whitespace after the prefix is blank, not indented code.
+  `CommonMark` forbids an indented code block from starting on a blank line, so
+  discarding every over-indented remainder as code rejected a legal separator
+  between a marker and its fence. Impact: `scan` keeps a whitespace-only
+  remainder as content so `is_blank_line` makes the whole decision, and only a
+  remainder with non-whitespace content is treated as indented code. The first
+  attempt tested the space-trimmed fragment instead of the remainder, then
+  inverted the predicate; both mistakes failed the new fixture immediately,
+  before any gate ran.
 
 ## Decision log
 
@@ -1458,6 +1487,18 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   Evidence: the new quoted-blank-line fixture failed with
   `marker on line 1 is not followed by a fence` before the change and passes
   after it, while the indented-code and sibling-container cases still reject.
+  Date/Author: 2026-11-21, implementer acting on the assessment.
+- Decision (2026-11-21, Revision 21 assessment): keep a whitespace-only
+  remainder after container stripping as content, instead of classifying every
+  remainder of four or more spaces as indented code in `scan`. Rationale:
+  `CommonMark` will not open an indented code block on a blank line, so a
+  whitespace-only line inside a block quote is blank and must satisfy the
+  documented allowance; deciding that in `scan` would duplicate the blankness
+  rule that `is_blank_line` already owns. The alternative of stripping quote
+  prefixes a second time inside `is_blank_line` was rejected as duplicated
+  container logic. Evidence: the whitespace-only fixture failed with
+  `marker on line 1 is not followed by a fence` before the change and passes
+  after it; the indented-code and sibling-container cases still reject.
   Date/Author: 2026-11-21, implementer acting on the assessment.
 
 ## Outcomes & retrospective
@@ -1911,15 +1952,18 @@ their `phase` and `scenario_name` fields, installed with
   Non-vacuity: removing the container-path check makes the new case fail on
   `expect_err` while all 18 other parser rows pass, so the positives do not
   cover the sibling hole.
-- Obligation: the blank-line allowance holds in every container. Method: a
-  named case with a marker and fence in one block quote separated by a quoted
-  blank line, plus a named case where the line after a marker is indented code
-  and must still be reported as a dangling marker. Artefacts:
-  `src/guide_tests/parser/tests.rs` and `src/guide_tests/parser.rs`.
-  Non-vacuity: testing the raw line makes the quoted case fail with
-  `marker on line 1 is not followed by a fence`, and accepting any line that
-  strips to empty without the raw-text clause would make the indented-code case
-  pass, so the two cases pin both sides of the clause.
+- Obligation: the blank-line allowance holds in every container. Method: three
+  named cases — a marker and fence in one block quote separated by a quoted
+  blank line (`>`), the same separated by a whitespace-only line (`>` plus
+  spaces that would otherwise begin an indented code block), and a line after a
+  marker that is indented code and must still be reported as a dangling marker.
+  Artefacts: `src/guide_tests/parser/tests.rs` and `src/guide_tests/parser.rs`.
+  Non-vacuity: testing the raw line makes both quoted cases fail with
+  `marker on line 1 is not followed by a fence`; discarding every over-indented
+  remainder as code makes the whitespace-only case fail the same way; and
+  accepting any line that strips to empty without the raw-text clause would
+  make the indented-code case pass. The three cases pin both sides of both
+  clauses.
 - Obligation: EP-INV-7 for the nested accessor pair. Method: a `#[gtest]` that
   nests `with_app` inside `with_app` and asserts the crate's borrow prefix.
   Non-vacuity: replacing `try_borrow_mut` with `borrow_mut` fails the case on
@@ -2810,3 +2854,12 @@ Downstream consumers need direct development dependencies on `rstest`,
   before its commit's final test edit. No code, test, requirement, signature,
   or milestone changed; the maintainer's decisions on the size overage and the
   non-Rust example deviation remain outstanding.
+- Revision 21, 2026-11-21: the Revision 20 assessment reply `7058669537`
+  confirmed the quoted blank-line repair and returned one related finding,
+  which is valid and repaired. A quoted line holding only whitespace after the
+  prefix is blank, not indented code, so the scanner now keeps that remainder
+  for `is_blank_line` instead of discarding it. A named fixture failed before
+  the change and passes after it. `Progress`, `Surprises & discoveries`,
+  `Decision log`, `Verification plan`, and `Tolerances` carry the details; no
+  requirement, signature, or milestone changed, and the maintainer's decisions
+  on the size overage and the non-Rust example deviation remain outstanding.
