@@ -185,56 +185,66 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
 
 ## Tolerances (exception triggers)
 
-- Scope: if implementation needs more than 32 changed paths or more than
-  2,000 net added lines (code, tests, and documentation together), stop and
+- Scope: if implementation needs more than 80 changed paths or more than
+  10,000 net added lines (code, tests, and documentation together), stop and
   escalate. Per the `execplans` skill, ExecPlan files are excluded from every
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
-  updated in the same change.
-- Scope evidence (2026-11-20, Revision 12): the scope limit remains exceeded
-  after that exclusion. The assessment measured the head `8c6f500` at 38 paths
-  and 5,923 net added lines including this plan, and the Revision 12 tree
-  measures 38 paths and 6,465 net added lines including the plan, 37 and 4,339
-  without it, and 27 and 3,651 counting only code and tests. The Revision 13
-  assessment measured head `030334b` at 39 non-ExecPlan paths and 4,479 net
-  added lines. The Revision 14 assessment measured head `f40e434` at the same
-  39 non-ExecPlan paths and 4,772 net added lines. The Revision 15 head
-  `65409a7` measures 40 non-ExecPlan paths and 4,964 net added lines, the extra
-  path and lines coming from the `harness/failure.rs` split and its regression
-  rows. The Revision 15 assessment repair head `55e8c68` measures 41
-  non-ExecPlan paths and 5,146 net added lines (31 paths and 4,435 net added
-  lines counting only code and tests), the extra path being
-  `harness_tests/panics/release.rs`, which keeps `panics.rs` inside the
-  400-line limit. The Revision 16 assessment repair head `fc9766f` measures the
-  same 41 non-ExecPlan paths and 5,333 net added lines (31 paths and 4,622 net
-  added lines counting only code and tests); the new regression coverage and
-  two guard helpers add lines inside existing paths, so no path count changed.
-  The Revision 18 tree, which consolidates that coverage into one case table
-  after CodeScene flagged the four rows as duplicated, measures the same 41
-  non-ExecPlan paths and 5,418 net added lines (31 paths and 4,707 net added
-  lines counting only code and tests). The Revision 19 tree, which repairs the
-  quoted blank-line finding in the guide checker, measures the same 41
-  non-ExecPlan paths and 5,457 net added lines (31 paths and 4,746 net added
-  lines counting only code and tests). Revision 20 re-measured both committed
-  trees against base `2268c56` and replaced the figures recorded in Revisions
-  18 and 19, which had been taken before their commits' final edits and so
-  stood one and three lines high respectively; the committed tree is the
-  authority for these figures. The Revision 21 tree, which accepts a
-  whitespace-only quoted blank line in the guide checker, measures the same 41
-  non-ExecPlan paths and 5,477 net added lines (31 paths and 4,766 net added
-  lines counting only code and tests). The Revision 22 tree, which consolidates
-  the two quoted-blank cases into one case table after CodeScene flagged them
-  as duplicated, measures the same 41 non-ExecPlan paths and 5,469 net added
-  lines (31 paths and 4,758 net added lines counting only code and tests).
-  `Decision log` records the escalation and its disposition; this bullet does
-  not claim a separate numeric approval.
+  updated in the same change. The maintainer raised the limits from 32 paths
+  and 2,000 net added lines on 2026-11-22; the Revision 22 tree at 41 paths and
+  5,469 net added lines is within them, so the scope tolerance is not exceeded
+  (see the next bullet for the earlier measurements and the escalation it
+  closes).
+- Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
+  measurements below were taken against the earlier 32-path, 2,000-line limit,
+  which they exceeded. They are retained as the record of that escalation,
+  which the maintainer closed on 2026-11-22 by raising the limits. The Revision
+  12 assessment measured the head `8c6f500` at 38 paths and 5,923 net added
+  lines including this plan, and the Revision 12 tree measures 38 paths and
+  6,465 net added lines including the plan, 37 and 4,339 without it, and 27 and
+  3,651 counting only code and tests. The Revision 13 assessment measured head
+  `030334b` at 39 non-ExecPlan paths and 4,479 net added lines. The Revision 14
+  assessment measured head `f40e434` at the same 39 non-ExecPlan paths and
+  4,772 net added lines. The Revision 15 head `65409a7` measures 40
+  non-ExecPlan paths and 4,964 net added lines, the extra path and lines coming
+  from the `harness/failure.rs` split and its regression rows. The Revision 15
+  assessment repair head `55e8c68` measures 41 non-ExecPlan paths and 5,146 net
+  added lines (31 paths and 4,435 net added lines counting only code and
+  tests), the extra path being `harness_tests/panics/release.rs`, which keeps
+  `panics.rs` inside the 400-line limit. The Revision 16 assessment repair head
+  `fc9766f` measures the same 41 non-ExecPlan paths and 5,333 net added lines
+  (31 paths and 4,622 net added lines counting only code and tests); the new
+  regression coverage and two guard helpers add lines inside existing paths, so
+  no path count changed. The Revision 18 tree, which consolidates that coverage
+  into one case table after CodeScene flagged the four rows as duplicated,
+  measures the same 41 non-ExecPlan paths and 5,418 net added lines (31 paths
+  and 4,707 net added lines counting only code and tests). The Revision 19
+  tree, which repairs the quoted blank-line finding in the guide checker,
+  measures the same 41 non-ExecPlan paths and 5,457 net added lines (31 paths
+  and 4,746 net added lines counting only code and tests). Revision 20
+  re-measured both committed trees against base `2268c56` and replaced the
+  figures recorded in Revisions 18 and 19, which had been taken before their
+  commits' final edits and so stood one and three lines high respectively; the
+  committed tree is the authority for these figures. The Revision 21 tree,
+  which accepts a whitespace-only quoted blank line in the guide checker,
+  measures the same 41 non-ExecPlan paths and 5,477 net added lines (31 paths
+  and 4,766 net added lines counting only code and tests). The Revision 22
+  tree, which consolidates the two quoted-blank cases into one case table after
+  CodeScene flagged them as duplicated, measures the same 41 non-ExecPlan paths
+  and 5,469 net added lines (31 paths and 4,758 net added lines counting only
+  code and tests). `Decision log` records the escalation and its disposition;
+  Revision 23 records the maintainer's raised limits, so this historical
+  measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
   `BLOCKED`, and escalate.
 - Dependencies: if anything beyond adding `insta` to the harness crate's
   development dependencies is needed (for example `tracing-subscriber` or
-  `serial_test`), stop and escalate.
+  `serial_test`), stop and escalate. On 2026-11-22 the maintainer accepted the
+  non-Rust guide examples remaining marker-checked rather than exercised, which
+  keeps this tolerance satisfied without a new dependency; see the deviation
+  noted under `#206` in `Decision log`.
 - Macro contract: if `#[scenario(harness = BevyHarness, ...)]` with the
   defaulted generic parameter, or with a type alias, fails to compile, stop and
   escalate with the diagnostic; do not work around it with wrapper newtypes.
@@ -876,6 +886,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `marker on line 1 is not followed by a fence`; restoring the change passes
   both and all 22 parser tests. `cs check` reports 10.00 for the file and
   `cs delta 2268c56` reports no new issue.
+- [x] (2026-11-22) Revision 23: the maintainer answered both outstanding
+  escalations. The scope tolerance now stands at 80 changed paths and 10,000
+  net added lines (previously 32 and 2,000), and the Revision 22 tree at 41
+  non-ExecPlan paths and 5,469 net added lines sits inside it, so the scope
+  tolerance is no longer exceeded. The non-Rust guide examples recorded in issue
+  `#206` remain marker-checked but not exercised, and that deviation is now
+  accepted rather than pending. `Tolerances`, `Decision log`, and
+  `Outcomes & retrospective` record both decisions. This revision changes no
+  code, test, requirement, signature, or milestone.
 
 ## Surprises & discoveries
 
@@ -1468,6 +1487,14 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   The Rust fences remain compiled and executed from the published guide, and
   every fence keeps its marker enforcement. Date/Author: 2026-11-21,
   implementer acting on the assessment.
+- Decision (2026-11-22, maintainer): accept the non-Rust guide examples
+  remaining marker-checked but not exercised, as tracked in issue `#206`.
+  Rationale: the maintainer reviewed the escalation recorded above together
+  with the three remedies `#206` lists and approved the recorded deviation
+  rather than opening the harness crate to Skyjoust binaries or new parsing
+  dependencies. The deviation therefore stands as the accepted disposition for
+  this plan; issue `#206` remains open to record the gap and the remedies for
+  later work. Date/Author: 2026-11-22, maintainer; recorded by the implementer.
 - Decision (2026-11-21, Revision 15 assessment): move the release rows to
   `crates/rstest-bdd-harness-bevy/src/harness_tests/panics/release.rs`.
   Rationale: `panics.rs` reached 440 lines when the two new rows were added,
@@ -1535,6 +1562,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   reverted, `case_1` passes and `case_2` fails with the dangling-marker error,
   so the table keeps the discriminating case. Date/Author: 2026-11-21,
   implementer.
+- Decision (2026-11-22, maintainer): raise the scope tolerance to 80 changed
+  paths and 10,000 net added lines, replacing the 32-path, 2,000-line limits
+  that the delivery exceeded from Revision 12 onward. Rationale: the maintainer
+  reviewed the escalation recorded in `Tolerances` and this log and accepted
+  the delivered size, so the earlier measurement is now within tolerance rather
+  than a recorded overage. The Revision 22 tree measures 41 non-ExecPlan paths
+  and 5,469 net added lines, so the delivered change uses roughly half the line
+  allowance and leaves both limits unbreached. Date/Author: 2026-11-22,
+  maintainer; recorded by the implementer.
 
 ## Outcomes & retrospective
 
@@ -1571,7 +1607,10 @@ review rounds had hardened quote depth and delimiter matching but never
 exercised a list container, so the assessment found the gap that repeated
 gate-green review passes had missed. Assessment every finding against the
 source before repairing it, and record the scope tolerance as exceeded rather
-than letting a stale note imply the overage was approved.
+than letting a stale note imply the overage was approved. Both escalations were
+later answered by the maintainer on 2026-11-22: the scope limits were raised to
+80 paths and 10,000 net added lines, and the non-Rust guide-example deviation
+tracked in issue `#206` was accepted as recorded.
 
 ## Context and orientation
 
@@ -2907,3 +2946,13 @@ Downstream consumers need direct development dependencies on `rstest`,
   not count, is the trigger. No requirement, signature, or milestone changed;
   the maintainer's decisions on the size overage and the non-Rust example
   deviation remain outstanding.
+- Revision 23, 2026-11-22: the maintainer answered both outstanding
+  escalations. The scope tolerance is raised to 80 changed paths and 10,000 net
+  added lines, replacing the 32-path, 2,000-line limits that the delivery
+  exceeded from Revision 12 onward; the Revision 22 tree at 41 non-ExecPlan
+  paths and 5,469 net added lines is within the new limits, so the recorded
+  overage is closed. The non-Rust guide examples tracked in issue `#206` remain
+  marker-checked but not exercised, and the maintainer accepted that deviation
+  as recorded. `Tolerances`, `Decision log`, `Progress`, and
+  `Outcomes & retrospective` record both decisions. No code, test, requirement,
+  signature, or milestone changed.
