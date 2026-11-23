@@ -231,8 +231,23 @@ ticks".
 
 ```rust
 use rstest_bdd::StepResult;
-use rstest_bdd_harness_bevy::{BevyHarness, BevyScenario, bevy::diagnostic::FrameCount};
-use rstest_bdd_macros::{scenario, then, when};
+use rstest_bdd_harness_bevy::{
+    BevyHarness, BevyScenario,
+    bevy::{
+        diagnostic::FrameCount,
+        ecs::{resource::Resource, system::ResMut},
+        prelude::Update,
+        time::TimePlugin,
+    },
+};
+use rstest_bdd_macros::{given, scenario, then, when};
+
+/// Counts the `Update` ticks observed by the toy system.
+#[derive(Resource, Default)]
+struct ToyCounter(u32);
+
+/// Increments the toy counter once per `Update` schedule run.
+fn increment_toy_counter(mut counter: ResMut<ToyCounter>) { counter.0 += 1; }
 
 #[scenario(
     path = "tests/features/bevy_scenario.feature",
@@ -242,6 +257,25 @@ use rstest_bdd_macros::{scenario, then, when};
 )]
 fn steps_share_one_application_across_ticks() {}
 
+#[given("a scenario driven by the minimal Bevy harness")]
+fn given_minimal_harness(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+) -> StepResult<(), String> {
+    if scenario.with_app(|app| app.is_plugin_added::<TimePlugin>()) {
+        Ok(())
+    } else {
+        Err("the minimal profile must add the time plugin".to_owned())
+    }
+}
+
+#[given("a toy counter incremented on every Update tick")]
+fn given_toy_counter(#[from(rstest_bdd_harness_context)] scenario: &BevyScenario) {
+    scenario.with_app(|app| {
+        app.init_resource::<ToyCounter>();
+        app.add_systems(Update, increment_toy_counter);
+    });
+}
+
 #[when("the schedule advances {count:u32} times")]
 fn when_schedule_advances(
     #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
@@ -249,6 +283,20 @@ fn when_schedule_advances(
 ) -> StepResult<(), String> {
     scenario.update_times(count);
     Ok(())
+}
+
+#[then("the toy counter reads {expected:u32}")]
+fn then_toy_counter_reads(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+    expected: u32,
+) -> StepResult<(), String> {
+    match scenario.with_world(|world| world.get_resource::<ToyCounter>().map(|c| c.0)) {
+        Some(observed) if observed == expected => Ok(()),
+        Some(observed) => Err(format!(
+            "the toy counter must read {expected}, but it read {observed}"
+        )),
+        None => Err("the scenario has no toy counter".to_owned()),
+    }
 }
 
 #[then("the frame count reads {expected:u32}")]
@@ -265,7 +313,14 @@ fn then_frame_count_reads(
         ))
     }
 }
+
 ```
+
+The example defines every step its selected scenario uses, so a package that
+copies it together with the feature file gets a scenario that runs. Rustdoc
+compiles this fence from the published text, and the repository's behavioural
+suite runs the same scenario against the same feature, so the example cannot
+drift from working behaviour.
 
 The harness does not advance the app by itself: call `scenario.update()` or
 `scenario.update_times(count)` explicitly. A count of zero still checks that

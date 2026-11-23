@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 22 tree at 41 paths and
-  5,469 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 24 tree at 41 paths and
+  5,524 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -232,9 +232,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   tree, which consolidates the two quoted-blank cases into one case table after
   CodeScene flagged them as duplicated, measures the same 41 non-ExecPlan paths
   and 5,469 net added lines (31 paths and 4,758 net added lines counting only
-  code and tests). `Decision log` records the escalation and its disposition;
-  Revision 23 records the maintainer's raised limits, so this historical
-  measurement no longer describes a breach.
+  code and tests). The Revision 24 tree, which completes the users' guide's
+  scenario example so every step it binds is defined, measures the same 41
+  non-ExecPlan paths and 5,524 net added lines (31 paths and 4,758 net added
+  lines counting only code and tests); the 55 added lines are all in
+  `docs/users-guide.md`. `Decision log` records the escalation and its
+  disposition; Revision 23 records the maintainer's raised limits, so this
+  historical measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -895,6 +899,26 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   accepted rather than pending. `Tolerances`, `Decision log`, and
   `Outcomes & retrospective` record both decisions. This revision changes no
   code, test, requirement, signature, or milestone.
+- [x] (2026-11-23) Revision 24: the Codex review of head `afb8d27` reported one
+  P2 finding on the users' guide, which is valid and repaired. The
+  `bevy-harness-scenario` example defined only two of the five steps its
+  selected scenario uses, so a package copying the example with the feature
+  file would have run a scenario whose Given steps and toy-counter Then step
+  were missing; the gap was invisible to the doctest because rustdoc only
+  compiles the fence.
+  - Repair: the example now defines `given_minimal_harness`,
+    `given_toy_counter`, `then_toy_counter_reads`, the `ToyCounter` resource,
+    and `increment_toy_counter`, so it covers every step of scenario index 1.
+    The prose states that rustdoc compiles the fence from the published text
+    and that the behavioural suite runs the same scenario against the same
+    feature.
+  - Evidence: the crate's doctests pass, 18/18, and the macro emits no
+    `rstest-bdd[non-strict]` missing-step diagnostic for the fence. A review of
+    the step texts against
+    `crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`
+    confirms all five match.
+  - Scope: 41 non-ExecPlan paths and 5,524 net added lines (31 paths and 4,758
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1173,6 +1197,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   fixtures that differ only in their input string are exactly that shape.
   Impact: such rows belong in one `#[rstest]` case table from the start, which
   keeps each input named as a case while giving the rule one body to score.
+- Observation (2026-11-23, Revision 24 review): a Rust fence that only defines
+  items exercises nothing. Rustdoc compiles the fence and runs its synthesized
+  `main`, so a `#[scenario]`-generated test nested in the fence is never
+  executed, and a direct call to it from the fence did not resolve inside
+  rustdoc's merged-doctest wrapper. Impact: the guide's scenario fence is a
+  compile-time contract on the published example; the runtime contract comes
+  from `tests/headless_scenario.rs`, which runs the same scenario against the
+  same feature, and the guide now states both roles instead of implying the
+  fence runs the scenario.
 
 ## Decision log
 
@@ -1571,6 +1604,19 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   and 5,469 net added lines, so the delivered change uses roughly half the line
   allowance and leaves both limits unbreached. Date/Author: 2026-11-22,
   maintainer; recorded by the implementer.
+- Decision (2026-11-23, Codex review): complete the users' guide's scenario
+  example by adding the three missing step definitions and their toy-counter
+  support, rather than pointing the example at a smaller feature. Rationale:
+  the example selects scenario index 1 of the repository's own
+  `bevy_scenario.feature`, and that scenario needs two Given steps and a
+  toy-counter assertion; a consumer copying the example and the feature file
+  would otherwise run a skipped scenario. Keeping the selected scenario means
+  the guide mirrors the behavioural suite's real scenario instead of a
+  teaching-only fixture, and the added resource and system show how a step
+  installs state in the shared application. The alternative — a smaller feature
+  — would add a second feature file used only by the guide. Evidence: the
+  crate's doctests pass 18/18 and the macro emits no missing-step diagnostic
+  for the fence. Date/Author: 2026-11-23, implementer acting on the review.
 
 ## Outcomes & retrospective
 
@@ -2955,4 +3001,16 @@ Downstream consumers need direct development dependencies on `rstest`,
   marker-checked but not exercised, and the maintainer accepted that deviation
   as recorded. `Tolerances`, `Decision log`, `Progress`, and
   `Outcomes & retrospective` record both decisions. No code, test, requirement,
+  signature, or milestone changed.
+- Revision 24, 2026-11-23: the Codex review of head `afb8d27` returned one P2
+  finding on the users' guide, which is valid and repaired. The
+  `bevy-harness-scenario` example defined only two of the five steps its
+  selected scenario binds, so a package copying it would have run a scenario
+  with missing steps; rustdoc hid the gap because it only compiles the fence.
+  The example now defines both Given steps and the toy-counter Then step, with
+  the `ToyCounter` resource and its update system, and the prose separates the
+  fence's compile-time role from the behavioural suite's runtime coverage of
+  the same scenario. The crate's doctests pass 18/18 with no missing-step
+  diagnostic, and the tree measures 41 non-ExecPlan paths and 5,524 net added
+  lines (31 paths and 4,758 counting only code and tests). No requirement,
   signature, or milestone changed.
