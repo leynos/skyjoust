@@ -204,12 +204,15 @@ headless Bevy application. The crate is currently workspace-only
 (`publish = false`), so tests in this workspace's root package use a path
 development dependency. Add a direct `rstest-bdd-harness` dependency as well:
 the scenario macro uses the base harness API path for non-first-party
-harnesses, and steps need its `StepResult` type.
+harnesses, and steps need its `StepResult` type. Add `rstest` too, because
+`BevyAttributePolicy` expands to `#[rstest::rstest]` and the generated test
+names that crate by path.
 
 <!-- tested-example: bevy-harness-dev-dependencies -->
 
 ```toml
 [dev-dependencies]
+rstest = "0.28.0"
 rstest-bdd = "0.6.0"
 rstest-bdd-macros = "0.6.0"
 rstest-bdd-harness = "0.6.0"
@@ -232,7 +235,8 @@ ticks".
 ```rust
 use rstest_bdd::StepResult;
 use rstest_bdd_harness_bevy::{
-    BevyHarness, BevyScenario,
+    BevyHarness, BevyScenario, HarnessAdapter, ScenarioMetadata, ScenarioRunRequest,
+    ScenarioRunner,
     bevy::{
         diagnostic::FrameCount,
         ecs::{resource::Resource, system::ResMut},
@@ -314,13 +318,34 @@ fn then_frame_count_reads(
     }
 }
 
+# fn main() {
+#     let metadata = ScenarioMetadata::new(
+#         "tests/features/bevy_scenario.feature",
+#         "Steps share one application across ticks",
+#         7,
+#         Vec::new(),
+#     );
+#     let runner = ScenarioRunner::new(|scenario: BevyScenario| -> StepResult<(), String> {
+#         given_minimal_harness(&scenario)?;
+#         given_toy_counter(&scenario);
+#         when_schedule_advances(&scenario, 3)?;
+#         then_toy_counter_reads(&scenario, 3)?;
+#         then_frame_count_reads(&scenario, 3)
+#     });
+#     let request = ScenarioRunRequest::new(metadata, runner);
+#     let harness: BevyHarness = BevyHarness::default();
+#     let outcome = harness
+#         .run(request)
+#         .expect("the harness configures the application");
+#     outcome.expect("every step succeeds");
+# }
 ```
 
 The example defines every step its selected scenario uses, so a package that
 copies it together with the feature file gets a scenario that runs. Rustdoc
-compiles this fence from the published text, and the repository's behavioural
-suite runs the same scenario against the same feature, so the example cannot
-drift from working behaviour.
+compiles this fence from the published text and runs the scenario's steps
+through the same harness the macro uses, so a change to any published step body
+fails the doctest rather than drifting from the behaviour it claims.
 
 The harness does not advance the app by itself: call `scenario.update()` or
 `scenario.update_times(count)` explicitly. A count of zero still checks that

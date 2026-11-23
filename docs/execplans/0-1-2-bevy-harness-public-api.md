@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 24 tree at 41 paths and
-  5,524 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 25 tree at 41 paths and
+  5,549 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -236,9 +236,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   scenario example so every step it binds is defined, measures the same 41
   non-ExecPlan paths and 5,524 net added lines (31 paths and 4,758 net added
   lines counting only code and tests); the 55 added lines are all in
-  `docs/users-guide.md`. `Decision log` records the escalation and its
-  disposition; Revision 23 records the maintainer's raised limits, so this
-  historical measurement no longer describes a breach.
+  `docs/users-guide.md`. The Revision 25 tree, which runs the guide's scenario
+  steps from the published text and documents the `rstest` dependency, measures
+  the same 41 non-ExecPlan paths and 5,549 net added lines (31 paths and 4,758
+  net added lines counting only code and tests). `Decision log` records the
+  escalation and its disposition; Revision 23 records the maintainer's raised
+  limits, so this historical measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -919,6 +922,29 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     confirms all five match.
   - Scope: 41 non-ExecPlan paths and 5,524 net added lines (31 paths and 4,758
     counting only code and tests).
+- [x] (2026-11-23) Revision 25: the Revision 24 assessment reply `7097554035`
+  verified that repair and returned two further findings, both valid and
+  repaired.
+  - Finding 1 (valid, fixed): the published scenario fence was compiled but
+    never executed, and the guide's drift-prevention claim was therefore
+    wrong; the behavioural suite uses separate step definitions and cannot
+    detect a change to the guide's step bodies. Rustdoc strips `#[test]` items
+    from doctests (a `rustdoc --test` probe fails with `cannot find function`
+    for a called `#[test]` function), so the `#[scenario]`-generated test can
+    never run there. The fence now carries a hidden `fn main` that drives the
+    published step functions through `ScenarioRunner`,
+    `ScenarioRunRequest`, and `BevyHarness::run`, so the doctest executes the
+    step bodies from the published text.
+  - Finding 2 (valid, fixed): the dev-dependency example omitted `rstest`,
+    which `BevyAttributePolicy` expands to `#[rstest::rstest]`; a downstream
+    package without it cannot compile the generated scenario. The example now
+    lists `rstest = "0.28.0"` and explains why it is needed.
+  - Evidence: all 18 harness doctests pass, and seeding the reviewer's drift
+    example (`update_times(count)` changed to `update()`) fails the guide
+    doctest with `the toy counter must read 3, but it read 1`; restoring the
+    step passes again.
+  - Scope: 41 non-ExecPlan paths and 5,549 net added lines (31 paths and 4,758
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1206,6 +1232,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   from `tests/headless_scenario.rs`, which runs the same scenario against the
   same feature, and the guide now states both roles instead of implying the
   fence runs the scenario.
+- Observation (2026-11-23, Revision 25 assessment): the Revision 24 conclusion
+  that the published fence could not execute its scenario was premature.
+  Rustdoc strips `#[test]` items from doctests, which removes the
+  `#[scenario]`-generated test, but the step functions themselves are ordinary
+  callables. A hidden `main` that drives them through `ScenarioRunner`,
+  `ScenarioRunRequest`, and `BevyHarness::run` executes the published bodies,
+  and seeding the reviewer's drift example fails the doctest with
+  `the toy counter must read 3, but it read 1`. Impact: the scenario fence is
+  now compiled and run from the published text, and the earlier
+  compile-time-contract-only note is superseded.
 
 ## Decision log
 
@@ -1617,6 +1653,27 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   — would add a second feature file used only by the guide. Evidence: the
   crate's doctests pass 18/18 and the macro emits no missing-step diagnostic
   for the fence. Date/Author: 2026-11-23, implementer acting on the review.
+- Decision (2026-11-23, Revision 24 assessment): execute the published
+  scenario fence through a hidden `main` that drives its step functions with
+  `ScenarioRunner`, `ScenarioRunRequest`, and `BevyHarness::run`, rather than
+  accepting a compile-only deviation. Rationale: the style guide requires the
+  test suite to exercise the published example, and the maintainer's recorded
+  exception covers non-Rust fences only. Rustdoc removes `#[test]` items, so
+  the generated scenario test cannot be called, but the step functions are
+  ordinary callables and the public harness API can run them; the hidden lines
+  keep the scaffolding out of the rendered page. Evidence: the doctest passes
+  with the driver, and the reviewer's drift example (`update_times(count)`
+  changed to `update()`) fails with
+  `the toy counter must read 3, but it read 1`. Date/Author: 2026-11-23,
+  implementer acting on the assessment.
+- Decision (2026-11-23, Revision 24 assessment): list `rstest` in the guide's
+  dev-dependency example. Rationale: `BevyAttributePolicy` emits
+  `#[rstest::rstest]`, so a downstream package needs a direct `rstest`
+  dependency to compile the generated test; the workspace root already has one,
+  which is why the repository's own suite never exposed the omission. Evidence:
+  the guide now matches the plan's dependency survey, which already names
+  `rstest` as a required downstream dependency. Date/Author: 2026-11-23,
+  implementer acting on the assessment.
 
 ## Outcomes & retrospective
 
@@ -3014,3 +3071,16 @@ Downstream consumers need direct development dependencies on `rstest`,
   diagnostic, and the tree measures 41 non-ExecPlan paths and 5,524 net added
   lines (31 paths and 4,758 counting only code and tests). No requirement,
   signature, or milestone changed.
+- Revision 25, 2026-11-23: the Revision 24 assessment reply `7097554035`
+  verified the step definitions and returned two further findings, both valid
+  and repaired. The published scenario fence now runs its steps from the
+  published text through a hidden `main` that uses `ScenarioRunner`,
+  `ScenarioRunRequest`, and `BevyHarness::run`; rustdoc removes `#[test]`
+  items, so the generated scenario test cannot be called, but the step
+  functions themselves can. Seeding the reviewer's drift example fails the
+  doctest with `the toy counter must read 3, but it read 1`. The guide's
+  dev-dependency example now lists `rstest`, which `BevyAttributePolicy`
+  expands to `#[rstest::rstest]`. `Progress`, `Surprises & discoveries`, and
+  `Decision log` carry the details; the tree measures 41 non-ExecPlan paths and
+  5,549 net added lines (31 paths and 4,758 counting only code and tests). No
+  requirement, signature, or milestone changed.
