@@ -1067,6 +1067,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   5,904, and `Tolerances` names Revision 32 as the tree in force.
   - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
     counting only code and tests).
+- [x] (2026-11-24) Revision 34: the Revision 33 assessment found no remaining
+  implementation defect and one incomplete repair: the Revision 32 and Revision
+  31 revision notes carried each other's net added line counts. They now read
+  5,904 and 5,901 respectively, matching the rest of the plan.
+  - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -3333,6 +3339,12 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 34, 2026-11-24: the Revision 33 assessment found no remaining
+  implementation defect and one incomplete repair: the Revision 32 and Revision
+  31 revision notes carried each other's net added line counts. The notes now
+  read 5,904 for Revision 32 and 5,901 for Revision 31, matching every other
+  figure in the plan. No code, test, requirement, signature, or milestone
+  changed.
 - Revision 33, 2026-11-24: the Revision 32 assessment found no remaining
   implementation defect and one historical scope-recording error: a blanket
   figure replacement had rewritten the Revision 31 entries to 5,904 when that
