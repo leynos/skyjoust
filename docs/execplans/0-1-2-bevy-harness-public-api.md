@@ -192,7 +192,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
   and 2,000 net added lines on 2026-11-22; the Revision 27 tree at 42 paths and
-  5,836 net added lines is within them, so the scope tolerance is not exceeded
+  5,834 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -244,7 +244,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   42 non-ExecPlan paths and 5,766 net added lines (32 paths and 4,970 net added
   lines counting only code and tests). The Revision 27 tree, which restructures
   the guide binding module to clear its CodeScene findings, measures the same
-  42 non-ExecPlan paths and 5,836 net added lines (32 paths and 5,040 net added
+  42 non-ExecPlan paths and 5,834 net added lines (32 paths and 5,038 net added
   lines counting only code and tests). `Decision log` records the escalation
   and its disposition; Revision 23 records the maintainer's raised limits, so
   this historical measurement no longer describes a breach.
@@ -984,7 +984,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     finds no new issue; the seven focused binding tests pass; re-seeding the
     `times` to `ticks` drift still fails with the same missing-binding
     diagnostic.
-  - Scope: 42 non-ExecPlan paths and 5,836 net added lines (32 paths and 5,040
+  - Scope: 42 non-ExecPlan paths and 5,834 net added lines (32 paths and 5,038
     counting only code and tests).
 
 ## Surprises & discoveries
@@ -3184,6 +3184,6 @@ Downstream consumers need direct development dependencies on `rstest`,
   restructured around `Fence`, `Keyword`, `Step`, `Pattern`, and `Placeholder`
   rather than suppressed; `cs check` returns 10.00 and the delta finds no new
   issue, the seven focused tests pass, and the seeded binding drift still
-  fails. The tree measures 42 non-ExecPlan paths and 5,836 net added lines (32
-  paths and 5,040 counting only code and tests). No requirement, signature, or
+  fails. The tree measures 42 non-ExecPlan paths and 5,834 net added lines (32
+  paths and 5,038 counting only code and tests). No requirement, signature, or
   milestone changed.
