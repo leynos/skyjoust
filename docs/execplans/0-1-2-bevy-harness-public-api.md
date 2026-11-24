@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 26 tree at 42 paths and
-  5,766 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 27 tree at 42 paths and
+  5,836 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -242,6 +242,9 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   net added lines counting only code and tests). The Revision 26 tree, which
   adds the guide binding check and hides the doctest driver's imports, measures
   42 non-ExecPlan paths and 5,766 net added lines (32 paths and 4,970 net added
+  lines counting only code and tests). The Revision 27 tree, which restructures
+  the guide binding module to clear its CodeScene findings, measures the same
+  42 non-ExecPlan paths and 5,836 net added lines (32 paths and 5,040 net added
   lines counting only code and tests). `Decision log` records the escalation
   and its disposition; Revision 23 records the maintainer's raised limits, so
   this historical measurement no longer describes a breach.
@@ -967,6 +970,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     `ScenarioRunRequest`, and `ScenarioRunner` now appear only in hidden lines.
   - Scope: 42 non-ExecPlan paths and 5,766 net added lines (32 paths and 4,970
     counting only code and tests).
+- [x] (2026-11-24) Revision 27: the CodeScene delta on head `ab4407b` scored the
+  new guide binding module 9.19 and named three issues: `pattern_matches` at
+  cyclomatic complexity 13, `classified_step` as a bumpy road, and a 64.7%
+  string-argument ratio. The module is restructured rather than suppressed: a
+  `Fence` type owns the published text and answers `path`, `index`, and
+  `patterns`; `Keyword`, `Step`, and `Pattern` replace the bare string pairs
+  that carried the argument ratio; `Placeholder` splits one `{name:type}` spec
+  and decides whether a capture binds it; `matches_text` recurses once per
+  placeholder; and `classified_step` uses the `KEYWORDS` table so its nesting
+  drops to one level.
+  - Evidence: `cs check` reports 10.00 for the module and `cs delta 2268c56`
+    finds no new issue; the seven focused binding tests pass; re-seeding the
+    `times` to `ticks` drift still fails with the same missing-binding
+    diagnostic.
+  - Scope: 42 non-ExecPlan paths and 5,836 net added lines (32 paths and 5,040
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1271,6 +1290,14 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   stayed invisible. Impact: `guide_tests/binding.rs` matches each step of the
   selected feature scenario against the published patterns of the same keyword,
   which catches the case the doctest cannot.
+- Observation (2026-11-24, Revision 27): CodeScene scores a new module on the
+  shape of its data as well as its control flow. Passing `(keyword, text)`
+  string pairs between free functions raised the module's string-argument ratio
+  to 64.7% against a 39% threshold, and a recursive matcher with four early
+  returns measured cyclomatic complexity 13 against a threshold of 9. Impact:
+  the rewrite introduces `Keyword`, `Step`, `Pattern`, and `Placeholder` so
+  each function takes the type it needs, and the matcher recurses once per
+  placeholder instead of looping with exit checks.
 
 ## Decision log
 
@@ -1720,6 +1747,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `ScenarioRunner` are used only by the hidden driver. Evidence: the doctests
   pass with the hidden imports. Date/Author: 2026-11-23, implementer acting on
   the assessment.
+- Decision (2026-11-24, CodeScene): restructure the guide binding module around
+  `Fence`, `Keyword`, `Step`, `Pattern`, and `Placeholder` instead of
+  suppressing the three CodeScene findings. Rationale: the findings describe
+  real shape problems — string-typed pairs crossing six free functions, and a
+  matcher whose loop mixed parsing with placement — and the module is new code
+  with no callers outside its own test, so the rewrite costs nothing and keeps
+  the rule that new issues are cleared rather than silenced. Evidence:
+  `cs check` 10.00, `cs delta 2268c56` clean, the seven focused tests pass, and
+  the seeded `times` to `ticks` drift still fails. Date/Author: 2026-11-24,
+  implementer.
 
 ## Outcomes & retrospective
 
@@ -3141,3 +3178,12 @@ Downstream consumers need direct development dependencies on `rstest`,
   tree measures 42 non-ExecPlan paths and 5,766 net added lines (32 paths and
   4,970 counting only code and tests). No requirement, signature, or milestone
   changed.
+- Revision 27, 2026-11-24: the CodeScene delta on head `ab4407b` scored the new
+  guide binding module 9.19 with three issues: a complex recursive matcher, a
+  bumpy step classifier, and a 64.7% string-argument ratio. The module was
+  restructured around `Fence`, `Keyword`, `Step`, `Pattern`, and `Placeholder`
+  rather than suppressed; `cs check` returns 10.00 and the delta finds no new
+  issue, the seven focused tests pass, and the seeded binding drift still
+  fails. The tree measures 42 non-ExecPlan paths and 5,836 net added lines (32
+  paths and 5,040 counting only code and tests). No requirement, signature, or
+  milestone changed.

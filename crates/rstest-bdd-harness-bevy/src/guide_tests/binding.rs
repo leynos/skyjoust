@@ -16,194 +16,262 @@ use rstest::rstest;
 const FEATURE: &str = include_str!("../../tests/features/bevy_scenario.feature");
 
 /// Marker identifying the guide's scenario fence.
-const MARKER: &str = "bevy-harness-scenario";
+const MARKER_LINE: &str = "<!-- tested-example: bevy-harness-scenario -->";
+
+/// The attribute prefix naming the feature a fence binds.
+const PATH_PREFIX: &str = "path = \"";
+
+/// The attribute prefix selecting one scenario of that feature.
+const INDEX_PREFIX: &str = "index = ";
+
+/// The step attributes the guide may publish, with their keywords.
+const ATTRIBUTES: [(&str, Keyword); 3] = [
+    ("#[given(\"", Keyword::Given),
+    ("#[when(\"", Keyword::When),
+    ("#[then(\"", Keyword::Then),
+];
+
+/// The Gherkin keywords a step may carry, with their line prefixes.
+const KEYWORDS: [(&str, Keyword); 3] = [
+    ("Given ", Keyword::Given),
+    ("When ", Keyword::When),
+    ("Then ", Keyword::Then),
+];
 
 #[test]
 fn every_published_pattern_binds_a_step_of_the_selected_scenario() {
-    let fence = fence_body(super::GUIDE, MARKER).expect("the guide carries the scenario fence");
-    let (path, index) = scenario_target(fence).expect("the fence names its scenario");
+    let fence = Fence::in_guide(super::GUIDE).expect("the guide carries the scenario fence");
     assert_eq!(
-        path, "tests/features/bevy_scenario.feature",
+        fence.path(),
+        Some("tests/features/bevy_scenario.feature"),
         "the fence must bind the feature this crate ships"
     );
-    let steps = feature_scenario_steps(FEATURE, index);
-    let patterns = published_patterns(fence);
+    let index = fence.index().expect("the fence selects a scenario");
+    let steps = Feature::steps(index);
+    let patterns = fence.patterns();
 
     assert_eq!(
         steps.len(),
         5,
         "scenario index {index} must have the five steps this test checks, got {steps:?}"
     );
-    for (keyword, text) in &steps {
-        let is_bound = patterns.iter().any(|(pattern_keyword, pattern)| {
-            *pattern_keyword == *keyword && pattern_matches(pattern, text)
-        });
+    for step in &steps {
         assert!(
-            is_bound,
-            "the {keyword} step {text:?} has no published pattern of that keyword; published: \
-             {patterns:?}"
+            patterns.iter().any(|pattern| pattern.matches(step)),
+            "the {} step {:?} has no published pattern of that keyword; published: {patterns:?}",
+            step.keyword,
+            step.text
         );
     }
 }
 
-/// Returns the body of the fence introduced by `marker` in `guide`.
-fn fence_body<'a>(guide: &'a str, marker: &str) -> Option<&'a str> {
-    let marker_line = format!("<!-- tested-example: {marker} -->");
-    let after_marker = guide.get(guide.find(&marker_line)?..)?;
-    let content = after_marker.get(after_marker.find("```")? + 3..)?;
-    let body = content.get(content.find('\n')? + 1..)?;
-    body.get(..body.find("```")?)
+/// A step keyword: `Given`, `When`, or `Then`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Keyword {
+    Given,
+    When,
+    Then,
 }
 
-/// Returns the fence's `path` and `index` attribute values.
-fn scenario_target(fence: &str) -> Option<(&str, usize)> {
-    let path = attribute_value(fence, "path")?;
-    let index_text = fence.split_once("index = ")?.1;
-    let digits: String = index_text
-        .chars()
-        .take_while(char::is_ascii_digit)
-        .collect();
-    Some((path, digits.parse().ok()?))
+impl std::fmt::Display for Keyword {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Self::Given => "Given",
+            Self::When => "When",
+            Self::Then => "Then",
+        };
+        formatter.write_str(name)
+    }
 }
 
-/// Returns the quoted value of the `name = "value"` attribute in `fence`.
-fn attribute_value<'a>(fence: &'a str, name: &str) -> Option<&'a str> {
-    let start = fence.find(&format!("{name} = \""))? + name.len() + 4;
-    let rest = fence.get(start..)?;
+/// One step of a scenario: its keyword and the text after it.
+#[derive(Debug)]
+struct Step<'a> {
+    keyword: Keyword,
+    text: &'a str,
+}
+
+/// One published step pattern: its keyword and the `{name:type}` text.
+#[derive(Debug)]
+struct Pattern<'a> {
+    keyword: Keyword,
+    text: &'a str,
+}
+
+impl Pattern<'_> {
+    /// Whether this published pattern binds `step`.
+    fn matches(&self, step: &Step<'_>) -> bool {
+        self.keyword == step.keyword && matches_text(self.text, step.text)
+    }
+}
+
+/// The guide's scenario fence, already located in the published text.
+struct Fence<'a> {
+    body: &'a str,
+}
+
+impl<'a> Fence<'a> {
+    /// Returns the fence body that `marker` introduces in `guide`.
+    fn in_guide(guide: &'a str) -> Option<Self> {
+        let after_marker = guide.get(guide.find(MARKER_LINE)?..)?;
+        let content = after_marker.get(after_marker.find("```")? + 3..)?;
+        let body = content.get(content.find('\n')? + 1..)?;
+        Some(Self {
+            body: body.get(..body.find("```")?)?,
+        })
+    }
+
+    /// Returns the feature path the fence binds.
+    fn path(&self) -> Option<&'a str> { quoted_after(self.body, PATH_PREFIX) }
+
+    /// Returns the zero-based scenario index the fence selects.
+    fn index(&self) -> Option<usize> {
+        let start = self.body.find(INDEX_PREFIX)? + INDEX_PREFIX.len();
+        let digits: String = self
+            .body
+            .get(start..)?
+            .chars()
+            .take_while(char::is_ascii_digit)
+            .collect();
+        digits.parse().ok()
+    }
+
+    /// Returns the step patterns the fence publishes.
+    fn patterns(&self) -> Vec<Pattern<'a>> { self.body.lines().filter_map(published).collect() }
+}
+
+/// Returns the quoted text following `prefix` in `text`.
+fn quoted_after<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
+    let rest = text.get(text.find(prefix)? + prefix.len()..)?;
     rest.get(..rest.find('"')?)
 }
 
-/// Returns the `(keyword, pattern)` pairs the fence publishes as steps.
-fn published_patterns(fence: &str) -> Vec<(&str, &str)> {
-    let mut patterns = Vec::new();
-    for raw_line in fence.lines() {
-        let line = raw_line.trim_start();
-        for (prefix, keyword) in [
-            ("#[given(\"", "Given"),
-            ("#[when(\"", "When"),
-            ("#[then(\"", "Then"),
-        ] {
-            let Some(rest) = line.strip_prefix(prefix) else {
-                continue;
-            };
-            if let Some(pattern) = rest.strip_suffix("\")]") {
-                patterns.push((keyword, pattern));
-            }
-        }
-    }
-    patterns
+/// Returns the step attribute `line` declares, if it declares one.
+fn published(line: &str) -> Option<Pattern<'_>> {
+    let trimmed = line.trim_start();
+    ATTRIBUTES.iter().find_map(|(prefix, keyword)| {
+        trimmed
+            .strip_prefix(prefix)?
+            .strip_suffix("\")]")
+            .map(|text| Pattern {
+                keyword: *keyword,
+                text,
+            })
+    })
 }
 
-/// Returns the `(keyword, text)` steps of the scenario at zero-based `index`.
-///
-/// The scenario macro's `index` attribute is zero-based, so `index = 1`
-/// selects the file's second scenario.
-fn feature_scenario_steps(feature: &str, index: usize) -> Vec<(&str, &str)> {
-    let mut current = 0;
-    let mut previous = "Given";
-    let mut steps = Vec::new();
-    for line in feature.lines().map(str::trim) {
-        if line.starts_with("Scenario:") {
-            current += 1;
-            previous = "Given";
-            continue;
+/// The scenarios of the guide's feature file.
+struct Feature;
+
+impl Feature {
+    /// Returns the steps of the scenario at zero-based `index`.
+    ///
+    /// The scenario macro's `index` attribute is zero-based, so `index = 1`
+    /// selects the file's second scenario.
+    fn steps(index: usize) -> Vec<Step<'static>> {
+        let mut current = 0;
+        let mut previous = Keyword::Given;
+        let mut steps = Vec::new();
+        for line in FEATURE.lines().map(str::trim) {
+            if line.starts_with("Scenario:") {
+                current += 1;
+                previous = Keyword::Given;
+                continue;
+            }
+            if current == index + 1
+                && let Some(step) = classified_step(line, &mut previous)
+            {
+                steps.push(step);
+            }
         }
-        if current != index + 1 {
-            continue;
-        }
-        if let Some(step) = classified_step(line, &mut previous) {
-            steps.push(step);
-        }
+        steps
     }
-    steps
 }
 
 /// Returns the step `line` describes, resolving `And`/`But` to `previous`.
-fn classified_step<'a>(
-    line: &'a str,
-    previous: &mut &'static str,
-) -> Option<(&'static str, &'a str)> {
-    for (prefix, keyword) in [("Given ", "Given"), ("When ", "When"), ("Then ", "Then")] {
-        if let Some(text) = line.strip_prefix(prefix) {
-            *previous = keyword;
-            return Some((keyword, text));
-        }
+fn classified_step<'a>(line: &'a str, previous: &mut Keyword) -> Option<Step<'a>> {
+    if let Some((prefix, keyword)) = KEYWORDS.iter().find(|(prefix, _)| line.starts_with(prefix)) {
+        *previous = *keyword;
+        return line.strip_prefix(prefix).map(|text| Step {
+            keyword: *keyword,
+            text,
+        });
     }
-    for prefix in ["And ", "But "] {
-        if let Some(text) = line.strip_prefix(prefix) {
-            return Some((*previous, text));
-        }
+    let text = line
+        .strip_prefix("And ")
+        .or_else(|| line.strip_prefix("But "))?;
+    Some(Step {
+        keyword: *previous,
+        text,
+    })
+}
+
+/// A pattern split at its first placeholder.
+struct Placeholder<'a> {
+    /// Text the captured value must follow.
+    literal: &'a str,
+    /// The `name:type` spec between the braces.
+    spec: &'a str,
+    /// Everything after the closing brace.
+    tail: &'a str,
+}
+
+impl<'a> Placeholder<'a> {
+    /// Splits `pattern` at its first placeholder, if it has one.
+    fn split(pattern: &'a str) -> Option<Self> {
+        let open = pattern.find('{')?;
+        let (literal, after_open) = pattern.split_at(open);
+        let close = after_open.find('}')?;
+        Some(Self {
+            literal,
+            spec: after_open.get(1..close)?,
+            tail: after_open.get(close + 1..)?,
+        })
     }
-    None
+
+    /// Whether `captured` satisfies this placeholder's type.
+    fn binds(&self, captured: &str) -> bool {
+        !captured.is_empty()
+            && match self.spec.split_once(':').map_or("", |(_, ty)| ty) {
+                "u32" => captured.chars().all(|character| character.is_ascii_digit()),
+                _ => true,
+            }
+    }
 }
 
 /// Whether `pattern`, with `{name:type}` placeholders, matches `text`.
-fn pattern_matches(pattern: &str, text: &str) -> bool {
-    let mut remaining_text = text;
-    let mut remaining_pattern = pattern;
-    loop {
-        let Some(open) = remaining_pattern.find('{') else {
-            return remaining_text == remaining_pattern;
-        };
-        let (literal, after_open) = remaining_pattern.split_at(open);
-        let Some(text_rest) = remaining_text.strip_prefix(literal) else {
-            return false;
-        };
-        let Some(close) = after_open.find('}') else {
-            return false;
-        };
-        let Some(placeholder) = after_open.get(1..close) else {
-            return false;
-        };
-        let Some(tail) = after_open.get(close + 1..) else {
-            return false;
-        };
-        let next_literal = tail.split('{').next().unwrap_or_default();
-        if next_literal.is_empty() {
-            return !text_rest.is_empty() && placeholder_binds(placeholder, text_rest);
-        }
-        let Some(position) = text_rest.find(next_literal) else {
-            return false;
-        };
-        let Some(captured) = text_rest.get(..position) else {
-            return false;
-        };
-        if !placeholder_binds(placeholder, captured) {
-            return false;
-        }
-        let Some(remaining) = text_rest.get(position..) else {
-            return false;
-        };
-        remaining_text = remaining;
-        remaining_pattern = tail;
-    }
-}
-
-/// Whether `captured` satisfies the placeholder `spec`'s type.
-fn placeholder_binds(spec: &str, captured: &str) -> bool {
-    if captured.is_empty() {
+fn matches_text(pattern: &str, text: &str) -> bool {
+    let Some(placeholder) = Placeholder::split(pattern) else {
+        return text == pattern;
+    };
+    let Some(rest) = text.strip_prefix(placeholder.literal) else {
         return false;
+    };
+    let next_literal = placeholder.tail.split('{').next().unwrap_or_default();
+    if next_literal.is_empty() {
+        return placeholder.binds(rest);
     }
-    match spec.split_once(':').map_or("", |(_, ty)| ty) {
-        "u32" => captured.chars().all(|c| c.is_ascii_digit()),
-        _ => true,
-    }
+    let Some(position) = rest.find(next_literal) else {
+        return false;
+    };
+    let Some((captured, remaining)) = rest.split_at_checked(position) else {
+        return false;
+    };
+    placeholder.binds(captured) && matches_text(placeholder.tail, remaining)
 }
 
 #[rstest]
-#[case("the counter reads {value:u32}", "the counter reads 3", true)]
-#[case("the counter reads {value:u32}", "the counter reads three", false)]
-#[case("advances {count:u32} times", "advances 2 times", true)]
-#[case("advances {count:u32} times", "advances 2 ticks", false)]
-#[case("a plain pattern", "a plain pattern", true)]
-#[case("a plain pattern", "another pattern", false)]
-fn placeholder_matching_is_decided_by_the_pattern(
-    #[case] pattern: &str,
-    #[case] text: &str,
-    #[case] expected: bool,
-) {
+#[case(("the counter reads {value:u32}", "the counter reads 3", true))]
+#[case(("the counter reads {value:u32}", "the counter reads three", false))]
+#[case(("advances {count:u32} times", "advances 2 times", true))]
+#[case(("advances {count:u32} times", "advances 2 ticks", false))]
+#[case(("a plain pattern", "a plain pattern", true))]
+#[case(("a plain pattern", "another pattern", false))]
+fn placeholder_matching_is_decided_by_the_pattern(#[case] case: (&str, &str, bool)) {
+    let (pattern, text, expected) = case;
+
     assert_eq!(
-        pattern_matches(pattern, text),
+        matches_text(pattern, text),
         expected,
         "pattern {pattern:?} against {text:?}"
     );
