@@ -63,6 +63,13 @@ trips on a directly declared game crate, and
 `cargo tree -p rstest-bdd-harness-bevy -e normal,dev` remains the authority for
 the transitive half.
 
+Its modules separate the harness contract from the guide checks: `context.rs`
+owns `BevyScenario`, `harness.rs` with `harness/failure.rs` owns `BevyHarness`
+and the phase-tagged failure contract, `panic.rs` owns the panic payload
+handling, `policy.rs` owns `BevyAttributePolicy`, and `profile.rs` owns the
+profile trait and the minimal and bare profiles. `guide_tests/` holds the
+checkers described in §6.3.
+
 Writing behavioural scenarios taught this task two estate-specific traps and
 one Bevy trap.
 
@@ -382,6 +389,39 @@ Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to emit a
 `validate_trace` and the Explorer example both install a stderr-writing
 `tracing_subscriber`, so the events are visible when running either; a caller
 embedding the library elsewhere must install its own subscriber to observe them.
+
+### 6.3. Users' guide example checks
+
+`docs/users-guide.md` is both published documentation and a checked contract.
+Three mechanisms enforce it, all run by `make test`:
+
+- **Markers.** Every fence in the guide needs a preceding
+  `<!-- tested-example: <id> -->` marker with a non-empty identifier, and
+  identifiers must be unique. A marker may sit in the fence's own container or
+  an enclosing one; only blank lines may separate it from the fence, so prose
+  detaches it. `crates/rstest-bdd-harness-bevy/src/guide_tests/parser.rs` is the
+  `CommonMark` scanner that decides this, including block-quote and list-item
+  containment.
+- **Compilation.** `crates/rstest-bdd-harness-bevy/src/lib.rs` includes the
+  guide under `cfg(doctest)`, so rustdoc compiles the Rust fences from the
+  published text. The scenario fence also carries a hidden `fn main` that runs
+  the published step functions with the scenario index read from the fence and
+  the expected counts read from
+  `crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`, so a
+  disagreement between the example and the shipped feature fails the doctest.
+- **Binding.** `crates/rstest-bdd-harness-bevy/src/guide_tests/binding.rs` reads
+  the same guide text and requires every step of the fence's selected scenario
+  to match a published `#[given]`/`#[when]`/`#[then]` pattern of the same
+  keyword, which catches pattern drift that the doctest cannot see.
+
+Rustdoc removes `#[test]` items, so the `#[scenario]`-generated test itself
+cannot run in a doctest; that limitation is tracked as
+[`rstest-bdd` issue 978](https://github.com/leynos/rstest-bdd/issues/978). The
+non-Rust fences are marker-checked but not executed, which is the accepted
+deviation tracked in Skyjoust issue #206.
+
+After changing the guide, run `make fmt` (it rewraps and renumbers) and then
+`make test`; the doctests and the binding check both run there.
 
 ## 7. Lint baseline
 
