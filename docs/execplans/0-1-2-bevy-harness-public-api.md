@@ -1017,6 +1017,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     maintainer decision the reviewer offers is what remains.
   - Scope: 42 non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038
     counting only code and tests).
+- [x] (2026-11-24) Revision 30: the maintainer accepted the separate checks as
+  a recorded deviation from the documentation style guide's shared-loader
+  requirement, in answer to both the Revision 29 completeness assessment and
+  the formal CodeRabbit review of head `ef03e2e`, which raised the same point.
+  The published example stays covered by three checks: the doctest compiles the
+  fence from the published text, the hidden driver runs the published step
+  functions with the fence's own index and the feature's own counts, and
+  `guide_tests/binding.rs` matches each feature step against a published
+  pattern. Running the macro-generated test itself is impossible under rustdoc,
+  which removes `#[test]` items, so the deviation is recorded rather than
+  worked around with a bespoke loader.
+  - Also raised: the same limitation is an ergonomics gap for any harness
+    developer documenting a `#[scenario]` example, because `rstest-bdd` has no
+    way to suppress the generated test attribute and so cannot emit an example
+    a doctest can execute. Filed against `leynos/rstest-bdd`.
+  - Scope unchanged: 42 non-ExecPlan paths and 5,861 net added lines (32 paths
+    and 5,038 counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1819,6 +1836,18 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   The reviewer's preferred shared-loader execution remains impossible under
   rustdoc and is recorded as requiring the maintainer decision the reviewer
   offers. Date/Author: 2026-11-24, implementer acting on the assessment.
+- Decision (2026-11-24, maintainer): accept the separate checks as a recorded
+  deviation from the documentation style guide's shared-loader requirement. The
+  doctest compiles the fence, runs the published step functions with the
+  fence's own scenario index and the feature's own counts, and the guide loader
+  checks that every feature step still matches a published pattern; the
+  generated test itself cannot run because rustdoc removes `#[test]` items.
+  Rationale: the three checks together cover compilation, body behaviour, and
+  binding, which is the strongest contract rustdoc admits, and a bespoke loader
+  would add tooling outside the approved plan for no additional guarantee.
+  Evidence: the seeded index and clamp faults each fail the doctest;
+  `guide_tests::binding` fails on a seeded pattern drift. Date/Author:
+  2026-11-24, maintainer.
 
 ## Outcomes & retrospective
 
@@ -3271,3 +3300,12 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 30, 2026-11-24: the maintainer accepted the separate guide checks as
+  a recorded deviation from the documentation style guide's shared-loader
+  requirement, resolving the point both the Revision 29 assessment and the
+  formal CodeRabbit review of head `ef03e2e` had left open. The same limitation
+  was raised as an ergonomics issue against `leynos/rstest-bdd`, because a
+  harness crate cannot emit a `#[scenario]` example a doctest can execute. No
+  code, test, requirement, signature, or milestone changed; the tree still
+  measures 42 non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038
+  counting only code and tests).
