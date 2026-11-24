@@ -2,7 +2,10 @@
 
 use std::io;
 
-use cap_std::{ambient_authority, fs::Dir};
+use cap_std::{
+    ambient_authority,
+    fs::{Dir, DirEntry},
+};
 use rstest::{fixture, rstest};
 use toml::Value;
 
@@ -407,23 +410,34 @@ fn workspace_trybuild_runners_match_the_ui_binary_policy() {
 fn trybuild_runners_in(tests: &Dir) -> io::Result<Vec<String>> {
     let mut runners = Vec::new();
     for entry in tests.entries()? {
-        let directory_entry = entry?;
-        if !directory_entry.file_type()?.is_file() {
-            continue;
-        }
-        let filename = directory_entry.file_name();
-        let filename_text = filename
-            .to_str()
-            .ok_or_else(|| io::Error::other("test filenames must be UTF-8"))?;
-        if filename_text
-            .rsplit_once('.')
-            .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("rs"))
-            && tests
-                .read_to_string(&filename)?
-                .contains(concat!("trybuild::", "TestCases"))
-        {
-            runners.push(filename_text.to_owned());
+        if let Some(runner) = trybuild_runner_name(tests, &entry?)? {
+            runners.push(runner);
         }
     }
     Ok(runners)
+}
+
+// Names the entry when it is a Rust file that builds a `trybuild` test case set.
+fn trybuild_runner_name(tests: &Dir, entry: &DirEntry) -> io::Result<Option<String>> {
+    if !entry.file_type()?.is_file() {
+        return Ok(None);
+    }
+    let filename = entry.file_name();
+    let filename_text = filename
+        .to_str()
+        .ok_or_else(|| io::Error::other("test filenames must be UTF-8"))?;
+    if !has_rust_extension(filename_text) {
+        return Ok(None);
+    }
+    let source = tests.read_to_string(&filename)?;
+    Ok(source
+        .contains(concat!("trybuild::", "TestCases"))
+        .then(|| filename_text.to_owned()))
+}
+
+// Reports whether the filename ends in a `.rs` extension, ignoring case.
+fn has_rust_extension(filename: &str) -> bool {
+    filename
+        .rsplit_once('.')
+        .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("rs"))
 }

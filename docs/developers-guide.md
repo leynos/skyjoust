@@ -406,15 +406,20 @@ once; everything else takes `#[expect(...)]` at the site.
 
 ### 7.4. `clippy.toml` thresholds and the environment-access mandate
 
-`clippy.toml` sets the code-health thresholds (cognitive complexity, argument
-count, function length, nesting depth) and lists the `std::env` functions
-clippy disallows: `var`, `var_os`, `vars`, `vars_os`, `set_var`, `remove_var`,
-and `set_current_dir`. Inject an environment reader (or, in tests, a stub
-environment) instead of reading or mutating the process environment directly,
-and pass a directory in (or use `Command::current_dir` for a child process)
-instead of changing the process's working directory. `allow-expect-in-tests`
-permits `.expect(...)` inside `#[test]` functions, but not in shared, non-test
-helpers.
+`clippy.toml` sets the code-health thresholds (argument count, function length,
+nesting depth) and lists the `std::env` functions clippy disallows: `var`,
+`var_os`, `vars`, `vars_os`, `set_var`, `remove_var`, and `set_current_dir`.
+Cognitive complexity is not gated by Clippy, because Clippy's
+`cognitive_complexity` scores code after macro expansion and counts branching a
+macro generated. Whitaker's experimental `macro_aware_cognitive_complexity`
+gates it at `max_complexity = 9`, CodeScene's ceiling; `dylint.toml` opts in
+with `[whitaker] experimental = ["macro_aware_cognitive_complexity"]`. Fix a
+finding by extracting named helpers, never by raising the threshold. Inject an
+environment reader (or, in tests, a stub environment) instead of reading or
+mutating the process environment directly, and pass a directory in (or use
+`Command::current_dir` for a child process) instead of changing the process's
+working directory. `allow-expect-in-tests` permits `.expect(...)` inside
+`#[test]` functions, but not in shared, non-test helpers.
 
 ### 7.5. Toolchain
 
