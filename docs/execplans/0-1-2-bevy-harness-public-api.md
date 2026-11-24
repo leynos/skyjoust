@@ -3345,7 +3345,7 @@ Downstream consumers need direct development dependencies on `rstest`,
   defect: the developers' guide overstated what the doctest proves about
   feature/example disagreement. The claim is now split between the doctest's
   behavioural check and the binding check's pattern check. The tree measures 42
-  non-ExecPlan paths and 5,901 net added lines (32 paths and 5,038 counting
+  non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
 - Revision 31, 2026-11-24: the formal review of head `5ef47e1` raised two
   pre-merge rows. The Developer Documentation row is fixed: the developers'
@@ -3353,7 +3353,7 @@ Downstream consumers need direct development dependencies on `rstest`,
   rustdoc limitation, upstream issue #978, and the accepted non-Rust fence
   deviation. The Compile-Time / UI row is declined because the requested
   `trybuild` fixtures are roadmap `0.1.3` work under this plan's `Constraints`.
-  The tree measures 42 non-ExecPlan paths and 5,904 net added lines (32 paths
+  The tree measures 42 non-ExecPlan paths and 5,901 net added lines (32 paths
   and 5,038 counting only code and tests). No requirement, signature, or
   milestone changed.
 - Revision 30, 2026-11-24: the maintainer accepted the separate guide checks as
