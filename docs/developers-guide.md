@@ -408,7 +408,10 @@ Three mechanisms enforce it, all run by `make test`:
   the published step functions with the scenario index read from the fence and
   the expected counts read from
   `crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`, so a
-  disagreement between the example and the shipped feature fails the doctest.
+  published step that stops producing the outcome the feature states fails the
+  doctest. The driver calls the step functions directly, so it cannot detect a
+  step pattern that no longer binds the scenario; the binding check below owns
+  that half.
 - **Binding.** `crates/rstest-bdd-harness-bevy/src/guide_tests/binding.rs` reads
   the same guide text and requires every step of the fence's selected scenario
   to match a published `#[given]`/`#[when]`/`#[then]` pattern of the same
@@ -418,7 +421,7 @@ Rustdoc removes `#[test]` items, so the `#[scenario]`-generated test itself
 cannot run in a doctest; that limitation is tracked as
 [`rstest-bdd` issue 978](https://github.com/leynos/rstest-bdd/issues/978). The
 non-Rust fences are marker-checked but not executed, which is the accepted
-deviation tracked in Skyjoust issue #206.
+deviation tracked in issue #206.
 
 After changing the guide, run `make fmt` (it rewraps and renumbers) and then
 `make test`; the doctests and the binding check both run there.
