@@ -1060,6 +1060,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   stated outcome, and names the binding check as the owner of pattern drift.
   - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
     counting only code and tests).
+- [x] (2026-11-24) Revision 33: the Revision 32 assessment found no remaining
+  implementation defect and one historical scope-recording error: a blanket
+  figure replacement had rewritten the Revision 31 entries to 5,904 when that
+  tree measures 5,901. The Revision 31 entries are restored, Revision 32 keeps
+  5,904, and `Tolerances` names Revision 32 as the tree in force.
+  - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -3326,6 +3333,13 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 33, 2026-11-24: the Revision 32 assessment found no remaining
+  implementation defect and one historical scope-recording error: a blanket
+  figure replacement had rewritten the Revision 31 entries to 5,904 when that
+  tree measures 5,901. The Revision 31 `Progress` scope line, its revision
+  note, and the scope-evidence bullet are restored to 5,901; Revision 32 keeps
+  5,904, and `Tolerances` names Revision 32 as the tree in force. No code,
+  test, requirement, signature, or milestone changed.
 - Revision 32, 2026-11-24: the Revision 31 assessment accepted the
   documentation repair and the declined pre-merge row, and found one accuracy
   defect: the developers' guide overstated what the doctest proves about
