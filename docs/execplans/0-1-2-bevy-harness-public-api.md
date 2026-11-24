@@ -1031,7 +1031,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Also raised: the same limitation is an ergonomics gap for any harness
     developer documenting a `#[scenario]` example, because `rstest-bdd` has no
     way to suppress the generated test attribute and so cannot emit an example
-    a doctest can execute. Filed against `leynos/rstest-bdd`.
+    a doctest can execute. Filed as `leynos/rstest-bdd` issue #978, with the
+    worked example and three suggested remedies.
   - Scope unchanged: 42 non-ExecPlan paths and 5,861 net added lines (32 paths
     and 5,038 counting only code and tests).
 
@@ -3304,8 +3305,8 @@ Downstream consumers need direct development dependencies on `rstest`,
   a recorded deviation from the documentation style guide's shared-loader
   requirement, resolving the point both the Revision 29 assessment and the
   formal CodeRabbit review of head `ef03e2e` had left open. The same limitation
-  was raised as an ergonomics issue against `leynos/rstest-bdd`, because a
-  harness crate cannot emit a `#[scenario]` example a doctest can execute. No
-  code, test, requirement, signature, or milestone changed; the tree still
-  measures 42 non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038
-  counting only code and tests).
+  was raised as `leynos/rstest-bdd` issue #978, because a harness crate cannot
+  emit a `#[scenario]` example a doctest can execute. No code, test,
+  requirement, signature, or milestone changed; the tree still measures 42
+  non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
+  only code and tests).
