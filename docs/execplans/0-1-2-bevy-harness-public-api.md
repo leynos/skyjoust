@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 25 tree at 41 paths and
-  5,549 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 26 tree at 42 paths and
+  5,766 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -239,9 +239,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `docs/users-guide.md`. The Revision 25 tree, which runs the guide's scenario
   steps from the published text and documents the `rstest` dependency, measures
   the same 41 non-ExecPlan paths and 5,549 net added lines (31 paths and 4,758
-  net added lines counting only code and tests). `Decision log` records the
-  escalation and its disposition; Revision 23 records the maintainer's raised
-  limits, so this historical measurement no longer describes a breach.
+  net added lines counting only code and tests). The Revision 26 tree, which
+  adds the guide binding check and hides the doctest driver's imports, measures
+  42 non-ExecPlan paths and 5,766 net added lines (32 paths and 4,970 net added
+  lines counting only code and tests). `Decision log` records the escalation
+  and its disposition; Revision 23 records the maintainer's raised limits, so
+  this historical measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -945,6 +948,25 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     step passes again.
   - Scope: 41 non-ExecPlan paths and 5,549 net added lines (31 paths and 4,758
     counting only code and tests).
+- [x] (2026-11-23) Revision 26: the Revision 25 assessment reply `7106368623`
+  confirmed the `rstest` repair and the execution of the published step bodies,
+  and returned two further findings, both valid and repaired.
+  - Finding 1 (valid, fixed): nothing checked that the fence's published step
+    patterns still bind the scenario it selects, so a drifted pattern could
+    leave the direct calls passing while a copied scenario lost a binding. The
+    new `src/guide_tests/binding.rs` reads the fence and the feature through the
+    same guide loader, extracts the fence's `path` and `index` and the
+    `#[given]`/`#[when]`/`#[then]` patterns, and requires every step of the
+    selected scenario to be matched by a published pattern of the same keyword.
+    Seeded fault: changing the guide's When pattern from `times` to `ticks`
+    fails with `the When step "the schedule advances 3 times" has no published
+    pattern of that keyword`; restoring it passes.
+  - Finding 2 (valid, fixed): the doctest-only imports were visible to readers,
+    so a copied test would carry unused-import warnings under the repository's
+    warnings-as-errors policy. `HarnessAdapter`, `ScenarioMetadata`,
+    `ScenarioRunRequest`, and `ScenarioRunner` now appear only in hidden lines.
+  - Scope: 42 non-ExecPlan paths and 5,766 net added lines (32 paths and 4,970
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1242,6 +1264,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `the toy counter must read 3, but it read 1`. Impact: the scenario fence is
   now compiled and run from the published text, and the earlier
   compile-time-contract-only note is superseded.
+- Observation (2026-11-23, Revision 26 assessment): executing the published
+  step bodies proves their behaviour, not their binding. The fence's `#[given]`,
+  `#[when]`, and `#[then]` patterns are what a copied scenario resolves
+  against, and rustdoc never runs the generated test, so a drifted pattern
+  stayed invisible. Impact: `guide_tests/binding.rs` matches each step of the
+  selected feature scenario against the published patterns of the same keyword,
+  which catches the case the doctest cannot.
 
 ## Decision log
 
@@ -1674,6 +1703,23 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   the guide now matches the plan's dependency survey, which already names
   `rstest` as a required downstream dependency. Date/Author: 2026-11-23,
   implementer acting on the assessment.
+- Decision (2026-11-23, Revision 25 assessment): check the published scenario
+  binding in the guide loader rather than attempting to run the macro-generated
+  test. Rationale: rustdoc removes `#[test]` items, so the generated scenario
+  cannot execute there, and the hidden driver can only call the step functions
+  directly. A binding check over the published text closes the remaining gap
+  without a bespoke code generator: it parses the fence's `path` and `index`,
+  resolves the selected scenario's steps from the feature file, and matches
+  each against the published pattern of the same keyword. Evidence: the check
+  passes on the current guide and fails with a seeded `times` to `ticks` drift.
+  Date/Author: 2026-11-23, implementer acting on the assessment.
+- Decision (2026-11-23, Revision 25 assessment): move the doctest driver's
+  imports into hidden lines. Rationale: the visible example must compile
+  cleanly when copied, and the repository treats warnings as errors;
+  `HarnessAdapter`, `ScenarioMetadata`, `ScenarioRunRequest`, and
+  `ScenarioRunner` are used only by the hidden driver. Evidence: the doctests
+  pass with the hidden imports. Date/Author: 2026-11-23, implementer acting on
+  the assessment.
 
 ## Outcomes & retrospective
 
@@ -3084,3 +3130,14 @@ Downstream consumers need direct development dependencies on `rstest`,
   `Decision log` carry the details; the tree measures 41 non-ExecPlan paths and
   5,549 net added lines (31 paths and 4,758 counting only code and tests). No
   requirement, signature, or milestone changed.
+- Revision 26, 2026-11-23: the Revision 25 assessment reply `7106368623`
+  confirmed the `rstest` repair and the doctest's execution of the published
+  step bodies, and returned two further findings, both valid and repaired. A new
+  `src/guide_tests/binding.rs` matches every step of the fence's selected
+  feature scenario against the published step patterns, so a drifted pattern
+  fails the suite even though rustdoc cannot run the generated test; a seeded
+  `times` to `ticks` drift proves the check. The doctest driver's imports moved
+  to hidden lines, so the visible example compiles cleanly when copied. The
+  tree measures 42 non-ExecPlan paths and 5,766 net added lines (32 paths and
+  4,970 counting only code and tests). No requirement, signature, or milestone
+  changed.

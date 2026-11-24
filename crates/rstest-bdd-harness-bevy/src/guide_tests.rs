@@ -15,6 +15,8 @@ use std::collections::BTreeSet;
 
 use parser::parse_fences;
 
+#[path = "guide_tests/binding.rs"]
+mod binding;
 #[path = "guide_tests/parser.rs"]
 mod parser;
 

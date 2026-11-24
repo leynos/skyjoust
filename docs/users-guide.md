@@ -235,8 +235,7 @@ ticks".
 ```rust
 use rstest_bdd::StepResult;
 use rstest_bdd_harness_bevy::{
-    BevyHarness, BevyScenario, HarnessAdapter, ScenarioMetadata, ScenarioRunRequest,
-    ScenarioRunner,
+    BevyHarness, BevyScenario,
     bevy::{
         diagnostic::FrameCount,
         ecs::{resource::Resource, system::ResMut},
@@ -318,6 +317,9 @@ fn then_frame_count_reads(
     }
 }
 
+# use rstest_bdd_harness_bevy::{
+#     HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, ScenarioRunner,
+# };
 # fn main() {
 #     let metadata = ScenarioMetadata::new(
 #         "tests/features/bevy_scenario.feature",
@@ -344,8 +346,11 @@ fn then_frame_count_reads(
 The example defines every step its selected scenario uses, so a package that
 copies it together with the feature file gets a scenario that runs. Rustdoc
 compiles this fence from the published text and runs the scenario's steps
-through the same harness the macro uses, so a change to any published step body
-fails the doctest rather than drifting from the behaviour it claims.
+through the same harness the macro uses, while the crate's suite separately
+checks that every step of the selected scenario is still matched by a published
+step pattern. A step body that stops producing the outcome the example asserts
+fails the doctest, and a step pattern that no longer binds the scenario fails
+the binding check.
 
 The harness does not advance the app by itself: call `scenario.update()` or
 `scenario.update_times(count)` explicitly. A count of zero still checks that
