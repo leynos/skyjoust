@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 29 tree at 42 paths and
-  5,861 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 31 tree at 42 paths and
+  5,901 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -251,9 +251,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   lines counting only code and tests). The Revision 29 tree, which reads the
   fence's scenario index from the published guide as well, measures the same 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 net added
-  lines counting only code and tests). `Decision log` records the escalation
-  and its disposition; Revision 23 records the maintainer's raised limits, so
-  this historical measurement no longer describes a breach.
+  lines counting only code and tests). The Revision 31 tree, which documents
+  the guide checks in the developers' guide, measures the same 42 non-ExecPlan
+  paths and 5,901 net added lines (32 paths and 5,038 counting only code and
+  tests); the 40 added lines are all in `docs/developers-guide.md`.
+  `Decision log` records the escalation and its disposition; Revision 23
+  records the maintainer's raised limits, so this historical measurement no
+  longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -1035,6 +1039,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     worked example and three suggested remedies.
   - Scope unchanged: 42 non-ExecPlan paths and 5,861 net added lines (32 paths
     and 5,038 counting only code and tests).
+- [x] (2026-11-24) Revision 31: the formal CodeRabbit review of head `5ef47e1`
+  raised two pre-merge rows. The Developer Documentation row is valid and fixed:
+  `docs/developers-guide.md` §2.1 now names the crate's modules, and a new
+  §6.3 documents the three guide checks, the rustdoc limitation, upstream issue
+  #978, and the accepted non-Rust fence deviation. The Compile-Time / UI row
+  asks for `trybuild` fixtures the plan's `Constraints` place in roadmap
+  `0.1.3`, so it is declined with that reason and a note that two of its three
+  suggested fixtures would pin contracts this PR does not claim.
+  - Scope: 42 non-ExecPlan paths and 5,901 net added lines (32 paths and 5,038
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -3301,6 +3315,15 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 31, 2026-11-24: the formal review of head `5ef47e1` raised two
+  pre-merge rows. The Developer Documentation row is fixed: the developers'
+  guide names the crate's modules and adds §6.3 on the three guide checks, the
+  rustdoc limitation, upstream issue #978, and the accepted non-Rust fence
+  deviation. The Compile-Time / UI row is declined because the requested
+  `trybuild` fixtures are roadmap `0.1.3` work under this plan's `Constraints`.
+  The tree measures 42 non-ExecPlan paths and 5,901 net added lines (32 paths
+  and 5,038 counting only code and tests). No requirement, signature, or
+  milestone changed.
 - Revision 30, 2026-11-24: the maintainer accepted the separate guide checks as
   a recorded deviation from the documentation style guide's shared-loader
   requirement, resolving the point both the Revision 29 assessment and the
