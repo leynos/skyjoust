@@ -191,7 +191,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 31 tree at 42 paths and
+  and 2,000 net added lines on 2026-11-22; the Revision 32 tree at 42 paths and
   5,904 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
@@ -253,7 +253,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 net added
   lines counting only code and tests). The Revision 31 tree, which documents
   the guide checks in the developers' guide, measures the same 42 non-ExecPlan
-  paths and 5,904 net added lines (32 paths and 5,038 counting only code and
+  paths and 5,901 net added lines (32 paths and 5,038 counting only code and
   tests); the 40 added lines are all in `docs/developers-guide.md`. The
   Revision 32 tree, which narrows that section's claim to what the doctest
   proves, measures the same 42 non-ExecPlan paths and 5,904 net added lines (32
@@ -1049,7 +1049,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   asks for `trybuild` fixtures the plan's `Constraints` place in roadmap
   `0.1.3`, so it is declined with that reason and a note that two of its three
   suggested fixtures would pin contracts this PR does not claim.
-  - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
+  - Scope: 42 non-ExecPlan paths and 5,901 net added lines (32 paths and 5,038
     counting only code and tests).
 - [x] (2026-11-24) Revision 32: the Revision 31 assessment accepted the
   documentation repair and the declined Compile-Time / UI row, and found one
@@ -3331,7 +3331,7 @@ Downstream consumers need direct development dependencies on `rstest`,
   defect: the developers' guide overstated what the doctest proves about
   feature/example disagreement. The claim is now split between the doctest's
   behavioural check and the binding check's pattern check. The tree measures 42
-  non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038 counting
+  non-ExecPlan paths and 5,901 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
 - Revision 31, 2026-11-24: the formal review of head `5ef47e1` raised two
   pre-merge rows. The Developer Documentation row is fixed: the developers'
