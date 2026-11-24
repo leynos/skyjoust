@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 27 tree at 42 paths and
-  5,834 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 28 tree at 42 paths and
+  5,850 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -245,6 +245,9 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   lines counting only code and tests). The Revision 27 tree, which restructures
   the guide binding module to clear its CodeScene findings, measures the same
   42 non-ExecPlan paths and 5,834 net added lines (32 paths and 5,038 net added
+  lines counting only code and tests). The Revision 28 tree, which derives the
+  published driver's counts from the feature file, measures the same 42
+  non-ExecPlan paths and 5,850 net added lines (32 paths and 5,038 net added
   lines counting only code and tests). `Decision log` records the escalation
   and its disposition; Revision 23 records the maintainer's raised limits, so
   this historical measurement no longer describes a breach.
@@ -986,6 +989,17 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     diagnostic.
   - Scope: 42 non-ExecPlan paths and 5,834 net added lines (32 paths and 5,038
     counting only code and tests).
+- [x] (2026-11-24) Revision 28: the Revision 27 assessment reply `7119940682`
+  reported that the hidden driver still passed hard-coded counts, so a feature
+  whose inputs changed could disagree with the published step bodies without
+  failing anything. The hidden driver now reads the selected scenario's advance
+  and expected counts from the published feature text at compile time and
+  passes those values to the published steps.
+  - Seeded fault: clamping the published advance to two while the feature still
+    states three fails the doctest with `every step succeeds: "the toy counter
+    must read 3, but it read 2"`; restoring the step passes.
+  - Scope: 42 non-ExecPlan paths and 5,850 net added lines (32 paths and 5,038
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1298,6 +1312,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   the rewrite introduces `Keyword`, `Step`, `Pattern`, and `Placeholder` so
   each function takes the type it needs, and the matcher recurses once per
   placeholder instead of looping with exit checks.
+- Observation (2026-11-24, Revision 28): a doctest's `include_str!` resolves
+  relative to the source file that carries the doc attribute, so the guide's
+  hidden driver reaches the shipped feature through `../tests/features/…` from
+  `src/lib.rs`. Feeding the driver's arguments from that text is what makes the
+  published example and the feature a single contract: a hard-coded count keeps
+  passing after the feature changes.
 
 ## Decision log
 
@@ -1757,6 +1777,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `cs check` 10.00, `cs delta 2268c56` clean, the seven focused tests pass, and
   the seeded `times` to `ticks` drift still fails. Date/Author: 2026-11-24,
   implementer.
+- Decision (2026-11-24, Revision 27 assessment): derive the hidden driver's
+  arguments from the published feature text instead of hard-coding them.
+  Rationale: the reviewer's counterexample — a feature that states two while
+  the published step clamps to three — passed because the driver supplied its
+  own three. Reading the counts from the feature makes the doctest fail on that
+  disagreement while keeping the example copyable, since the whole derivation
+  sits in hidden lines. Evidence: the clamp seed fails with
+  `the toy counter must read 3, but it read 2`, and the restored fence passes.
+  Date/Author: 2026-11-24, implementer acting on the assessment.
 
 ## Outcomes & retrospective
 
@@ -3187,3 +3216,14 @@ Downstream consumers need direct development dependencies on `rstest`,
   fails. The tree measures 42 non-ExecPlan paths and 5,834 net added lines (32
   paths and 5,038 counting only code and tests). No requirement, signature, or
   milestone changed.
+- Revision 28, 2026-11-24: the Revision 27 assessment reply `7119940682`
+  returned one further finding: the hidden driver passed hard-coded counts, so
+  a feature whose inputs changed could disagree with the published steps
+  without failing anything. The driver now reads the selected scenario's
+  advance and expected counts from the published feature text. A seeded clamp
+  (advance two while the feature states three) fails the doctest with
+  `the toy counter must read 3, but it read 2`. `Progress`,
+  `Surprises & discoveries`, and `Decision log` carry the details; the tree
+  measures 42 non-ExecPlan paths and 5,850 net added lines (32 paths and 5,038
+  counting only code and tests). No requirement, signature, or milestone
+  changed.

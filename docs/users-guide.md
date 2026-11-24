@@ -321,6 +321,22 @@ fn then_frame_count_reads(
 #     HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, ScenarioRunner,
 # };
 # fn main() {
+#     let feature = include_str!("../tests/features/bevy_scenario.feature");
+#     let scenario = feature
+#         .split("Scenario:")
+#         .nth(2)
+#         .expect("the feature declares the scenario this example binds");
+#     let count_after = |marker: &str| -> u32 {
+#         scenario
+#             .split(marker)
+#             .nth(1)
+#             .and_then(|rest| rest.split_whitespace().next())
+#             .and_then(|number| number.parse().ok())
+#             .expect("the scenario states the count this example uses")
+#     };
+#     let advances = count_after("the schedule advances ");
+#     let toy_reads = count_after("the toy counter reads ");
+#     let frames_read = count_after("the frame count reads ");
 #     let metadata = ScenarioMetadata::new(
 #         "tests/features/bevy_scenario.feature",
 #         "Steps share one application across ticks",
@@ -330,9 +346,9 @@ fn then_frame_count_reads(
 #     let runner = ScenarioRunner::new(|scenario: BevyScenario| -> StepResult<(), String> {
 #         given_minimal_harness(&scenario)?;
 #         given_toy_counter(&scenario);
-#         when_schedule_advances(&scenario, 3)?;
-#         then_toy_counter_reads(&scenario, 3)?;
-#         then_frame_count_reads(&scenario, 3)
+#         when_schedule_advances(&scenario, advances)?;
+#         then_toy_counter_reads(&scenario, toy_reads)?;
+#         then_frame_count_reads(&scenario, frames_read)
 #     });
 #     let request = ScenarioRunRequest::new(metadata, runner);
 #     let harness: BevyHarness = BevyHarness::default();
@@ -346,11 +362,11 @@ fn then_frame_count_reads(
 The example defines every step its selected scenario uses, so a package that
 copies it together with the feature file gets a scenario that runs. Rustdoc
 compiles this fence from the published text and runs the scenario's steps
-through the same harness the macro uses, while the crate's suite separately
-checks that every step of the selected scenario is still matched by a published
-step pattern. A step body that stops producing the outcome the example asserts
-fails the doctest, and a step pattern that no longer binds the scenario fails
-the binding check.
+through the same harness the macro uses, and the hidden driver reads the
+advance and expected counts from the published feature rather than repeating
+them. A published step that stops agreeing with the feature therefore fails the
+doctest, and a step pattern that no longer binds the scenario fails the crate's
+binding check.
 
 The harness does not advance the app by itself: call `scenario.update()` or
 `scenario.update_times(count)` explicitly. A count of zero still checks that
