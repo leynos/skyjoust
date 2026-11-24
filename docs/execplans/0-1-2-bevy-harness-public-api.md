@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 28 tree at 42 paths and
-  5,850 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 29 tree at 42 paths and
+  5,861 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -248,6 +248,9 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   lines counting only code and tests). The Revision 28 tree, which derives the
   published driver's counts from the feature file, measures the same 42
   non-ExecPlan paths and 5,850 net added lines (32 paths and 5,038 net added
+  lines counting only code and tests). The Revision 29 tree, which reads the
+  fence's scenario index from the published guide as well, measures the same 42
+  non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 net added
   lines counting only code and tests). `Decision log` records the escalation
   and its disposition; Revision 23 records the maintainer's raised limits, so
   this historical measurement no longer describes a breach.
@@ -1000,6 +1003,20 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     must read 3, but it read 2"`; restoring the step passes.
   - Scope: 42 non-ExecPlan paths and 5,850 net added lines (32 paths and 5,038
     counting only code and tests).
+- [x] (2026-11-24) Revision 29: the Revision 28 assessment reply `7125561201`
+  confirmed the feature-driven counts and reported that the hidden driver still
+  selected the second scenario with a literal `.nth(2)`, so a change to the
+  fence's `index` could leave the driver testing a different scenario than the
+  binding check accepts. The driver now reads the `index` attribute from the
+  published fence text itself and selects that scenario.
+  - Seeded fault: setting the fence to `index = 2` and clamping the advance to
+    `count.max(1)` fails with `every step succeeds: "the toy counter must read
+    0, but it read 1"`; restoring both passes 18/18.
+  - The reviewer's remaining ask — running the macro-generated scenario through
+    a shared loader — is a rustdoc limitation; `Decision log` records that the
+    maintainer decision the reviewer offers is what remains.
+  - Scope: 42 non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1318,6 +1335,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `src/lib.rs`. Feeding the driver's arguments from that text is what makes the
   published example and the feature a single contract: a hard-coded count keeps
   passing after the feature changes.
+- Observation (2026-11-24, Revision 29): a fixture-driven example must read
+  every part of its selection from the published text, not just its inputs. The
+  driver still selected the second scenario literally after taking its counts
+  from the feature, so changing the fence's `index` would have decoupled the
+  executed scenario from the one the binding check accepted. Impact: the driver
+  now reads `index = N` from the fence and picks that scenario.
 
 ## Decision log
 
@@ -1786,6 +1809,16 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   sits in hidden lines. Evidence: the clamp seed fails with
   `the toy counter must read 3, but it read 2`, and the restored fence passes.
   Date/Author: 2026-11-24, implementer acting on the assessment.
+- Decision (2026-11-24, Revision 28 assessment): read the scenario index from
+  the published fence rather than fixing it in the driver. Rationale: a doctest
+  cannot run the macro-generated test (rustdoc removes `#[test]` items), so the
+  strongest achievable contract is that the driver executes the scenario the
+  fence selects, with the counts the feature states. Evidence: the seeded
+  `index = 2` with a zero-clamp fails with
+  `the toy counter must read 0, but it read 1`, and the restored guide passes.
+  The reviewer's preferred shared-loader execution remains impossible under
+  rustdoc and is recorded as requiring the maintainer decision the reviewer
+  offers. Date/Author: 2026-11-24, implementer acting on the assessment.
 
 ## Outcomes & retrospective
 
@@ -3227,3 +3260,14 @@ Downstream consumers need direct development dependencies on `rstest`,
   measures 42 non-ExecPlan paths and 5,850 net added lines (32 paths and 5,038
   counting only code and tests). No requirement, signature, or milestone
   changed.
+- Revision 29, 2026-11-24: the Revision 28 assessment reply `7125561201`
+  confirmed the feature-driven counts and asked for a regression covering a
+  change to the selected scenario. The hidden driver now reads the fence's
+  `index` from the published guide and selects that scenario, so a seeded
+  `index = 2` with a zero-clamping advance fails with
+  `the toy counter must read 0, but it read 1`. The reviewer's remaining ask —
+  running the macro-generated scenario through a shared loader — is impossible
+  under rustdoc, which strips `#[test]` items, and `Decision log` records it as
+  the maintainer decision the reviewer offers. The tree measures 42
+  non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
+  only code and tests). No requirement, signature, or milestone changed.

@@ -321,10 +321,21 @@ fn then_frame_count_reads(
 #     HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, ScenarioRunner,
 # };
 # fn main() {
+#     let guide = include_str!("../../../docs/users-guide.md");
+#     let fence = guide
+#         .split("<!-- tested-example: bevy-harness-scenario -->")
+#         .nth(1)
+#         .expect("the guide carries the scenario fence");
+#     let index: usize = fence
+#         .split("index = ")
+#         .nth(1)
+#         .and_then(|rest| rest.split(',').next())
+#         .and_then(|value| value.trim().parse().ok())
+#         .expect("the fence selects a scenario by index");
 #     let feature = include_str!("../tests/features/bevy_scenario.feature");
 #     let scenario = feature
 #         .split("Scenario:")
-#         .nth(2)
+#         .nth(index + 1)
 #         .expect("the feature declares the scenario this example binds");
 #     let count_after = |marker: &str| -> u32 {
 #         scenario
