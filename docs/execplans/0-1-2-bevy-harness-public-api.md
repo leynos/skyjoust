@@ -1088,7 +1088,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   the in-fence error before the change and passes after it. The containment
   check moved to `reject_ended_container` to keep `visit` under CodeScene's
   complexity threshold; `cs check` returns 10.00 and the delta is clean.
-  - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
+  - Scope: 42 non-ExecPlan paths and 5,963 net added lines (32 paths and 5,097
     counting only code and tests).
 
 ## Surprises & discoveries
