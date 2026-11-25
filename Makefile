@@ -102,10 +102,12 @@ test: test-prepare ## Run tests with warnings treated as errors
 	@# Pay for the nested builds before the timed run: build the test binaries under
 	@# the same flags as the run, then run the two trybuild binaries once, because a
 	@# plain `--no-run` leaves the trybuild build tree (target/tests/trybuild) empty.
-	@# `--workspace --all-features` keeps the Cargo feature unification the same as
-	@# the run, which trybuild reads.
-	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" test --no-run $(TEST_FLAGS) $(BUILD_JOBS)
-	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" test --workspace --all-features --test macro_ui --test fixture_expansion_lints_ui $(BUILD_JOBS)
+	@# Both lines take the same runner and TEST_FLAGS as the run, so a runner-only option
+	@# is accepted, the feature unification matches (trybuild reads it), and nextest
+	@# keeps its per-test limit on the UI binaries. `--all-targets` is dropped from
+	@# the UI line because it would select every test target.
+	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) --no-run $(TEST_FLAGS) $(BUILD_JOBS)
+	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(filter-out --all-targets,$(TEST_FLAGS)) --test macro_ui --test fixture_expansion_lints_ui $(BUILD_JOBS)
 	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 	@# Doctests run whichever runner is selected: `--all-targets` excludes them,
 	@# so the plain `cargo test` branch needs the explicit run too.

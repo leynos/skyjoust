@@ -65,6 +65,30 @@ fn test_dependencies_are_prepared_before_offline_execution(#[case] runner: &str)
         4,
         "the warm-up, the selected runner and doctests must all run offline"
     );
+    // ...in that order: the warm-up must come before the timed run, and the
+    // build before the UI binaries it prepares.
+    let ordered: Vec<&str> = offline_runs.iter().map(|(_, line)| *line).collect();
+    let [warm_build, warm_ui, timed_run, ..] = ordered.as_slice() else {
+        panic!("the offline steps must include the warm-up and the timed run");
+    };
+    assert!(
+        warm_build.contains("--no-run") && warm_build.contains(runner),
+        "the first offline step must build the test binaries with the selected runner: \
+         {warm_build}"
+    );
+    assert!(
+        ["--test macro_ui", "--test fixture_expansion_lints_ui"]
+            .iter()
+            .all(|target| warm_ui.contains(target))
+            && !warm_ui.contains("--no-run")
+            && warm_ui.contains(runner),
+        "the second offline step must run both trybuild binaries with the selected runner: \
+         {warm_ui}"
+    );
+    assert!(
+        !timed_run.contains("--no-run") && !timed_run.contains("--test "),
+        "the third offline step must be the full timed run: {timed_run}"
+    );
     assert!(
         offline_runs.iter().all(|(position, _)| *position > prepare),
         "dependency preparation must precede every offline test invocation"
