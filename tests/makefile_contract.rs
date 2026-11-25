@@ -58,10 +58,12 @@ fn test_dependencies_are_prepared_before_offline_execution(#[case] runner: &str)
         .enumerate()
         .filter(|(_, line)| line.contains("CARGO_NET_OFFLINE=true"))
         .collect();
+    // The nested-build warm-up (a `--no-run` build and the trybuild binaries),
+    // the selected runner and the doctests all run offline.
     assert_eq!(
         offline_runs.len(),
-        2,
-        "the selected runner and doctests must both run offline"
+        4,
+        "the warm-up, the selected runner and doctests must all run offline"
     );
     assert!(
         offline_runs.iter().all(|(position, _)| *position > prepare),
