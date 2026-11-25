@@ -257,9 +257,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   tests); the 40 added lines are all in `docs/developers-guide.md`. The
   Revision 32 tree, which narrows that section's claim to what the doctest
   proves, measures the same 42 non-ExecPlan paths and 5,904 net added lines (32
-  paths and 5,038 counting only code and tests). `Decision log` records the
-  escalation and its disposition; Revision 23 records the maintainer's raised
-  limits, so this historical measurement no longer describes a breach.
+  paths and 5,038 counting only code and tests). The Revision 35 tree, which
+  fixes the two parser rules, measures the same 42 non-ExecPlan paths and 5,963
+  net added lines (32 paths and 5,097 counting only code and tests).
+  `Decision log` records the escalation and its disposition; Revision 23
+  records the maintainer's raised limits, so this historical measurement no
+  longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -3374,8 +3377,9 @@ Downstream consumers need direct development dependencies on `rstest`,
   `` ```rust``` `` is an inline code span, and
   `a_backtick_in_the_info_string_is_not_an_opener` pins that the marker above
   it is reported dangling rather than silently attached to a fence the document
-  never opened. All 34 guide tests pass. No requirement, signature, or
-  milestone changed.
+  never opened. All 34 guide tests pass. The tree measures 42 non-ExecPlan
+  paths and 5,963 net added lines (32 paths and 5,097 counting only code and
+  tests). No requirement, signature, or milestone changed.
 - Revision 34, 2026-11-24: the Revision 33 assessment found no remaining
   implementation defect and one incomplete repair: the Revision 32 and Revision
   31 revision notes carried each other's net added line counts. The notes now
