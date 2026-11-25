@@ -1090,6 +1090,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   complexity threshold; `cs check` returns 10.00 and the delta is clean.
   - Scope: 42 non-ExecPlan paths and 5,963 net added lines (32 paths and 5,097
     counting only code and tests).
+- [x] (2026-11-25) Revision 36: the Revision 35 assessment found no remaining
+  implementation defect and one scope-recording inconsistency: the Revision 35
+  `Progress` scope line still carried the Revision 34 figures. It now reads
+  5,963 and 5,097, matching the scope evidence and revision note.
+  - Scope: 42 non-ExecPlan paths and 5,963 net added lines (32 paths and 5,097
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -3362,6 +3368,11 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 36, 2026-11-25: the Revision 35 assessment found no remaining
+  implementation defect and one scope-recording inconsistency: the Revision 35
+  `Progress` scope line still carried the Revision 34 figures. It now reads
+  5,963 overall and 5,097 for code and tests, matching the rest of the plan. No
+  code, test, requirement, signature, or milestone changed.
 - Revision 35, 2026-11-25: the formal review's `Testing (Overall)` row asked
   for a regression covering a marker-shaped line inside a fence. Exploring it
   exposed a real checker defect: `visit` routed any marker-shaped line to
