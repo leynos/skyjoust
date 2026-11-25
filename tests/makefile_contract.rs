@@ -58,10 +58,36 @@ fn test_dependencies_are_prepared_before_offline_execution(#[case] runner: &str)
         .enumerate()
         .filter(|(_, line)| line.contains("CARGO_NET_OFFLINE=true"))
         .collect();
+    // The nested-build warm-up (a `--no-run` build and the trybuild binaries),
+    // the selected runner and the doctests all run offline.
     assert_eq!(
         offline_runs.len(),
-        2,
-        "the selected runner and doctests must both run offline"
+        4,
+        "the warm-up, the selected runner and doctests must all run offline"
+    );
+    // ...in that order: the warm-up must come before the timed run, and the
+    // build before the UI binaries it prepares.
+    let ordered: Vec<&str> = offline_runs.iter().map(|(_, line)| *line).collect();
+    let [warm_build, warm_ui, timed_run, ..] = ordered.as_slice() else {
+        panic!("the offline steps must include the warm-up and the timed run");
+    };
+    assert!(
+        warm_build.contains("--no-run") && warm_build.contains(runner),
+        "the first offline step must build the test binaries with the selected runner: \
+         {warm_build}"
+    );
+    assert!(
+        ["--test macro_ui", "--test fixture_expansion_lints_ui"]
+            .iter()
+            .all(|target| warm_ui.contains(target))
+            && !warm_ui.contains("--no-run")
+            && warm_ui.contains(runner),
+        "the second offline step must run both trybuild binaries with the selected runner: \
+         {warm_ui}"
+    );
+    assert!(
+        !timed_run.contains("--no-run") && !timed_run.contains("--test "),
+        "the third offline step must be the full timed run: {timed_run}"
     );
     assert!(
         offline_runs.iter().all(|(position, _)| *position > prepare),
@@ -73,6 +99,47 @@ fn test_dependencies_are_prepared_before_offline_execution(#[case] runner: &str)
                 .iter()
                 .any(|(_, line)| line.contains("test --doc")),
         "the selected test runner and doctests must retain coverage"
+    );
+}
+
+/// The UI binaries live in member crates, so a package selection in
+/// `CARGO_FLAGS` must not narrow the warm-up away from them: Cargo rejects a
+/// `--test` name that no selected package owns, which would stop `make test`
+/// before the timed run starts.
+#[rstest::rstest]
+#[case::nextest_package_equals("nextest run", "--package=skyjoust --all-targets --all-features")]
+#[case::nextest_short_package("nextest run", "-p skyjoust --all-targets --all-features")]
+#[case::cargo_package_equals("test", "--package=skyjoust --all-targets --all-features")]
+#[case::cargo_short_package("test", "-p skyjoust --all-targets --all-features")]
+fn ui_warm_up_names_the_whole_workspace_whatever_packages_cargo_flags_select(
+    #[case] runner: &str,
+    #[case] cargo_flags: &str,
+) {
+    let output = std::process::Command::new("make")
+        .args([
+            "--dry-run",
+            "test",
+            "CARGO=probe-cargo",
+            "CARGO_EXECUTABLE=probe-cargo",
+            &format!("TEST_CMD={runner}"),
+            &format!("CARGO_FLAGS={cargo_flags}"),
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("make must be available to inspect the test recipe");
+    assert!(
+        output.status.success(),
+        "the test recipe must expand successfully: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let plan = String::from_utf8_lossy(&output.stdout);
+    let ui_line = plan
+        .lines()
+        .find(|line| line.contains("--test macro_ui"))
+        .expect("the UI warm-up must be scheduled");
+    assert!(
+        ui_line.contains("--workspace") && ui_line.contains("--test fixture_expansion_lints_ui"),
+        "the UI warm-up must select the workspace and both UI binaries: {ui_line}"
     );
 }
 

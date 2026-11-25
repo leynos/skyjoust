@@ -48,6 +48,13 @@ CARGO_FLAGS ?= --workspace --all-targets --all-features
 DOC_FLAGS ?= --workspace --all-features --no-deps
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
+# What the nested-build warm-up builds with: CARGO_FLAGS, the build shape every
+# cargo gate here shares (packages, features, profile, target), without
+# `--all-targets`, which would select every test target. Build options belong in
+# CARGO_FLAGS. TEST_FLAGS only selects tests (`-E`, `--no-fail-fast`, a name,
+# `--`, `--package`), and a selection must not reach the warm-up: it would fail
+# it or select nothing, as a package without the UI binaries does.
+WARM_FLAGS ?= $(filter-out --all-targets,$(CARGO_FLAGS))
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
 # dev-fast is the standard development path: the build, test, lint, and
 # typecheck targets below pass this to every cargo invocation. Defined here
@@ -99,6 +106,16 @@ test-prepare: ## Prepare locked workspace dependencies before timed tests
 	$(CARGO) --config "$(DEV_FAST_CONFIG)" fetch --locked
 
 test: test-prepare ## Run tests with warnings treated as errors
+	@# Pay for the nested builds before the timed run: build the test binaries under
+	@# the same flags as the run, then run the two trybuild binaries once, because a
+	@# plain `--no-run` leaves the trybuild build tree (target/tests/trybuild) empty.
+	@# Both lines take the same runner and WARM_FLAGS as the run, so the feature
+	@# unification matches (trybuild reads it) and nextest keeps its per-test limit
+	@# on the UI binaries. The UI line drops `--all-targets`, which would select every
+	@# test target, and names `--workspace`, because the two UI binaries live in member
+	@# crates that a package selection in CARGO_FLAGS would leave out.
+	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) --no-run --all-targets $(WARM_FLAGS) $(BUILD_JOBS)
+	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) --workspace --test macro_ui --test fixture_expansion_lints_ui $(filter-out --workspace,$(WARM_FLAGS)) $(BUILD_JOBS)
 	CARGO_NET_OFFLINE=true CARGO="$(CARGO_EXECUTABLE)" $(GATE_RUSTFLAGS) $(CARGO) --config "$(DEV_FAST_CONFIG)" $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 	@# Doctests run whichever runner is selected: `--all-targets` excludes them,
 	@# so the plain `cargo test` branch needs the explicit run too.
