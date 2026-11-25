@@ -125,10 +125,13 @@ interface change.
 ### Option F: deterministic time by default
 
 `TimeUpdateStrategy::FixedTimesteps(n)` makes each `App::update` run the fixed
-loop a fixed number of times, which is attractive for deterministic tests.
-Adopting it in `MinimalBevyProfile` would deviate from design §5, which names
-`MinimalPlugins` as the default. The technique is documented for downstream
-profile types instead.
+loop a fixed number of times, which is attractive for deterministic tests. Bevy
+0.20.1 initializes the clock on the first update with a zero delta, so that
+first update runs no fixed steps; the steady state from the second update on is
+`n` steps each. Adopting the strategy in `MinimalBevyProfile` would deviate
+from design §5, which names `MinimalPlugins` as the default. The technique,
+including the first-update exception, is documented for downstream profile
+types instead.
 
 | Option                         | Re-raise visibility           | Cleanup contract                | API impact             | Outcome                                        |
 | ------------------------------ | ----------------------------- | ------------------------------- | ---------------------- | ---------------------------------------------- |

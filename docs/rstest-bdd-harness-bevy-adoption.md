@@ -59,7 +59,20 @@ tests on the harness's compatibility line. Use scenario and step attributes from
 Roadmap task `0.1.2` adds the `rstest-bdd` harness. Select the default minimal
 profile with `harness = BevyHarness`, or a downstream profile through a type
 alias, and request the shared application with the reserved
-`rstest_bdd_harness_context` fixture:
+`rstest_bdd_harness_context` fixture.
+
+The recipe below is written for a downstream package and needs three things of
+its own: the feature file at the path the `#[scenario]` attribute names, a step
+definition for every step of the selected scenario, and a `tests/` directory
+the harness context can reach. The repository's copy of that feature lives at
+`crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`, and its
+step definitions at
+`crates/rstest-bdd-harness-bevy/tests/headless_scenario/steps.rs`; copy both
+and adjust the path if you are wiring a scenario into the root `skyjoust`
+package, which has no `tests/features/bevy_scenario.feature` of its own. The
+worked example that runs in this repository, with every step its scenario
+binds, is the `bevy-harness-scenario` fence in the
+[user's guide](users-guide.md#4-use-the-headless-bevy-test-helpers).
 
 ```rust
 use rstest_bdd_harness::{HarnessResult, ScenarioMetadata};

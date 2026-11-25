@@ -90,15 +90,17 @@ resource, and cleanup hook lives in a downstream implementation of
 `BevyProfile`, never in this crate:
 
 ```rust
-use bevy::app::App;
 use rstest_bdd_harness::{HarnessResult, ScenarioMetadata};
-use rstest_bdd_harness_bevy::{BevyHarness, BevyProfile};
+use rstest_bdd_harness_bevy::{
+    BevyHarness, BevyProfile,
+    bevy::{app::App, prelude::MinimalPlugins},
+};
 
 pub enum GameProfile {}
 
 impl BevyProfile for GameProfile {
     fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
-        app.add_plugins(bevy::prelude::MinimalPlugins);
+        app.add_plugins(MinimalPlugins);
         Ok(())
     }
 }

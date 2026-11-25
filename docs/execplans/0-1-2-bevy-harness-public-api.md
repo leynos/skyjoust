@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 32 tree at 42 paths and
-  5,904 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 37 tree at 42 paths and
+  5,981 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -259,10 +259,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   proves, measures the same 42 non-ExecPlan paths and 5,904 net added lines (32
   paths and 5,038 counting only code and tests). The Revision 35 tree, which
   fixes the two parser rules, measures the same 42 non-ExecPlan paths and 5,963
-  net added lines (32 paths and 5,097 counting only code and tests).
-  `Decision log` records the escalation and its disposition; Revision 23
-  records the maintainer's raised limits, so this historical measurement no
-  longer describes a breach.
+  net added lines (32 paths and 5,097 counting only code and tests). The
+  Revision 37 tree, which fixes four documentation defects, measures the same
+  42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097 counting
+  only code and tests). `Decision log` records the escalation and its
+  disposition; Revision 23 records the maintainer's raised limits, so this
+  historical measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -1096,6 +1098,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   5,963 and 5,097, matching the scope evidence and revision note.
   - Scope: 42 non-ExecPlan paths and 5,963 net added lines (32 paths and 5,097
     counting only code and tests).
+- [x] (2026-11-25) Revision 37: the formal review's four remaining unresolved
+  inline threads named documentation defects, all valid and fixed:
+  - The crate README's profile example imported `bevy` directly; a crate that
+    depends only on the harness cannot resolve that, so it now uses the
+    harness's `bevy` re-export.
+  - ADR 010's deterministic-time option and the plan's `Decision log` now
+    record that Bevy 0.20.1's first update runs no fixed steps, matching the
+    EP-M2 observation.
+  - The mutation-audit recovery step refuses to run on a dirty tree, saves the
+    two audited files, and restores only those, instead of `git checkout --`
+    over the whole `src` directory.
+  - The adoption note now states what its recipe needs of the consuming
+    package, so the root package's absent
+    `tests/features/bevy_scenario.feature` is no longer implied.
+  - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
+    counting only code and tests); these are documentation edits only.
 
 ## Surprises & discoveries
 
@@ -1534,11 +1552,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
 - Decision: `MinimalBevyProfile` stays exactly `MinimalPlugins`, with
   wall-clock `Time`. Deterministic time
   (`TimeUpdateStrategy::FixedTimesteps(n)`, which makes each `App::update` run
-  the fixed loop exactly `n` times) is shown as a downstream-profile technique
-  in rustdoc and one unit test, and recorded in ADR 010 as the strongest
-  alternative. Rationale: changing the default profile would deviate from
-  design §5; the seam is what roadmap `0.1.4` needs. Date/Author: 2026-10-18,
-  design review.
+  the fixed loop exactly `n` times from the second update on; Bevy 0.20.1's
+  first update runs none, as the EP-M2 observation records) is shown as a
+  downstream-profile technique in rustdoc and one unit test, and recorded in
+  ADR 010 as the strongest alternative. Rationale: changing the default profile
+  would deviate from design §5; the seam is what roadmap `0.1.4` needs.
+  Date/Author: 2026-10-18, design review.
 - Decision (2026-11-20, EP-M2): the `FixedTimestep` test primes the clock with
   one update, then asserts one fixed tick per subsequent update, rather than
   asserting a tick count from the first update. Rationale: Bevy 0.20.1's first
@@ -2821,9 +2840,14 @@ cargo tree -p rstest-bdd-harness-bevy -e features -i bevy_ecs | grep multi_threa
 
 Mutation audit (EP-M5, advisory). List first and check the count against the
 tolerance; then run in place so the existing `target/` is reused; finally
-confirm the worktree is clean:
+confirm the worktree is clean. Commit or set aside every other edit first: an
+interrupted in-place run can only be recovered file by file, so a clean
+worktree is what keeps unrelated work safe:
 
 ```bash
+test -z "$(git status --porcelain)" || { echo "commit or park edits first"; exit 1; }
+cp crates/rstest-bdd-harness-bevy/src/harness.rs /tmp/audit-harness.rs
+cp crates/rstest-bdd-harness-bevy/src/panic.rs /tmp/audit-panic.rs
 cargo mutants --list -p rstest-bdd-harness-bevy \
   -f crates/rstest-bdd-harness-bevy/src/harness.rs \
   -f crates/rstest-bdd-harness-bevy/src/panic.rs | wc -l
@@ -2880,9 +2904,17 @@ environment state. Snapshot updates are explicit (`cargo insta review` or
 `INSTA_UPDATE=always` on a focused run) and must be reviewed before commit;
 delete stray `.snap.new` files. Each milestone ends in a gated commit;
 `git revert` of a milestone's commits returns to the previous plateau. After an
-interrupted `cargo mutants --in-place` run, restore any mutated file with
-`git checkout -- crates/rstest-bdd-harness-bevy/src`. Never use `git stash`
-without a unique tag (the stash stack is shared with other worktrees).
+interrupted `cargo mutants --in-place` run, restore only the files the audit
+touched, from the pre-audit copies the command above saves:
+
+```bash
+cp /tmp/audit-harness.rs crates/rstest-bdd-harness-bevy/src/harness.rs
+cp /tmp/audit-panic.rs crates/rstest-bdd-harness-bevy/src/panic.rs
+```
+
+Never restore the whole `src` directory with `git checkout --`, which would
+discard any later edit in it. Never use `git stash` without a unique tag (the
+stash stack is shared with other worktrees).
 
 ## Artefacts and notes
 
@@ -3368,6 +3400,23 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 37, 2026-11-25: sweeping the formal review's remaining unresolved
+  inline threads found four documentation defects in files this change owns,
+  all valid and fixed. The crate README's profile example imported `bevy`
+  directly, which a downstream crate that depends only on the harness cannot
+  resolve, so it now imports `App` and `MinimalPlugins` through the crate's
+  `bevy` re-export. ADR 010's deterministic-time option now records that Bevy
+  0.20.1's first update runs no fixed steps, matching the plan's own EP-M2
+  observation, and the plan's `Decision log` says the same. The mutation-audit
+  recovery step restores only the two audited files from pre-audit copies after
+  refusing to run on a dirty tree, instead of `git checkout --` over the whole
+  `src` directory. The adoption note now states that its recipe needs the
+  feature file, the full step set, and a `tests/` directory of its own, and
+  points at the repository's copies, so the root package's missing
+  `tests/features/bevy_scenario.feature` is no longer implied to exist. The
+  tree measures 42 non-ExecPlan paths and 5,981 net added lines (32 paths and
+  5,097 counting only code and tests). No requirement, signature, or milestone
+  changed.
 - Revision 36, 2026-11-25: the Revision 35 assessment found no remaining
   implementation defect and one scope-recording inconsistency: the Revision 35
   `Progress` scope line still carried the Revision 34 figures. It now reads
