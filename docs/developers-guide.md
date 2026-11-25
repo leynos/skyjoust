@@ -118,6 +118,8 @@ builds the test binaries with the selected runner and `WARM_FLAGS`
 profile, target) belong in `CARGO_FLAGS` and follow into the warm-up, while
 runner-only options, test filters and `--package` selections in `TEST_FLAGS`
 never reach it (a package without the UI binaries would make the warm-up fail).
+A `TEST_FLAGS` override replaces the timed run's flags wholesale, so one that
+changes the build shape needs the same options in `CARGO_FLAGS` or `WARM_FLAGS`.
 `--no-run` alone leaves trybuild's own build tree (`target/tests/trybuild`)
 empty. Under Nextest the warm-up keeps the `compile-ui` group and its per-test
 limit. On a cold target the warm-up takes about 48 s for the build and 94 s for
