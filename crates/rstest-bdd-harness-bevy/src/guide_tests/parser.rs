@@ -106,29 +106,10 @@ impl<'a> FenceParser<'a> {
     /// Routes one line to the transition its syntax calls for.
     fn visit(&mut self, line: &'a str, line_number: usize) -> Result<(), String> {
         let scan = self.scan(line)?;
-        if let Some(identifier) = scan.content.and_then(marker_identifier) {
-            let path = self.containers.path();
-            return self.open_marker(identifier, line_number, path);
+        if self.record_marker(&scan, line_number)? {
+            return Ok(());
         }
-        // Containment is checked before delimiter processing: a shallower
-        // delimiter line ends the container, so it must not be mistaken for a
-        // closer (or for a new top-level fence) that the open block survives.
-        if let Some(open) = &self.open
-            && !same_container(&scan, open)
-        {
-            if open.quote_depth > scan.quote_depth {
-                return Err(format!(
-                    "the fenced block {:?} inside a block quote is not terminated",
-                    open.language
-                ));
-            }
-            if open.list_depth > scan.list_depth {
-                return Err(format!(
-                    "the fenced block {:?} inside a list item is not terminated",
-                    open.language
-                ));
-            }
-        }
+        self.reject_ended_container(&scan)?;
         if self.fence_line(&scan, line_number)? {
             return Ok(());
         }
@@ -138,17 +119,60 @@ impl<'a> FenceParser<'a> {
         self.reject_dangling_marker()
     }
 
+    /// Records `scan`'s marker, reporting whether the line carried one.
+    ///
+    /// Inside an open fence everything is literal content, including a line
+    /// shaped like a marker: a guide that documents the marker convention must
+    /// be able to show one, and `CommonMark` gives it no meaning there.
+    fn record_marker(
+        &mut self,
+        scan: &ContainerScan<'a>,
+        line_number: usize,
+    ) -> Result<bool, String> {
+        let Some(identifier) = scan.content.and_then(marker_identifier) else {
+            return Ok(false);
+        };
+        if self.open.is_some() {
+            return Ok(false);
+        }
+        let path = self.containers.path();
+        self.open_marker(identifier, line_number, path)?;
+        Ok(true)
+    }
+
+    /// Rejects a fence left behind by a container `scan` has ended.
+    ///
+    /// Containment is checked before delimiter processing: a shallower
+    /// delimiter line ends the container, so it must not be mistaken for a
+    /// closer (or for a new top-level fence) that the open block survives.
+    fn reject_ended_container(&self, scan: &ContainerScan<'_>) -> Result<(), String> {
+        let Some(open) = &self.open else {
+            return Ok(());
+        };
+        if same_container(scan, open) {
+            return Ok(());
+        }
+        if open.quote_depth > scan.quote_depth {
+            return Err(format!(
+                "the fenced block {:?} inside a block quote is not terminated",
+                open.language
+            ));
+        }
+        if open.list_depth > scan.list_depth {
+            return Err(format!(
+                "the fenced block {:?} inside a list item is not terminated",
+                open.language
+            ));
+        }
+        Ok(())
+    }
+
     fn open_marker(
         &mut self,
         identifier: &'a str,
         line_number: usize,
         path: Vec<usize>,
     ) -> Result<(), String> {
-        if self.open.is_some() {
-            return Err(format!(
-                "marker on line {line_number} appears inside a fenced block"
-            ));
-        }
         self.reject_dangling_marker()?;
         self.pending_marker = Some(PendingMarker {
             identifier,
@@ -329,7 +353,10 @@ struct ContainerScan<'a> {
 ///
 /// Returns the delimiter and the text after it. `CommonMark` permits up to three
 /// leading spaces before the delimiter itself; [`FenceParser::scan`] removes
-/// those and any list or block-quote containers first.
+/// those and any list or block-quote containers first. A backtick fence's info
+/// string may not contain a backtick, so `` ```rust``` `` is an inline code span
+/// rather than an opener; treating it as one would let the following marker
+/// attach to a fence the document never opened.
 fn fence_delimiter(content: &str) -> Option<(Delimiter, &str)> {
     let character = content.chars().next().filter(|c| *c == '`' || *c == '~')?;
     let length = content.chars().take_while(|c| *c == character).count();
@@ -339,6 +366,9 @@ fn fence_delimiter(content: &str) -> Option<(Delimiter, &str)> {
     // Delimiters are ASCII, so the run's character count is also its byte
     // length; the checked split keeps the helper free of panicking indexing.
     let (_, trailing) = content.split_at_checked(length)?;
+    if character == '`' && trailing.contains('`') {
+        return None;
+    }
     Some((Delimiter { character, length }, trailing))
 }
 

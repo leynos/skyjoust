@@ -1073,6 +1073,20 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   5,904 and 5,901 respectively, matching the rest of the plan.
   - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
     counting only code and tests).
+- [x] (2026-11-25) Revision 35: the formal review's `Testing (Overall)` row
+  asked for a regression covering a marker-shaped line inside a fence.
+  Exploring it exposed a real checker defect: `visit` routed any marker-shaped
+  line to `open_marker`, which rejected it with
+  `marker on line N appears inside a fenced block`, so a guide that documents
+  the marker convention could not show one. `CommonMark` makes everything
+  between the delimiters literal content, so the scanner now records a marker
+  only outside an open fence, and
+  `a_marker_shaped_line_inside_a_fence_is_content` pins that; it failed with
+  the in-fence error before the change and passes after it. The containment
+  check moved to `reject_ended_container` to keep `visit` under CodeScene's
+  complexity threshold; `cs check` returns 10.00 and the delta is clean.
+  - Scope: 42 non-ExecPlan paths and 5,904 net added lines (32 paths and 5,038
+    counting only code and tests).
 
 ## Surprises & discoveries
 
@@ -1385,6 +1399,12 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   the rewrite introduces `Keyword`, `Step`, `Pattern`, and `Placeholder` so
   each function takes the type it needs, and the matcher recurses once per
   placeholder instead of looping with exit checks.
+- Observation (2026-11-25, Revision 35): "inside a fence" and "inside the
+  guide's prose" are different grammars, and the scanner applied the prose rule
+  to both. A marker-shaped line between delimiters is literal text that a guide
+  must be able to show, but `visit` treated it as a marker declaration and
+  errored. Impact: the marker transition is now gated on no open fence, so
+  example content is inert and the guide can document its own convention.
 - Observation (2026-11-24, Revision 28): a doctest's `include_str!` resolves
   relative to the source file that carries the doc attribute, so the guide's
   hidden driver reaches the shipped feature through `../tests/features/…` from
@@ -3339,6 +3359,23 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 35, 2026-11-25: the formal review's `Testing (Overall)` row asked
+  for a regression covering a marker-shaped line inside a fence. Exploring it
+  exposed a real checker defect: `visit` routed any marker-shaped line to
+  `open_marker`, which rejected it as
+  `marker on line N appears inside a fenced block`, so a guide documenting the
+  marker convention could not show one. `CommonMark` makes everything between
+  the delimiters literal content, so the scanner now records a marker only
+  outside an open fence. The containment check moved to
+  `reject_ended_container` to keep `visit` under CodeScene's complexity
+  threshold. `a_marker_shaped_line_inside_a_fence_is_content` pins the
+  behaviour and failed before the change. The same row's second case is fixed
+  too: a backtick fence's info string may not contain a backtick, so
+  `` ```rust``` `` is an inline code span, and
+  `a_backtick_in_the_info_string_is_not_an_opener` pins that the marker above
+  it is reported dangling rather than silently attached to a fence the document
+  never opened. All 34 guide tests pass. No requirement, signature, or
+  milestone changed.
 - Revision 34, 2026-11-24: the Revision 33 assessment found no remaining
   implementation defect and one incomplete repair: the Revision 32 and Revision
   31 revision notes carried each other's net added line counts. The notes now

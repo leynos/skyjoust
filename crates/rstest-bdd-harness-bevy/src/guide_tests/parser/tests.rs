@@ -226,3 +226,32 @@ fn unquoted_blank_line_ends_a_quoted_fence() {
         "the error must name the ended block quote, got {error:?}"
     );
 }
+
+#[test]
+fn a_marker_shaped_line_inside_a_fence_is_content() {
+    let fence = single_fence(
+        "<!-- tested-example: outer -->\n```markdown\n<!-- tested-example: inner -->\n```\n",
+        "a fence whose content shows the marker syntax",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("outer"),
+        "the fence keeps the marker that precedes it"
+    );
+}
+
+#[test]
+fn a_backtick_in_the_info_string_is_not_an_opener() {
+    // The middle line is an inline code span, not a fence. Read as an opener it
+    // would consume the marker and swallow the real fence as its content; read
+    // correctly it is prose, which may not separate a marker from its fence.
+    let error =
+        parse_fences("<!-- tested-example: real -->\n```rust```\n```rust\nlet value = 1;\n```\n")
+            .expect_err("an inline code span must not consume the marker");
+
+    assert!(
+        error.contains("not followed by a fence"),
+        "the error must report the dangling marker rather than a stray fence, got {error:?}"
+    );
+}
