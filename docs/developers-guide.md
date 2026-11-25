@@ -113,17 +113,18 @@ parallelism remains under caller control.
 `make test` also pays for the nested trybuild builds before the timed run. It
 builds the test binaries with the selected runner and `WARM_FLAGS`
 (`--no-run`), then runs the two `_ui` binaries (`macro_ui` and
-`fixture_expansion_lints_ui`) once with the same flags. `WARM_FLAGS` holds the
-build-affecting words of `TEST_FLAGS` (packages, features, profile, target), so
-runner-only options and test filters never reach the warm-up; write
-`--features=NAME`, not `--features NAME`. `--no-run` alone leaves trybuild's
-own build tree (`target/tests/trybuild`) empty. Under Nextest the warm-up keeps
-the `compile-ui` group and its per-test limit. On a cold target the warm-up
-takes about 48 s for the build and 94 s for the two UI binaries; the timed run
-then takes about 4 s for them. The warm-up always runs the two UI binaries, so
-a narrowed `TEST_FLAGS` still pays for it; call the runner directly to skip it.
-`tests/makefile_contract.rs` checks that the build and the UI binaries come
-before the timed run.
+`fixture_expansion_lints_ui`) once with the same flags. `WARM_FLAGS` is
+`CARGO_FLAGS` without `--all-targets`, so build options (packages, features,
+profile, target) belong in `CARGO_FLAGS` and follow into the warm-up, while
+runner-only options, test filters and `--package` selections in `TEST_FLAGS`
+never reach it (a package without the UI binaries would make the warm-up fail).
+`--no-run` alone leaves trybuild's own build tree (`target/tests/trybuild`)
+empty. Under Nextest the warm-up keeps the `compile-ui` group and its per-test
+limit. On a cold target the warm-up takes about 48 s for the build and 94 s for
+the two UI binaries; the timed run then takes about 4 s for them. The warm-up
+always runs the two UI binaries, so a narrowed `TEST_FLAGS` still pays for it;
+call the runner directly to skip it. `tests/makefile_contract.rs` checks that
+the build and the UI binaries come before the timed run.
 
 Both CI coverage callers set a finite 13,200-second Cargo watchdog, allowing 30
 minutes for cold compilation beyond the 190-minute Nextest run. Their

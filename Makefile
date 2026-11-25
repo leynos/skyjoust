@@ -48,11 +48,13 @@ CARGO_FLAGS ?= --workspace --all-targets --all-features
 DOC_FLAGS ?= --workspace --all-features --no-deps
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
-# The build-affecting words of TEST_FLAGS (packages, features, profile, target),
-# which the nested-build warm-up shares with the timed run. Selection options
-# (`-E`, `--no-fail-fast`, a test name, `--`) stay out: they would fail the
-# warm-up or select nothing. Write `--features=NAME`, not `--features NAME`.
-WARM_FLAGS ?= $(filter --workspace --all-features --no-default-features --release --features=% --package=% --target=%,$(TEST_FLAGS))
+# What the nested-build warm-up builds with: CARGO_FLAGS, the build shape every
+# cargo gate here shares (packages, features, profile, target), without
+# `--all-targets`, which would select every test target. Build options belong in
+# CARGO_FLAGS. TEST_FLAGS only selects tests (`-E`, `--no-fail-fast`, a name,
+# `--`, `--package`), and a selection must not reach the warm-up: it would fail
+# it or select nothing, as a package without the UI binaries does.
+WARM_FLAGS ?= $(filter-out --all-targets,$(CARGO_FLAGS))
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
 # dev-fast is the standard development path: the build, test, lint, and
 # typecheck targets below pass this to every cargo invocation. Defined here
