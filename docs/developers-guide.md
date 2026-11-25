@@ -114,11 +114,13 @@ parallelism remains under caller control.
 builds the test binaries with the selected runner and `WARM_FLAGS`
 (`--no-run`), then runs the two `_ui` binaries (`macro_ui` and
 `fixture_expansion_lints_ui`) once with the same flags. `WARM_FLAGS` is
-`CARGO_FLAGS` without `--all-targets`, so build options (packages, features,
-profile, target) belong in `CARGO_FLAGS` and follow into the warm-up, while
-runner-only options, test filters and `--package` selections in `TEST_FLAGS`
-never reach it (a package without the UI binaries would make the warm-up fail).
-A `TEST_FLAGS` override replaces the timed run's flags wholesale, so one that
+`CARGO_FLAGS` without `--all-targets`, so build options (features, profile,
+target) belong in `CARGO_FLAGS` and follow into the warm-up, while runner-only
+options, test filters and `--package` selections in `TEST_FLAGS` never reach
+it. The UI line always names `--workspace`, because the two binaries live in
+member crates that a package selection (`--package=skyjoust`, `-p skyjoust`)
+would leave out, and Cargo rejects a test name no selected package owns. A
+`TEST_FLAGS` override replaces the timed run's flags wholesale, so one that
 changes the build shape needs the same options in `CARGO_FLAGS` or `WARM_FLAGS`.
 `--no-run` alone leaves trybuild's own build tree (`target/tests/trybuild`)
 empty. Under Nextest the warm-up keeps the `compile-ui` group and its per-test

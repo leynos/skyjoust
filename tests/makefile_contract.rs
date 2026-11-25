@@ -102,6 +102,47 @@ fn test_dependencies_are_prepared_before_offline_execution(#[case] runner: &str)
     );
 }
 
+/// The UI binaries live in member crates, so a package selection in
+/// `CARGO_FLAGS` must not narrow the warm-up away from them: Cargo rejects a
+/// `--test` name that no selected package owns, which would stop `make test`
+/// before the timed run starts.
+#[rstest::rstest]
+#[case::nextest_package_equals("nextest run", "--package=skyjoust --all-targets --all-features")]
+#[case::nextest_short_package("nextest run", "-p skyjoust --all-targets --all-features")]
+#[case::cargo_package_equals("test", "--package=skyjoust --all-targets --all-features")]
+#[case::cargo_short_package("test", "-p skyjoust --all-targets --all-features")]
+fn ui_warm_up_names_the_whole_workspace_whatever_packages_cargo_flags_select(
+    #[case] runner: &str,
+    #[case] cargo_flags: &str,
+) {
+    let output = std::process::Command::new("make")
+        .args([
+            "--dry-run",
+            "test",
+            "CARGO=probe-cargo",
+            "CARGO_EXECUTABLE=probe-cargo",
+            &format!("TEST_CMD={runner}"),
+            &format!("CARGO_FLAGS={cargo_flags}"),
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("make must be available to inspect the test recipe");
+    assert!(
+        output.status.success(),
+        "the test recipe must expand successfully: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let plan = String::from_utf8_lossy(&output.stdout);
+    let ui_line = plan
+        .lines()
+        .find(|line| line.contains("--test macro_ui"))
+        .expect("the UI warm-up must be scheduled");
+    assert!(
+        ui_line.contains("--workspace") && ui_line.contains("--test fixture_expansion_lints_ui"),
+        "the UI warm-up must select the workspace and both UI binaries: {ui_line}"
+    );
+}
+
 /// One standard development target and the name of the Makefile rule
 /// whose recipe text actually carries the dev-fast wiring.
 ///
