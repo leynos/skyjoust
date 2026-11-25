@@ -262,9 +262,13 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   net added lines (32 paths and 5,097 counting only code and tests). The
   Revision 37 tree, which fixes four documentation defects, measures the same
   42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097 counting
-  only code and tests). `Decision log` records the escalation and its
-  disposition; Revision 23 records the maintainer's raised limits, so this
-  historical measurement no longer describes a breach.
+  only code and tests). The Revision 38 tree is that same content replayed onto
+  `main` `85a629b` after the two obsolete prerequisite layers were dropped, and
+  it measures the same 42 non-ExecPlan paths and 5,981 net added lines (32
+  paths and 5,097 counting only code and tests), so the change of base moves no
+  figure. `Decision log` records the escalation and its disposition; Revision
+  23 records the maintainer's raised limits, so this historical measurement no
+  longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -1114,6 +1118,22 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     `tests/features/bevy_scenario.feature` is no longer implied.
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests); these are documentation edits only.
+- [x] (2026-11-25) Revision 38: the branch was replayed onto `main` and the
+  two obsolete prerequisite layers were dropped, restoring hosted `CI`.
+  - No `CI` workflow run was created for any push after `#209` landed on
+    `main`, although pushes before it ran. GitHub does not run `pull_request`
+    workflows when the pull request has a merge conflict, and the head's
+    cumulative merge into `main` conflicted in `tests/nextest_policy.rs`.
+  - Both prerequisites had become obsolete: `#200`'s regenerated `typos.toml`
+    is byte-identical to `main`'s, and `#203`'s Whitaker split was
+    independently delivered on `main` by `#209`, which added the same
+    `trybuild_runner_name` and `has_rust_extension` helpers.
+  - The 62 commits exclusive to this branch were replayed onto `main`
+    `85a629b` with no conflicts, because none of them touches the conflicted
+    path or `typos.toml`. The pull request now targets `main` directly.
+  - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
+    counting only code and tests), unchanged under the new base; no
+    requirement, signature, or milestone changed.
 
 ## Surprises & discoveries
 
@@ -3400,6 +3420,26 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 38, 2026-11-25: the branch was replayed from its obsolete stacked
+  base onto `main` `85a629b` so hosted `CI` could run again. No `CI` run had
+  been created for any push after `#209` landed on `main` on 2026-11-24, while
+  earlier pushes on the same branch were inspected normally. The cause is the
+  interaction of two documented behaviours: GitHub does not run `pull_request`
+  workflows when the pull request has a merge conflict, and the head's
+  cumulative merge into `main` conflicted in `tests/nextest_policy.rs`, because
+  that file still carried `#203`'s split of the trybuild runner inventory while
+  `#209` had rewritten the same file on `main`. Both prerequisite layers were
+  obsolete by then: `#200`'s regenerated `typos.toml` is byte-identical to
+  `main`'s, and `#209` independently added the `trybuild_runner_name` and
+  `has_rust_extension` helpers that `#203` existed to add, so neither layer had
+  anything left to deliver. The stack was unstacked and the 62 commits
+  exclusive to this branch were replayed onto `main` with no conflicts, since
+  none of them touches the conflicted path or `typos.toml`; the pull request
+  now targets `main`. The replay changes no repository content of this change's
+  own: the resulting tree differs from the Revision 37 tree only where `main`
+  has moved, and it measures the same 42 non-ExecPlan paths and 5,981 net added
+  lines (32 paths and 5,097 counting only code and tests). No requirement,
+  signature, or milestone changed.
 - Revision 37, 2026-11-25: sweeping the formal review's remaining unresolved
   inline threads found four documentation defects in files this change owns,
   all valid and fixed. The crate README's profile example imported `bevy`
