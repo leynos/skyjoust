@@ -1,0 +1,8 @@
+---
+extends: .yamllint-estate.yml
+# A local `ignore` replaces the base's, so the Helm template glob is restated.
+ignore: |
+  **/charts/**/templates/
+  crates/skyjoust_stateright_validator/spec/skyjoust-state-graphs.yaml
+  crates/skyjoust_stateright_validator/spec/validator_contract.yaml
+  docs/skyjoust-state-graphs.yaml
