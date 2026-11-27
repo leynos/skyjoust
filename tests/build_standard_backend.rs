@@ -72,6 +72,12 @@ fn lint_with_script(scratch: &str, script: &str) -> Read<(Output, String)> {
         // `WHITAKER` (the bogus value below) and a competing install found
         // through `PATH`.
         .args([
+            // The YAML lint prerequisites need the estate tools, which this fake
+            // `PATH` lacks, and are not under test: `-o` treats both as up to date.
+            "-o".to_owned(),
+            "yamllint".to_owned(),
+            "-o".to_owned(),
+            "actionlint".to_owned(),
             "lint".to_owned(),
             "CARGO=true".to_owned(),
             format!("WHITAKER={}", root.join("whitaker").display()),
@@ -220,8 +226,14 @@ fn a_missing_whitaker_skips_the_check_and_lint_succeeds() {
     let tools = tool_directory("whitaker-absent").expect("prepare the tool directory");
     let output = Command::new("make")
         // `INTERROGATE=true` replaces the Interrogate command, because `uv` is
-        // not on this fake `PATH`.
+        // not on this fake `PATH`. The YAML lint prerequisites need the estate
+        // tools, which it lacks too, and are not under test: `-o` treats both as
+        // up to date.
         .args([
+            "-o",
+            "yamllint",
+            "-o",
+            "actionlint",
             "lint",
             "CARGO=true",
             "WHITAKER=whitaker",
