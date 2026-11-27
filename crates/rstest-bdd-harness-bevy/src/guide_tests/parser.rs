@@ -12,10 +12,16 @@
 //! including a blank one, ends a block quote; a dedented line ends a list item
 //! and leaves its fence unterminated.
 
+#[path = "parser/blocks.rs"]
+mod blocks;
 #[path = "parser/containers.rs"]
 mod containers;
+#[path = "parser/html.rs"]
+mod html;
 
-use containers::{Containers, Line, list_marker};
+use blocks::{is_ascii_blank, is_thematic_break};
+use containers::{Containers, Line, list_marker, opens_tab_padded_item};
+use html::HtmlBlocks;
 
 /// One fenced block and the marker immediately above it, if any.
 #[derive(Debug)]
@@ -35,12 +41,14 @@ impl Delimiter {
     /// Whether `self`, found on a candidate closing line, closes `opener`.
     ///
     /// `CommonMark` requires the same character and at least the opener's run
-    /// length. A closing fence may carry only trailing spaces; any other text
-    /// makes the line content rather than a boundary.
+    /// length. A closing fence may carry only trailing spaces and tabs; any
+    /// other text makes the line content rather than a boundary. The suffix is
+    /// checked byte by byte because `str::trim` also strips Unicode spaces such
+    /// as the non-breaking space, which `CommonMark` treats as content.
     fn closes(self, opener: Self, trailing: &str) -> bool {
         self.character == opener.character
             && self.length >= opener.length
-            && trailing.trim().is_empty()
+            && trailing.bytes().all(|byte| matches!(byte, b' ' | b'\t'))
     }
 }
 
@@ -93,6 +101,7 @@ struct FenceParser<'a> {
     pending_marker: Option<PendingMarker<'a>>,
     open: Option<OpenFence<'a>>,
     containers: Containers,
+    html: HtmlBlocks,
 }
 
 impl<'a> FenceParser<'a> {
@@ -104,8 +113,16 @@ impl<'a> FenceParser<'a> {
     }
 
     /// Routes one line to the transition its syntax calls for.
+    ///
+    /// HTML-block tracking runs first and only outside an open fence, because
+    /// a fence's own content is literal text whatever it looks like.
     fn visit(&mut self, line: &'a str, line_number: usize) -> Result<(), String> {
         let scan = self.scan(line)?;
+        if self.open.is_none() && self.html.intercept(&scan, line_number)? {
+            // An HTML block is content, so it separates a marker from its
+            // fence exactly as prose does; only blanks may intervene.
+            return self.reject_dangling_marker();
+        }
         if self.record_marker(&scan, line_number)? {
             return Ok(());
         }
@@ -249,13 +266,18 @@ impl<'a> FenceParser<'a> {
             // start an indented code block on a blank line—so it keeps its
             // content for `is_blank_line` to recognize as blank.
             if leading > 3 {
-                let content = rest.trim().is_empty().then_some(rest);
+                let content = is_ascii_blank(rest).then_some(rest);
                 return Ok(self.container_scan(content));
             }
             // A tab exposed by the prefix just stripped would hide the fence
             // from the container measurement below, so it is rejected here
             // rather than treated as ordinary content.
             let stripped = Line::new(trimmed).reject_tab_indent()?.as_str();
+            // A tab after a list marker pads content to a column this scanner
+            // cannot compute from the stripped fragment, so it fails closed.
+            if self.open.is_none() && opens_tab_padded_item(Line::new(stripped)) {
+                return Err("a tab after a list marker is not supported; use spaces".to_owned());
+            }
             if let Some(after_quote) = stripped.strip_prefix('>') {
                 self.containers.open_quote();
                 rest = Line::new(after_quote).strip_quote_padding().as_str();
@@ -263,8 +285,11 @@ impl<'a> FenceParser<'a> {
             }
             // A marker inside an open fence is literal content, not a new
             // list item. Matching existing item indentation above still
-            // detects the dedent that ends the fence's container.
+            // detects the dedent that ends the fence's container. A thematic
+            // break wins over a list marker, because `- - -` is a break rather
+            // than three nested items.
             if self.open.is_none()
+                && !is_thematic_break(stripped)
                 && let Some((indent, content)) = list_marker(Line::new(stripped))
             {
                 self.containers.open_item(leading + indent);
@@ -331,10 +356,7 @@ fn same_container(scan: &ContainerScan<'_>, open: &OpenFence<'_>) -> bool {
 /// content strips to no content at all; it is literal text, not a blank line,
 /// so that case stays non-blank and still rejects a dangling marker.
 fn is_blank_line(line: &str, scan: &ContainerScan<'_>) -> bool {
-    line.trim().is_empty()
-        || scan
-            .content
-            .is_some_and(|content| content.trim().is_empty())
+    is_ascii_blank(line) || scan.content.is_some_and(is_ascii_blank)
 }
 
 /// One line after its containers were stripped.

@@ -7,6 +7,8 @@
 //! line is matched against each container from outermost to innermost, and a
 //! container that fails to match ends there together with everything inside it.
 
+use super::blocks::{is_ascii_blank, is_blank_after_prefixes, starts_block};
+
 /// One open container with the identity a fence records.
 #[derive(Clone, Copy)]
 struct Entry {
@@ -34,6 +36,11 @@ enum Kind {
 pub(super) struct Containers {
     entries: Vec<Entry>,
     next_id: usize,
+    /// Whether the previous line was blank, which ends lazy continuations.
+    ///
+    /// Defaults to `true` so the first line is never read as continuing a list
+    /// item that has not opened yet.
+    previous_blank: bool,
 }
 
 impl Containers {
@@ -45,8 +52,9 @@ impl Containers {
     /// scanner as it strips the next prefix.
     pub(super) fn match_line<'a>(&mut self, line: Line<'a>) -> Result<Line<'a>, String> {
         let mut rest = line.reject_tab_indent()?;
-        let matched = self.match_open_containers(&mut rest);
+        let matched = self.match_open_containers(&mut rest)?;
         self.entries.truncate(matched);
+        self.previous_blank = is_blank_after_prefixes(line);
         Ok(rest)
     }
 
@@ -54,17 +62,54 @@ impl Containers {
     ///
     /// The first container the line has left ends the walk, because everything
     /// nested inside it is left with it. `rest` advances past each matched
-    /// container so the next level measures from the correct column.
-    fn match_open_containers(&self, rest: &mut Line<'_>) -> usize {
+    /// container so the next level measures from the correct column. A list
+    /// item left by a line that continues its paragraph is rejected rather than
+    /// dropped: `CommonMark` keeps the item open there, so dropping it would
+    /// hide any fence the continuation holds.
+    fn match_open_containers(&self, rest: &mut Line<'_>) -> Result<usize, String> {
         let mut matched = 0;
         for entry in &self.entries {
             let Some(after) = match_entry(*entry, *rest) else {
+                self.reject_lazy_continuation(*entry, *rest)?;
                 break;
             };
             *rest = after;
             matched += 1;
         }
-        matched
+        Ok(matched)
+    }
+
+    /// Rejects `line` when it lazily continues `entry`'s paragraph.
+    ///
+    /// Returning `Ok` means the container legitimately ends at this line.
+    fn reject_lazy_continuation(&self, entry: Entry, line: Line<'_>) -> Result<(), String> {
+        if !self.is_lazy_continuation(line) {
+            return Ok(());
+        }
+        let (what, remedy) = match entry.kind {
+            Kind::Quote => (
+                "a block quote without its marker",
+                "prefix it with > or separate it from the quote with a blank line",
+            ),
+            Kind::Item { .. } => (
+                "a list item without its indentation",
+                "indent it to the item's content column or separate it from the list with a blank \
+                 line",
+            ),
+        };
+        Err(format!(
+            "the line {:?} continues {what}, which this checker does not support; {remedy}",
+            line.as_str()
+        ))
+    }
+
+    /// Whether `line` lazily continues an open container's paragraph.
+    ///
+    /// A non-blank line following non-blank content, which is neither blank nor
+    /// a new block, continues a `CommonMark` paragraph without its container
+    /// prefix. The scanner cannot represent that, so it fails closed.
+    fn is_lazy_continuation(&self, line: Line<'_>) -> bool {
+        !self.previous_blank && !line.is_blank() && !line.has_tab_indent() && !starts_block(line)
     }
 
     /// The identity of the innermost open container, or zero at the top level.
@@ -134,7 +179,7 @@ impl<'a> Line<'a> {
 
     pub(super) fn as_str(self) -> &'a str { self.text }
 
-    pub(super) fn is_blank(self) -> bool { self.text.trim().is_empty() }
+    pub(super) fn is_blank(self) -> bool { is_ascii_blank(self.text) }
 
     fn is_empty(self) -> bool { self.text.is_empty() }
 
@@ -191,7 +236,7 @@ impl<'a> Line<'a> {
     }
 
     /// Strips a block-quote marker with up to three leading spaces.
-    fn strip_quote_marker(self) -> Option<Self> {
+    pub(super) fn strip_quote_marker(self) -> Option<Self> {
         let leading = self.leading_spaces();
         if leading > 3 {
             return None;
@@ -278,4 +323,19 @@ fn list_marker_kind(line: Line<'_>) -> Option<(usize, Line<'_>)> {
     }
     let rest = after_digits.skip_bytes(delimiter.len_utf8())?;
     rest.is_marker_terminator().then_some((digits + 1, rest))
+}
+
+/// Whether `line` pads its list marker with a tab.
+///
+/// `CommonMark` measures that tab from the marker's physical column, which this
+/// scanner does not track through stripped fragments, so it fails closed rather
+/// than computing the wrong content column.
+pub(super) fn opens_tab_padded_item(line: Line<'_>) -> bool {
+    let Some((_, rest)) = list_marker_kind(line) else {
+        return false;
+    };
+    rest.as_str()
+        .chars()
+        .take_while(|character| matches!(character, ' ' | '\t'))
+        .any(|character| character == '\t')
 }

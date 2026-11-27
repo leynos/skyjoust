@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 37 tree at 42 paths and
-  5,981 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 40 tree at 44 paths and
+  6,632 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -266,9 +266,15 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   `main` `85a629b` after the two obsolete prerequisite layers were dropped, and
   it measures the same 42 non-ExecPlan paths and 5,981 net added lines (32
   paths and 5,097 counting only code and tests), so the change of base moves no
-  figure. `Decision log` records the escalation and its disposition; Revision
-  23 records the maintainer's raised limits, so this historical measurement no
-  longer describes a breach.
+  figure. The Revision 39 tree, which fixes the formal review's six findings,
+  measures 44 non-ExecPlan paths and 6,337 net added lines (34 paths and 5,446
+  counting only code and tests), the two extra paths being
+  `src/guide_tests/parser/html.rs` and `src/guide_tests/parser/blocks.rs`. The
+  Revision 40 tree, which fixes the second review round's fourteen findings,
+  measures the same 44 non-ExecPlan paths and 6,632 net added lines (34 paths
+  and 5,741 counting only code and tests). `Decision log` records the
+  escalation and its disposition; Revision 23 records the maintainer's raised
+  limits, so this historical measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
   needs `&mut self`, `with_app` must return a `Result`, or profiles must return
   a crate-owned error type), stop, record a proposed deviation, set status
@@ -1134,6 +1140,74 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 40: the second formal review round raised fourteen
+  findings, all in files this change owns and all valid; each is fixed and the
+  scanner ones carry regressions.
+  - A marker separated from its fence by an HTML block was still claimed by the
+    fence. The HTML branch now rejects a pending marker, so only blank lines may
+    intervene (`an_html_block_separating_a_marker_from_its_fence_is_rejected`).
+  - A bare fence inside an HTML block was only caught via its marker. A
+    fence-only fixture now proves the delimiter is rejected on its own
+    (`a_fence_inside_an_html_block_is_rejected_without_a_marker`).
+  - `- - -` was read as three list items, which stripped the indentation of the
+    code below it and invented a fence. Thematic breaks now take precedence
+    (`a_thematic_break_is_not_a_list_marker`).
+  - Blank-line tests used `str::trim`, which accepts Unicode spaces such as
+    U+00A0. Every Markdown blank-line decision now uses one ASCII predicate
+    (`a_non_breaking_space_line_is_not_blank`).
+  - `ATX` headings may be followed by a tab, which the scanner rejected as a
+    lazy continuation (`an_atx_heading_may_be_followed_by_a_tab`).
+  - An unquoted paragraph continuation under a block quote was dropped together
+    with the quote, hiding its fence. It is now rejected explicitly
+    (`an_unquoted_lazy_continuation_is_rejected`).
+  - A tab after a list marker also hides a fence, because the padding column
+    cannot be measured from a stripped fragment; that layout is now rejected
+    (`a_tab_padded_list_marker_is_rejected`).
+  - An HTML block outlived its container, and blank-line termination read the
+    raw line. The block now records its opener's container, ends at that
+    boundary, and reads the stripped content for blanks
+    (`an_html_block_ends_with_its_container`).
+  - An autolink was read as an HTML block opener; tag names are now validated
+    against a tag boundary (`an_autolink_is_not_an_html_block`).
+  - A mixed backtick/tilde run counted as a fence delimiter; the run must
+    repeat one character (`mixed_punctuation_inside_html_is_content`).
+  - The Markdown fixtures now use `concat!()`, and the plan's acceptance
+    sequence gained `make spelling` with the mutant-count guard checking the
+    listing status and the tolerance before starting the audit.
+  - Scope: 44 non-ExecPlan paths and 6,632 net added lines (34 paths and 5,741
+    counting only code and tests); no requirement, signature, or milestone
+    changed.
+
+- [x] (2026-11-26) Revision 39: the first formal review after the replay raised
+  six findings, all in files this change owns; all six were valid and are
+  fixed, each with a regression that failed before its fix.
+  - The closing-fence suffix check used `str::trim`, which also strips the
+    non-breaking space, so `~~~\u{a0}` closed a fence that `CommonMark` reads as
+    content. The suffix is now tested byte by byte for spaces and tabs
+    (`a_non_breaking_space_after_a_closer_is_content`,
+    `a_tab_after_a_closer_is_accepted`).
+  - A fence or marker inside a `CommonMark` HTML block was recorded as
+    executable Markdown, although rustdoc never runs it. The scanner now tracks
+    HTML-block boundaries and rejects that layout explicitly rather than
+    overstating the guide's coverage; recognition resumes after the blank line
+    that ends the block (`a_fence_inside_an_html_block_is_rejected`,
+    `recognition_resumes_after_a_blank_line_ends_an_html_block`).
+  - A lazy paragraph continuation dropped its list item, so a four-space fence
+    below it vanished from the scanner's output instead of being reported. The
+    scanner now rejects that layout explicitly
+    (`a_lazy_paragraph_continuation_is_rejected`) and keeps ordinary indented
+    continuations working (`an_indented_continuation_keeps_the_list_item`).
+  - ADR 010's lifecycle table now states that its error-record counts exclude a
+    release failure: a panicking destructor after successful cleanup records a
+    secondary error while `run` still returns `Ok(v)`.
+  - The verification recipe in this plan now sets `pipefail` in each gate block,
+    so a failing gate cannot be logged as a passing one, and captures `cargo
+    tree`'s status before searching its output.
+  - The block-start helpers moved into `parser/blocks.rs`, because adding
+    them to `containers.rs` pushed that module past Whitaker's 400-line limit.
+  - Scope: 44 non-ExecPlan paths and 6,337 net added lines (34 paths and 5,446
+    counting only code and tests); the two extra paths are
+    `src/guide_tests/parser/html.rs` and `src/guide_tests/parser/blocks.rs`.
 
 ## Surprises & discoveries
 
@@ -2834,9 +2908,12 @@ Expected green output tail:
      Summary [ ... ] NN tests run: NN passed, 0 skipped
 ```
 
-Milestone gates, sequentially, never in parallel:
+Milestone gates, sequentially, never in parallel. `pipefail` is required in
+each block: without it the shell reports `tee`'s status, so a failing gate
+would be logged as a passing one:
 
 ```bash
+set -o pipefail
 make check-fmt 2>&1 | tee /tmp/check-fmt-skyjoust-0-1-2-bevy-harness-public-api.out
 make lint 2>&1 | tee /tmp/lint-skyjoust-0-1-2-bevy-harness-public-api.out
 make typecheck 2>&1 | tee /tmp/typecheck-skyjoust-0-1-2-bevy-harness-public-api.out
@@ -2846,16 +2923,22 @@ make test 2>&1 | tee /tmp/test-skyjoust-0-1-2-bevy-harness-public-api.out
 Documentation gates (EP-M0, EP-M5):
 
 ```bash
+set -o pipefail
 make fmt 2>&1 | tee /tmp/fmt-skyjoust-0-1-2-bevy-harness-public-api.out
 make markdownlint 2>&1 | tee /tmp/markdownlint-skyjoust-0-1-2-bevy-harness-public-api.out
 make nixie 2>&1 | tee /tmp/nixie-skyjoust-0-1-2-bevy-harness-public-api.out
+make spelling 2>&1 | tee /tmp/spelling-skyjoust-0-1-2-bevy-harness-public-api.out
 ```
 
-Extraction and feature checks (EP-M0, EP-M5):
+Extraction and feature checks (EP-M0, EP-M5). Each check captures `cargo`'s
+status before reading its output: piping a failed `cargo tree` into `grep`
+would otherwise print the clean result and hide the failure:
 
 ```bash
-cargo tree -p rstest-bdd-harness-bevy -e normal,dev | grep -E 'skyjoust|lille' || echo "no game crates"
-cargo tree -p rstest-bdd-harness-bevy -e features -i bevy_ecs | grep multi_threaded || echo "single-threaded"
+deps=$(cargo tree -p rstest-bdd-harness-bevy -e normal,dev) || { echo "cargo tree failed"; exit 1; }
+printf '%s\n' "$deps" | grep -E 'skyjoust|lille' || echo "no game crates"
+features=$(cargo tree -p rstest-bdd-harness-bevy -e features -i bevy_ecs) || { echo "cargo tree failed"; exit 1; }
+printf '%s\n' "$features" | grep multi_threaded || echo "single-threaded"
 ```
 
 Mutation audit (EP-M5, advisory). List first and check the count against the
@@ -2868,9 +2951,12 @@ worktree is what keeps unrelated work safe:
 test -z "$(git status --porcelain)" || { echo "commit or park edits first"; exit 1; }
 cp crates/rstest-bdd-harness-bevy/src/harness.rs /tmp/audit-harness.rs
 cp crates/rstest-bdd-harness-bevy/src/panic.rs /tmp/audit-panic.rs
-cargo mutants --list -p rstest-bdd-harness-bevy \
+mutants=$(cargo mutants --list -p rstest-bdd-harness-bevy \
   -f crates/rstest-bdd-harness-bevy/src/harness.rs \
-  -f crates/rstest-bdd-harness-bevy/src/panic.rs | wc -l
+  -f crates/rstest-bdd-harness-bevy/src/panic.rs) || { echo "listing failed"; exit 1; }
+count=$(printf '%s\n' "$mutants" | wc -l)
+printf 'mutants: %s\n' "$count"
+[ "$count" -gt 0 ] && [ "$count" -le 60 ] || { echo "mutant count out of tolerance"; exit 1; }
 cargo mutants --in-place -p rstest-bdd-harness-bevy \
   -f crates/rstest-bdd-harness-bevy/src/harness.rs \
   -f crates/rstest-bdd-harness-bevy/src/panic.rs \
@@ -3420,6 +3506,53 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 40, 2026-11-28: the second formal review round reported fourteen
+  findings, all valid and all in files this change owns. Ten were further
+  `CommonMark` conformance defects in the guide scanner: a marker could still
+  be claimed across an intervening HTML block; a bare fence inside an HTML
+  block was only caught through its marker; a thematic break was read as three
+  list items; blank-line tests accepted Unicode spaces; an `ATX` heading
+  followed by a tab was rejected; an unquoted paragraph continuation under a
+  block quote was dropped with the quote; a tab after a list marker
+  mis-measured the content column; an HTML block outlived its container; an
+  autolink was read as a block opener; and a mixed backtick/tilde run counted
+  as a delimiter. Each is repaired in `src/guide_tests/parser.rs`,
+  `parser/containers.rs`, `parser/blocks.rs`, or `parser/html.rs`, with a
+  regression that failed before its fix; a fence-only HTML fixture proves fence
+  rejection independently of marker rejection. The remaining four corrected
+  this plan: two Revision 39 path counts disagreed (44 is the measured figure),
+  the gate sequence omitted `make spelling`, the mutation audit could start
+  after a failed listing, and the Markdown fixtures now use `concat!()`. The
+  tree measures 44 non-ExecPlan paths and 6,632 net added lines (34 paths and
+  5,741 counting only code and tests). No requirement, signature, or milestone
+  changed.
+- Revision 39, 2026-11-26: the first formal review after the replay reported
+  six findings, all in files this change owns and all valid. Three were defects
+  in the guide's `CommonMark` scanner. The closing-fence suffix test used
+  `str::trim`, which also strips U+00A0, so a delimiter followed by a
+  non-breaking space closed a fence that `CommonMark` reads as content; the
+  suffix is now checked byte by byte for ASCII spaces and tabs. A fence or
+  marker inside an HTML block was recorded as executable Markdown even though
+  rustdoc never runs it; the scanner now tracks HTML-block boundaries and
+  rejects that layout explicitly, resuming recognition after the blank line
+  that ends the block. A lazy paragraph continuation dropped its list item, so
+  a four-space fence below it disappeared from the scanner's output instead of
+  being reported; the scanner now rejects that layout explicitly and keeps
+  ordinary indented continuations working. Each of the three has a regression
+  that failed before its fix and passes after it. The fourth finding corrected
+  ADR 010's lifecycle table, whose error-record counts did not say they exclude
+  a release failure: a panicking destructor after successful cleanup records a
+  secondary error while `run` still returns `Ok(v)`. The remaining two were
+  corrections to this plan's own verification recipe: each gate block now sets
+  `pipefail`, so a failing gate cannot be logged as a passing one, and the
+  dependency checks capture `cargo tree`'s status before searching its output.
+  The block-start helpers moved from `containers.rs` into a new
+  `parser/blocks.rs`, because the additions pushed that module past Whitaker's
+  400-line limit; the tree measures 44 non-ExecPlan paths and 6,337 net added
+  lines (34 paths and 5,446 counting only code and tests), the two extra paths
+  being `src/guide_tests/parser/html.rs` and
+  `src/guide_tests/parser/blocks.rs`. No requirement, signature, or milestone
+  changed.
 - Revision 38, 2026-11-25: the branch was replayed from its obsolete stacked
   base onto `main` `85a629b` so hosted `CI` could run again. No `CI` run had
   been created for any push after `#209` landed on `main` on 2026-11-24, while

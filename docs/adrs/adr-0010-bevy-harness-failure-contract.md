@@ -166,6 +166,13 @@ Let `c`, `r`, and `k` be the configure, runner, and cleanup outcome classes,
 
 *Table 2: Lifecycle outcome contract. Dashes mark phases that never run.*
 
+The error-record counts cover configure, steps, and cleanup only. Releasing a
+scenario can itself fail: a resource destructor that panics is recorded as a
+secondary error while `run` still returns `Ok(v)`, so the `Ok`/`Return(v)`/`Ok`
+row can carry one record the table does not count. The release path is
+described under "Panic-path cleanup and drop safety" and pinned by
+`src/harness_tests/panics/release.rs`.
+
 The table is exhaustive over outcome classes. One representative per class
 suffices because `run<T>` is parametric in `T` and never branches on the
 runner's value, on the contents of an error, or on the scenario metadata.

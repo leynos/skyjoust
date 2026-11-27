@@ -242,6 +242,118 @@ fn a_marker_shaped_line_inside_a_fence_is_content() {
 }
 
 #[test]
+fn a_non_breaking_space_after_a_closer_is_content() {
+    // `CommonMark` allows only spaces and tabs after a closing delimiter, but
+    // `str::trim` also strips U+00A0, so a naive suffix test would close the
+    // fence here and then read the apparent Rust block as a second fence.
+    let error = parse_fences(concat!(
+        "<!-- tested-example: outer -->\n",
+        "~~~markdown\n",
+        "~~~\u{a0}\n",
+        "<!-- tested-example: inner -->\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+    ))
+    .expect_err("a non-breaking space must not close the fence");
+
+    assert!(
+        error.contains("not terminated"),
+        "the error must report the unterminated plaintext fence, got {error:?}"
+    );
+}
+
+#[test]
+fn a_tab_after_a_closer_is_accepted() {
+    let fence = single_fence(
+        concat!(
+            "<!-- tested-example: tabbed -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\t\n",
+        ),
+        "a closer with a trailing tab",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("tabbed"),
+        "a tab after the closing delimiter is allowed by CommonMark"
+    );
+}
+
+#[test]
+fn a_fence_inside_an_html_block_is_rejected() {
+    // Without a blank line these lines form one HTML block, so rustdoc never
+    // sees a Rust example; recording one would overstate the guide's coverage.
+    let error = parse_fences(concat!(
+        "<details>\n",
+        "<summary>Example</summary>\n",
+        "<!-- tested-example: hidden -->\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+        "</details>\n",
+    ))
+    .expect_err("a fence inside an HTML block must be rejected");
+
+    assert!(
+        error.contains("HTML block"),
+        "the error must explain the HTML block, got {error:?}"
+    );
+}
+
+#[test]
+fn recognition_resumes_after_a_blank_line_ends_an_html_block() {
+    let fence = single_fence(
+        concat!(
+            "<details>\n",
+            "<summary>Example</summary>\n",
+            "\n",
+            "<!-- tested-example: visible -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+            "</details>\n",
+        ),
+        "a fence after a blank line ending an HTML block",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("visible"),
+        "the blank line ends the HTML block, so the fence is Markdown again"
+    );
+}
+
+#[test]
+fn a_lazy_paragraph_continuation_is_rejected() {
+    // CommonMark keeps the list item open across the unindented continuation,
+    // so the four-space fence below belongs to the item. Dropping the item
+    // instead would make the fence disappear from the scanner's output.
+    let error = parse_fences("- Item\ncontinuation\n\n    ```rust\n    let value = 1;\n    ```\n")
+        .expect_err("a lazy continuation must not silently drop its fence");
+
+    assert!(
+        error.contains("without its indentation"),
+        "the error must explain the unsupported continuation, got {error:?}"
+    );
+}
+
+#[test]
+fn an_indented_continuation_keeps_the_list_item() {
+    let fence = single_fence(
+        "- Item\n  continuation\n\n    ```rust\n    let value = 1;\n    ```\n",
+        "a list item continued at its content column",
+    );
+
+    assert!(
+        fence.marker.is_none(),
+        "the fence stays visible so the marker check can reject it"
+    );
+}
+
+#[test]
 fn a_backtick_in_the_info_string_is_not_an_opener() {
     // The middle line is an inline code span, not a fence. Read as an opener it
     // would consume the marker and swallow the real fence as its content; read
@@ -253,5 +365,205 @@ fn a_backtick_in_the_info_string_is_not_an_opener() {
     assert!(
         error.contains("not followed by a fence"),
         "the error must report the dangling marker rather than a stray fence, got {error:?}"
+    );
+}
+
+#[test]
+fn an_html_block_separating_a_marker_from_its_fence_is_rejected() {
+    // The HTML line is content, so it may not stand between a marker and the
+    // fence the marker claims; only blank lines may.
+    let error = parse_fences(concat!(
+        "<!-- tested-example: detached -->\n",
+        "<div>text</div>\n",
+        "\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+    ))
+    .expect_err("HTML between a marker and its fence must be rejected");
+
+    assert!(
+        error.contains("not followed by a fence"),
+        "the error must report the separated marker, got {error:?}"
+    );
+}
+
+#[test]
+fn a_fence_inside_an_html_block_is_rejected_without_a_marker() {
+    // Without a marker the fence alone must still be refused, so this fails
+    // even if only marker detection inside HTML were implemented.
+    let error = parse_fences(concat!(
+        "<details>\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+        "</details>\n",
+    ))
+    .expect_err("a bare fence inside an HTML block must be rejected");
+
+    assert!(
+        error.contains("HTML block"),
+        "the error must name the HTML block and the fence line, got {error:?}"
+    );
+}
+
+#[test]
+fn a_thematic_break_is_not_a_list_marker() {
+    // `- - -` is a thematic break, so the four-space lines after it are an
+    // indented code block. Reading the break as three items would strip that
+    // indentation and record a fence CommonMark sees as code.
+    let fences = parse_fences(concat!(
+        "- - -\n",
+        "\n",
+        "    <!-- tested-example: after-break -->\n",
+        "    ```rust\n",
+        "    let value = 1;\n",
+        "    ```\n",
+    ))
+    .expect("the break and the code block must parse");
+
+    assert!(
+        fences.is_empty(),
+        "the indented code must not be recorded as a fence, got {fences:?}"
+    );
+}
+
+#[test]
+fn a_non_breaking_space_line_is_not_blank() {
+    // Only ASCII spaces and tabs make a line blank, so U+00A0 is content and
+    // may not separate a marker from its fence.
+    let error = parse_fences(concat!(
+        "<!-- tested-example: nbsp-gap -->\n",
+        "\u{a0}\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+    ))
+    .expect_err("a non-breaking-space line must not bridge the marker gap");
+
+    assert!(
+        error.contains("not followed by a fence"),
+        "the error must report the dangling marker, got {error:?}"
+    );
+}
+
+#[test]
+fn an_atx_heading_may_be_followed_by_a_tab() {
+    // The heading legitimately ends the list item, so the tab after the hashes
+    // must not be mistaken for a lazy continuation.
+    let fence = single_fence(
+        concat!(
+            "- Item\n",
+            "#\tHeading\n\n```rust\n",
+            "let value = 1;\n```\n"
+        ),
+        "a tab-separated heading after a list item",
+    );
+
+    assert!(
+        fence.marker.is_none(),
+        "the fence stays visible so the marker check can reject it"
+    );
+}
+
+#[test]
+fn an_unquoted_lazy_continuation_is_rejected() {
+    // CommonMark keeps the quote and its item across the unquoted line, so the
+    // later fence belongs to them; dropping both would hide it.
+    let error = parse_fences(concat!(
+        "> - Item\n",
+        "continuation\n",
+        ">\n",
+        ">     ```rust\n",
+        ">     let value = 1;\n",
+        ">     ```\n",
+    ))
+    .expect_err("an unquoted continuation must not silently drop the quote");
+
+    assert!(
+        error.contains("without its marker"),
+        "the error must explain the omitted quote prefix, got {error:?}"
+    );
+}
+
+#[test]
+fn a_tab_padded_list_marker_is_rejected() {
+    let error = parse_fences(concat!(
+        "  -\tItem\n",
+        "\n    ```rust\n",
+        "    let value = 1;\n    ```\n"
+    ))
+    .expect_err("a tab after a list marker must be rejected");
+
+    assert!(
+        error.contains("tab after a list marker"),
+        "the error must explain the tab rejection, got {error:?}"
+    );
+}
+
+#[test]
+fn an_html_block_ends_with_its_container() {
+    // The block quote ends before the marker, so the HTML it opened ends too
+    // and the marker must be accepted at the top level.
+    let fence = single_fence(
+        concat!(
+            "> <details>\n",
+            ">\n",
+            "<!-- tested-example: after-quote -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "a top-level fence after a quoted HTML block",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("after-quote"),
+        "the container boundary must end the HTML block"
+    );
+}
+
+#[test]
+fn an_autolink_is_not_an_html_block() {
+    let fence = single_fence(
+        concat!(
+            "<https://example.org>\n",
+            "<!-- tested-example: after-autolink -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "a fence after an autolink",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("after-autolink"),
+        "an autolink is paragraph content, not an HTML block"
+    );
+}
+
+#[test]
+fn mixed_punctuation_inside_html_is_content() {
+    // No run of three matching characters, so this is literal HTML text.
+    let fence = single_fence(
+        concat!(
+            "<details>\n",
+            "`~`\n",
+            "</details>\n",
+            "\n",
+            "<!-- tested-example: after-html -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "mixed punctuation inside an HTML block",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("after-html"),
+        "mixed punctuation must not be read as a fence delimiter"
     );
 }
