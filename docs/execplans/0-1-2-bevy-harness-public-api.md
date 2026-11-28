@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 49 tree at 47 paths and
-  7,358 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 49 tree at 48 paths and
+  7,368 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1158,7 +1158,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
     and tab and space indentation. Every layout the scanner accepted agreed
     with the reference on fence count and marker, and every disagreement was a
     fail-closed rejection. The audit harness was removed before commit.
-  - Scope: 47 non-ExecPlan paths and 7,358 net added lines (37 paths and 6,506
+  - Scope: 48 non-ExecPlan paths and 7,368 net added lines (38 paths and 6,516
     counting only code and tests). `cs delta refs/tmp/main` reports no issue and
     `html.rs` scores 10.00.
 
@@ -3692,8 +3692,8 @@ Downstream consumers need direct development dependencies on `rstest`,
   markers over 73 generated layouts; the scanner never accepted a layout the
   reference rejected, and its only disagreements were deliberate fail-closed
   rejections of lazy continuations, unterminated fences, and tab indentation.
-  The tree measures 47 non-ExecPlan paths and 7,358 net added lines (37 paths
-  and 6,506 counting only code and tests).
+  The tree measures 48 non-ExecPlan paths and 7,368 net added lines (38 paths
+  and 6,516 counting only code and tests).
 - Revision 48, 2026-11-28: the Revision 47 assessment returned one finding,
   upheld. `open_prefix` treated any line as HTML whenever a block was open,
   without checking that the line still belonged to the block's container, so a
