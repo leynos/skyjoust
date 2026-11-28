@@ -251,14 +251,18 @@ enum MarkerForm {
 
 /// Classifies the text after `<` as a comment, declaration, or instruction.
 ///
-/// `CommonMark` form 2 is `<!--`, form 3 is `<?`, and form 4 is `<!` followed
-/// by an ASCII letter. Anything else beginning with `<!`—such as `<!1>`—is
-/// paragraph text, so it neither opens a block nor interrupts a list item.
+/// `CommonMark` form 2 is `<!--`, form 3 is `<?`, form 4 is `<!` followed by
+/// an ASCII letter, and form 5 is `<![CDATA[`. Anything else beginning with
+/// `<!`—such as `<!1>`—is paragraph text, so it neither opens a block nor
+/// interrupts a list item.
 fn marker_form(rest: &str) -> Option<MarkerForm> {
     if let Some(inner) = rest.strip_prefix('?') {
         return Some(opening(inner, "?>", End::Marker("?>")));
     }
     let inner = rest.strip_prefix('!')?;
+    if let Some(after_open) = inner.strip_prefix("[CDATA[") {
+        return Some(opening(after_open, "]]>", End::Marker("]]>")));
+    }
     if let Some(after_dashes) = inner.strip_prefix("--") {
         return Some(opening(after_dashes, "-->", End::Marker("-->")));
     }

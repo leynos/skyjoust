@@ -11,7 +11,7 @@
 //! an HTML block.
 
 use super::{
-    containers::{Line, list_marker},
+    containers::{Line, list_marker, ordered_marker_start},
     lexicon::fence_delimiter,
 };
 
@@ -60,7 +60,21 @@ fn content_after_indent(line: Line<'_>) -> Option<&str> {
 
 /// Whether `line` opens a container rather than paragraph text.
 fn opens_container(line: Line<'_>) -> bool {
-    list_marker(line).is_some() || line.strip_quote_marker().is_some()
+    line.strip_quote_marker().is_some() || opens_item(line)
+}
+
+/// Whether `line` starts a list item that may interrupt a paragraph.
+///
+/// `CommonMark` forbids an empty item from interrupting a paragraph and lets
+/// only an ordered list that starts at 1 do so.
+fn opens_item(line: Line<'_>) -> bool {
+    let Some((_, content)) = list_marker(line) else {
+        return false;
+    };
+    if content.is_blank() {
+        return false;
+    }
+    ordered_marker_start(line).is_none_or(|start| start == 1)
 }
 
 /// Whether `trimmed` opens a leaf block that interrupts a paragraph.

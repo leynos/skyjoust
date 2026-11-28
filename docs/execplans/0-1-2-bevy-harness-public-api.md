@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 45 tree at 47 paths and
-  7,200 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 46 tree at 47 paths and
+  7,251 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,25 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 46: the Revision 45 assessment found one further
+  scanner defect, and the same audit closed the remaining paragraph-interrupt
+  gaps in one pass.
+  - `CommonMark` HTML form 5 opens at `<![CDATA[` and ends at `]]>`; the
+    classifier now recognises it, so a marker and fence between those lines are
+    rejected as HTML rather than counted as an example. The regression uses the
+    assessment's example.
+  - Block-start recognition now applies the two list rules `CommonMark` states
+    for interrupters: an empty item cannot interrupt a paragraph, and only an
+    ordered list that starts at 1 can. `opens_item` checks both, using a new
+    `containers::ordered_marker_start`. Regressions cover `2. two` and an empty
+    `-`, with parameterized controls proving `1. one` and `-    item` still end
+    the item.
+  - One parameterized rejection test carries all four non-interrupting starts,
+    which also cleared CodeScene's duplication finding across the new tests.
+  - Scope: 47 non-ExecPlan paths and 7,251 net added lines (37 paths and 6,399
+    counting only code and tests). `cs delta refs/tmp/main` reports no issue and
+    all three touched parser modules score 10.00.
+
 - [x] (2026-11-28) Revision 45: the Revision 44 assessment found one further
   scanner defect, and it is repaired with regressions proven red against
   `560e7f9` and green afterwards.
@@ -3607,6 +3626,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 46, 2026-11-28: the Revision 45 assessment returned one finding,
+  upheld: `CommonMark` HTML form 5, `<![CDATA[` … `]]>`, was not recognised, so
+  a marker and fence inside it were counted. The one `marker_form` classifier
+  now handles all five marker forms. The same review of the interrupt rules
+  found two further gaps of the same kind that the assessment had not yet
+  reported: an empty list item could end a paragraph and so could an ordered
+  list not starting at 1, although `CommonMark` allows neither. `opens_item`
+  now requires non-empty content and, for ordered markers, a start of 1.
+  Regressions cover CDATA, `2. two`, and an empty `-`, with controls for
+  `1. one` and `-    item`. The tree measures 47 non-ExecPlan paths and 7,251
+  net added lines (37 paths and 6,399 counting only code and tests).
 - Revision 45, 2026-11-28: the Revision 44 assessment returned one finding,
   upheld. `html.rs` treated every `<!` prefix as an interrupting declaration,
   but `CommonMark` form 4 requires an ASCII letter after `<!`, so `<!1>` is

@@ -325,6 +325,23 @@ fn list_marker_kind(line: Line<'_>) -> Option<(usize, Line<'_>)> {
     rest.is_marker_terminator().then_some((digits + 1, rest))
 }
 
+/// The start number of `line`'s ordered list marker, when it has one.
+///
+/// `CommonMark` lets only an ordered list that starts at 1 interrupt a
+/// paragraph, so block-start recognition needs the number. Bullet markers
+/// return `None`.
+pub(super) fn ordered_marker_start(line: Line<'_>) -> Option<u64> {
+    let digits = line.leading_digits();
+    if !(1..=9).contains(&digits) {
+        return None;
+    }
+    let after_digits = line.skip_bytes(digits)?;
+    if !matches!(after_digits.first_char()?, '.' | ')') {
+        return None;
+    }
+    line.as_str().get(..digits)?.parse().ok()
+}
+
 /// Whether `line` pads its list marker with a tab.
 ///
 /// `CommonMark` measures that tab from the marker's physical column, which this

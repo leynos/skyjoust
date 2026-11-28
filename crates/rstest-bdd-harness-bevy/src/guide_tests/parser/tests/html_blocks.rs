@@ -323,3 +323,22 @@ fn a_standalone_closing_tag_opens_a_blank_terminated_block() {
         "the marker on line 2 must be rejected as HTML content, got {error:?}"
     );
 }
+
+#[test]
+fn a_cdata_block_hides_the_fence_inside_it() {
+    // `CommonMark` HTML form 5 opens at `<![CDATA[` and ends at `]]>`, so the
+    // marker and fence between them are raw HTML rather than an example.
+    let text = concat!(
+        "<![CDATA[\n",
+        "<!-- tested-example: hidden -->\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+        "]]>\n",
+    );
+    let error = parse_fences(text).expect_err("a marker inside CDATA is rejected");
+    assert!(
+        error.contains("line 2") && error.contains("HTML block"),
+        "the marker on line 2 must be rejected as HTML content, got {error:?}"
+    );
+}

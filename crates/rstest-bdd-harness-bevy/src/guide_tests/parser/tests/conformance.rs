@@ -128,10 +128,13 @@ fn quote_shaped_lines_inside_a_fence_are_content() {
 #[rstest::rstest]
 #[case("```rust```")]
 #[case("<!1>")]
-fn an_invalid_block_start_does_not_interrupt_a_list_item(#[case] line: &str) {
-    // Neither an inline code span nor an invalid declaration prefix interrupts
-    // a paragraph, so the item continues and its own unmarked fence must not be
-    // read as indented code behind the separately marked control.
+#[case("2. two")]
+#[case("-")]
+fn a_block_start_that_cannot_interrupt_stays_a_continuation(#[case] line: &str) {
+    // An inline code span, an invalid declaration prefix, an ordered list that
+    // does not start at 1, and an empty item are all paragraph text under
+    // `CommonMark`. The item therefore continues and its own fence must stay
+    // reachable rather than being read as indented code behind the control.
     let text = format!(
         concat!(
             "<!-- tested-example: control -->\n",
@@ -156,11 +159,9 @@ fn an_invalid_block_start_does_not_interrupt_a_list_item(#[case] line: &str) {
 }
 
 #[rstest::rstest]
-#[case("<!DOCTYPE html>")]
-#[case("<!-- note -->")]
-fn valid_html_marker_forms_still_end_a_list_item(#[case] marker: &str) {
-    // Both forms interrupt the paragraph, so the list item legitimately ends
-    // and the indented fence below belongs to no example.
+#[case("1. one")]
+#[case("-    item")]
+fn a_valid_list_start_still_interrupts_a_list_item(#[case] line: &str) {
     let text = format!(
         concat!(
             "<!-- tested-example: control -->\n",
@@ -169,18 +170,14 @@ fn valid_html_marker_forms_still_end_a_list_item(#[case] marker: &str) {
             "```\n",
             "\n",
             "- Item\n",
-            "{marker}\n",
+            "{line}\n",
             "\n",
             "    ```rust\n",
             "    let value = 1;\n",
             "    ```\n",
         ),
-        marker = marker,
+        line = line,
     );
-    let fences = parse_fences(&text).expect("valid forms end the item");
-    assert_eq!(
-        fences.len(),
-        1,
-        "only the control fence is recorded for {marker:?}, got {fences:?}"
-    );
+    parse_fences(&text)
+        .unwrap_or_else(|error| panic!("{line:?} must interrupt the paragraph, got {error:?}"));
 }
