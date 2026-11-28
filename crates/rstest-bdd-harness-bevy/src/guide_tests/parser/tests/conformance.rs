@@ -124,3 +124,29 @@ fn quote_shaped_lines_inside_a_fence_are_content() {
         "the marker must label the fence, got {fences:?}"
     );
 }
+
+#[test]
+fn an_invalid_backtick_opener_does_not_interrupt_a_list_item() {
+    // A backtick fence's info string cannot contain a backtick, so
+    // ` ```rust``` ` is an inline code span and the list item continues across
+    // it. The separately marked control fence must not hide the item's own
+    // unmarked fence behind this span.
+    let text = concat!(
+        "<!-- tested-example: control -->\n",
+        "```rust\n",
+        "let control = 1;\n",
+        "```\n",
+        "\n",
+        "- Item\n",
+        "```rust```\n",
+        "\n",
+        "    ```rust\n",
+        "    let value = 1;\n",
+        "    ```\n",
+    );
+    let error = parse_fences(text).expect_err("the lazy continuation is rejected");
+    assert!(
+        error.contains("```rust```") && error.contains("continues a list item"),
+        "the inline code span must be reported as a lazy list continuation, got {error:?}"
+    );
+}

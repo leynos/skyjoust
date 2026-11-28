@@ -10,7 +10,10 @@
 //! a list item, a block quote, a fence, an `ATX` heading, a thematic break, and
 //! an HTML block.
 
-use super::containers::{Line, list_marker};
+use super::{
+    containers::{Line, list_marker},
+    lexicon::fence_delimiter,
+};
 
 /// Whether `text` is blank in `CommonMark`'s sense.
 ///
@@ -67,16 +70,8 @@ fn opens_text_block(trimmed: &str) -> bool {
     };
     (first == '<' && super::html::interrupts_paragraph(trimmed))
         || is_thematic_break(trimmed)
-        || (matches!(first, '`' | '~') && starts_fence(trimmed))
+        || fence_delimiter(trimmed).is_some()
         || (first == '#' && is_atx_heading(trimmed))
-}
-
-/// Whether `text` carries a fence delimiter of three or more characters.
-fn starts_fence(text: &str) -> bool {
-    let Some(character) = text.chars().next() else {
-        return false;
-    };
-    text.chars().take_while(|c| *c == character).count() >= 3
 }
 
 /// Whether `text` is an `ATX` heading: one to six `#` then a space or the end.

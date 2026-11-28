@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 43 tree at 47 paths and
-  7,110 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 44 tree at 47 paths and
+  7,131 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,21 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 44: the Revision 43 assessment found one further
+  scanner defect, and it is repaired with a regression proven red against
+  `32ac155` and green afterwards.
+  - Block-start detection now reuses the fence lexer's opener rule. It had
+    treated any run of three backticks as an interrupting fence, but a
+    backtick fence's info string cannot contain a backtick, so `` ```rust``` ``
+    is an inline code span. In a list item it is a lazy paragraph
+    continuation; the item stays open and the scanner now rejects that
+    continuation, naming the span, instead of dropping the item and treating
+    its own fence as indented code. The regression includes a separately
+    marked control fence, proving the item's unmarked fence cannot pass
+    unnoticed.
+  - Scope: 47 non-ExecPlan paths and 7,131 net added lines (37 paths and 6,279
+    counting only code and tests). `cs delta refs/tmp/main` reports no issue.
+
 - [x] (2026-11-28) Revision 43: the Revision 42 assessment found three further
   scanner defects, and each is repaired with a regression proven red against
   `43100c6` and green afterwards.
@@ -3574,6 +3589,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 44, 2026-11-28: the Revision 43 assessment returned one finding,
+  upheld. `blocks.rs` decided whether a fence interrupts a paragraph by
+  counting delimiter characters alone, so `` ```rust``` `` — an inline code
+  span, because a backtick info string cannot contain a backtick — ended a list
+  item. The item's own fence then looked like indented code, and a separately
+  marked fence elsewhere satisfied the guide-wide non-empty check. Block-start
+  detection now asks `lexicon::fence_delimiter`, the same rule the scanner uses
+  to open fences, so the span is a lazy continuation and rejected. The
+  regression includes the control fence the assessment used. The tree measures
+  47 non-ExecPlan paths and 7,131 net added lines (37 paths and 6,279 counting
+  only code and tests).
 - Revision 43, 2026-11-28: the Revision 42 assessment returned three findings,
   all in the guide scanner and all upheld. `blocks.rs` treated any complete tag
   alone on a line as an interrupting HTML block, but `CommonMark` reserves that
