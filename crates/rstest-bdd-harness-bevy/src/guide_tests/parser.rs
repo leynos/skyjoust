@@ -267,7 +267,7 @@ impl<'a> FenceParser<'a> {
         // Indentation is content too, because a terminator such as `]]>` may
         // carry up to any number of spaces and must stay visible to the
         // tracker; `CommonMark` starts no code block inside an HTML block.
-        if self.html.is_open() {
+        if self.html.is_open_in(self.containers.innermost()) {
             return Ok(Prefix::Content(stripped));
         }
         if leading > 3 {

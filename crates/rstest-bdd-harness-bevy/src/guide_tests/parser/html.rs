@@ -67,11 +67,18 @@ impl HtmlBlocks {
         }
     }
 
-    /// Whether an HTML block is open.
+    /// Whether an HTML block is open in `container`.
     ///
     /// The scanner asks before opening a container, because a `>` or list
-    /// marker inside raw HTML is content rather than a new container.
-    pub(super) fn is_open(&self) -> bool { self.open.is_some() }
+    /// marker inside raw HTML is content rather than a new container. The
+    /// container identity is part of the question: a block cannot outlive the
+    /// quote or item that holds it, so a line outside that container ends the
+    /// HTML even though the tracker has not visited the line yet.
+    pub(super) fn is_open_in(&self, container: usize) -> bool {
+        self.open
+            .as_ref()
+            .is_some_and(|block| block.container == container)
+    }
 
     /// Classifies a line while a block is open, ending the block if it does.
     fn visit_open(&mut self, scan: &ContainerScan<'_>) -> Verdict {

@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 47 tree at 47 paths and
-  7,297 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 48 tree at 47 paths and
+  7,334 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,21 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 48: the Revision 47 assessment found one scanner
+  defect, and it is repaired with a regression proven red against `3ad99d6` and
+  green afterwards.
+  - The HTML tracker is now consulted against the current container identity.
+    `HtmlBlocks::is_open_in` answers whether a block is open in a given
+    container, and `open_prefix` asks with the innermost container the line
+    actually matched. A block opened inside a block quote therefore ends when
+    the quote does, and a top-level list item below it opens normally instead
+    of being suppressed as HTML content. The regression records the item's
+    fence as unmarked, and the control that treats container-shaped text
+    *inside* HTML as content still passes.
+  - Scope: 47 non-ExecPlan paths and 7,334 net added lines (37 paths and 6,482
+    counting only code and tests). `cs delta refs/tmp/main` reports no issue and
+    both touched modules score 10.00.
+
 - [x] (2026-11-28) Revision 47: the Revision 46 assessment found two scanner
   defects and a regression-coverage gap, and all three are repaired.
   - An indented HTML terminator is now visible to the tracker. A line indented
@@ -3646,6 +3661,15 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 48, 2026-11-28: the Revision 47 assessment returned one finding,
+  upheld. `open_prefix` treated any line as HTML whenever a block was open,
+  without checking that the line still belonged to the block's container, so a
+  block opened inside a block quote suppressed a top-level list item after the
+  quote ended. `is_open_in` now takes the container identity, and the scanner
+  asks it with the container the line actually matched. The regression records
+  the item's fence as unmarked; the existing control for container-shaped text
+  inside HTML still passes. The tree measures 47 non-ExecPlan paths and 7,334
+  net added lines (37 paths and 6,482 counting only code and tests).
 - Revision 47, 2026-11-28: the Revision 46 assessment returned two defects and
   a coverage gap, all upheld. An indented HTML terminator was invisible because
   the four-space indentation short-circuited to indented code before the open

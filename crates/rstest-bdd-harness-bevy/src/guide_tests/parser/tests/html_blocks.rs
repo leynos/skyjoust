@@ -363,3 +363,33 @@ fn an_indented_html_terminator_still_ends_the_block() {
         "the marked fence after the terminator must be recorded, got {fences:?}"
     );
 }
+
+#[test]
+fn an_html_block_ending_with_its_quote_releases_the_next_container() {
+    // The block opened inside the quote cannot outlive it. The list item below
+    // therefore opens normally, and its own fence is recorded as unmarked
+    // rather than disappearing into indented code behind the control.
+    let text = concat!(
+        "<!-- tested-example: control -->\n",
+        "```rust\n",
+        "let control = 1;\n",
+        "```\n",
+        "\n",
+        "> <details>\n",
+        "- Item\n",
+        "\n",
+        "    ```rust\n",
+        "    let value = 1;\n",
+        "    ```\n",
+    );
+    let fences = parse_fences(text).expect("the quote's block ends with the quote");
+    assert_eq!(
+        fences.len(),
+        2,
+        "the item's unmarked fence must be recorded, got {fences:?}"
+    );
+    assert!(
+        fences.last().is_some_and(|fence| fence.marker.is_none()),
+        "the second fence must have no marker, got {fences:?}"
+    );
+}
