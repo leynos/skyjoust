@@ -23,6 +23,20 @@ enum Verdict {
     Markdown,
 }
 
+/// How an HTML block ends.
+enum End {
+    /// A blank line, as for a block-level tag or a complete tag on its line.
+    Blank,
+    /// A literal terminator, as for a comment, a declaration, or raw text.
+    Marker(&'static str),
+}
+
+/// An open HTML block: its container and how it ends.
+struct OpenBlock {
+    container: usize,
+    end: End,
+}
+
 /// Whether an HTML block is open and where the next line belongs.
 ///
 /// The opener's container is recorded because a block cannot outlive the block
@@ -30,7 +44,7 @@ enum Verdict {
 /// HTML and is ordinary Markdown again.
 #[derive(Default)]
 pub(super) struct HtmlBlocks {
-    open: Option<usize>,
+    open: Option<OpenBlock>,
 }
 
 impl HtmlBlocks {
@@ -53,14 +67,20 @@ impl HtmlBlocks {
         }
     }
 
+    /// Whether an HTML block is open.
+    ///
+    /// The scanner asks before opening a container, because a `>` or list
+    /// marker inside raw HTML is content rather than a new container.
+    pub(super) fn is_open(&self) -> bool { self.open.is_some() }
+
     /// Classifies the line by its stripped content and the state carried over.
     fn visit(&mut self, scan: &ContainerScan<'_>) -> Verdict {
-        if let Some(container) = self.open {
-            if scan.container != container {
+        if let Some(block) = &self.open {
+            if scan.container != block.container {
                 self.open = None;
                 return Verdict::Markdown;
             }
-            if is_blank_content(scan.content) {
+            if ends_here(block, scan.content) {
                 self.open = None;
                 return Verdict::Markdown;
             }
@@ -73,10 +93,13 @@ impl HtmlBlocks {
         let Some(content) = scan.content else {
             return Verdict::Markdown;
         };
-        if !starts_block(content) {
+        let Some(end) = block_end(content) else {
             return Verdict::Markdown;
-        }
-        self.open = Some(scan.container);
+        };
+        self.open = Some(OpenBlock {
+            container: scan.container,
+            end,
+        });
         Verdict::Content
     }
 }
@@ -86,44 +109,69 @@ impl HtmlBlocks {
 /// `None` is indented code, which is content and keeps a block open.
 fn is_blank_content(content: Option<&str>) -> bool { content.is_some_and(is_ascii_blank) }
 
-/// Whether `content` opens an HTML block that outlives its own line.
+/// Whether `block`'s end condition is satisfied by `content`.
 ///
-/// Only the forms that can continue past their first line matter: a comment
-/// closed by `-->`, a processing instruction closed by `?>`, or a declaration
-/// closed by `>` is complete on its line, so Markdown after it is unaffected.
-fn starts_block(content: &str) -> bool {
-    let trimmed = content.trim_start_matches(' ');
-    let Some(rest) = trimmed.strip_prefix('<') else {
-        return false;
-    };
-    if trimmed.starts_with("<!--") {
-        return !trimmed.contains("-->");
+/// A blank-terminated block ends at a blank line; a raw-text block such as
+/// `<script>` ends only at its own closing tag, so a fence inside it stays
+/// literal however many blank lines it holds.
+fn ends_here(block: &OpenBlock, content: Option<&str>) -> bool {
+    match block.end {
+        End::Blank => is_blank_content(content),
+        End::Marker(terminator) => content.is_some_and(|text| text.contains(terminator)),
     }
-    if trimmed.starts_with("<?") {
-        return !trimmed.contains("?>");
-    }
-    if trimmed.starts_with("<!") {
-        return !trimmed.contains('>');
-    }
-    let name = rest.strip_prefix('/').unwrap_or(rest);
-    has_tag_name(name)
 }
 
-/// Whether `text` begins an HTML tag name followed by a tag boundary.
+/// How `content` opens an HTML block, when it opens one that outlives its line.
 ///
-/// The boundary test is what separates a tag from an autolink: `<details>`
-/// opens a block, while `<https://example.org>` is paragraph content because a
-/// tag name cannot be followed by `:`.
-fn has_tag_name(text: &str) -> bool {
-    let name = text
+/// A form that closes on its own line—a comment with `-->`, a processing
+/// instruction with `?>`, a declaration with `>`—does not open a block, so
+/// Markdown after it is unaffected.
+fn block_end(content: &str) -> Option<End> {
+    let trimmed = content.trim_start_matches(' ');
+    let rest = trimmed.strip_prefix('<')?;
+    if let Some(inner) = trimmed.strip_prefix("<!--") {
+        return (!inner.contains("-->")).then_some(End::Marker("-->"));
+    }
+    if let Some(inner) = trimmed.strip_prefix("<?") {
+        return (!inner.contains("?>")).then_some(End::Marker("?>"));
+    }
+    if trimmed.starts_with("<!") {
+        return (!trimmed.contains('>')).then_some(End::Marker(">"));
+    }
+    let name = rest.strip_prefix('/').unwrap_or(rest);
+    let tag = tag_name(name)?;
+    raw_text_terminator(tag).or(Some(End::Blank))
+}
+
+/// The closing tag of a raw-text element, whose block ignores blank lines.
+fn raw_text_terminator(tag: &str) -> Option<End> {
+    match tag.to_ascii_lowercase().as_str() {
+        "script" => Some(End::Marker("</script>")),
+        "pre" => Some(End::Marker("</pre>")),
+        "style" => Some(End::Marker("</style>")),
+        "textarea" => Some(End::Marker("</textarea>")),
+        _ => None,
+    }
+}
+
+/// The tag name `text` begins, when a tag boundary follows it.
+///
+/// The name must start with an ASCII letter, so `<1>` is paragraph content. The
+/// boundary test separates a tag from an autolink: `<details>` opens a block,
+/// while `<https://example.org>` does not, because a tag name cannot be
+/// followed by `:`.
+fn tag_name(text: &str) -> Option<&str> {
+    let length = text
         .bytes()
         .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'-')
         .count();
-    if name == 0 {
-        return false;
+    let name = text.get(..length)?;
+    if !name.starts_with(|character: char| character.is_ascii_alphabetic()) {
+        return None;
     }
-    let rest = text.get(name..).unwrap_or_default();
-    rest.is_empty() || rest.starts_with([' ', '\t', '>', '/'])
+    let rest = text.get(length..).unwrap_or_default();
+    let boundary = rest.is_empty() || rest.starts_with([' ', '\t', '>', '/']);
+    boundary.then_some(name)
 }
 
 /// Whether `content` carries a marker or a fence delimiter.

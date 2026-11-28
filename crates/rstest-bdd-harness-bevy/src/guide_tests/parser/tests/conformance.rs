@@ -41,8 +41,8 @@ fn a_fence_inside_an_html_block_is_rejected_without_a_marker() {
     .expect_err("a bare fence inside an HTML block must be rejected");
 
     assert!(
-        error.contains("HTML block"),
-        "the error must name the HTML block and the fence line, got {error:?}"
+        error.contains("HTML block") && error.contains("line 2"),
+        "the error must name the HTML block and the opening fence on line 2, got {error:?}"
     );
 }
 
@@ -204,5 +204,92 @@ fn mixed_punctuation_inside_html_is_content() {
         fence.marker,
         Some("after-html"),
         "mixed punctuation must not be read as a fence delimiter"
+    );
+}
+
+#[test]
+fn a_raw_text_html_block_ends_only_at_its_closing_tag() {
+    // `<script>` ignores blank lines, so a marked fence inside it is literal
+    // text and must be rejected rather than counted as an example.
+    let error = parse_fences(concat!(
+        "<script>\n",
+        "\n",
+        "<!-- tested-example: in-script -->\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+        "\n",
+        "</script>\n",
+    ))
+    .expect_err("a fence inside a script element must be rejected");
+
+    assert!(
+        error.contains("HTML block"),
+        "the error must name the HTML block, got {error:?}"
+    );
+}
+
+#[test]
+fn a_container_prefix_inside_html_is_content() {
+    // A `>` inside `<details>` is literal HTML text. Opening a quote there
+    // would change the container identity and end the block, exposing the
+    // marker and fence that follow.
+    let error = parse_fences(concat!(
+        "<details>\n",
+        "> quoted\n",
+        "<!-- tested-example: hidden-in-html -->\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+        "</details>\n",
+    ))
+    .expect_err("HTML content must not end the block by opening a container");
+
+    assert!(
+        error.contains("HTML block"),
+        "the error must still report the HTML block, got {error:?}"
+    );
+}
+
+#[test]
+fn a_bang_line_does_not_start_a_block() {
+    // `!continuation` is paragraph text, so CommonMark keeps the list item
+    // open and the fence below belongs to it; dropping the item would hide
+    // the fence.
+    let error = parse_fences(concat!(
+        "- Item\n",
+        "!continuation\n",
+        "\n",
+        "    ```rust\n",
+        "    let value = 1;\n",
+        "    ```\n",
+    ))
+    .expect_err("an exclamation continuation must not drop the item");
+
+    assert!(
+        error.contains("without its indentation"),
+        "the error must explain the unsupported continuation, got {error:?}"
+    );
+}
+
+#[test]
+fn a_digit_led_angle_bracket_is_not_an_html_block() {
+    // `<1>` has no tag name, so it is paragraph content and the marker after
+    // it must be accepted.
+    let fence = single_fence(
+        concat!(
+            "<1>\n",
+            "<!-- tested-example: numeric-text -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "a fence after digit-led angle brackets",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("numeric-text"),
+        "a digit-led angle bracket is not an HTML opener"
     );
 }

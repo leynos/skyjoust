@@ -265,6 +265,11 @@ impl<'a> FenceParser<'a> {
         // the container measurement, so it is rejected rather than treated as
         // ordinary content.
         let stripped = Line::new(trimmed).reject_tab_indent()?.as_str();
+        // Inside raw HTML a `>` or list marker is content, not a new container:
+        // opening one would change the container identity and end the block.
+        if self.html.is_open() {
+            return Ok(Prefix::Content(stripped));
+        }
         if let Some(after) = stripped.strip_prefix('>') {
             self.containers.open_quote();
             let quoted = Line::new(after).strip_quote_padding().as_str();

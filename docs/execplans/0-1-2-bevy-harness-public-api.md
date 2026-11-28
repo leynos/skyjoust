@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 40 tree at 44 paths and
-  6,684 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 41 tree at 46 paths and
+  6,824 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,30 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 41: the Revision 40 assessment found six further
+  defects, all valid, in the scanner and this plan's recipe.
+  - An HTML block now carries its own end condition: a blank line, or the
+    literal terminator of a comment, declaration, processing instruction, or
+    raw-text element. A fence inside `<script>` was previously counted as an
+    example because only blank lines ended the block
+    (`a_raw_text_html_block_ends_only_at_its_closing_tag`).
+  - A container prefix inside raw HTML is now content rather than a new
+    container, because opening one changed the container identity and ended
+    the block (`a_container_prefix_inside_html_is_content`).
+  - An HTML tag name must start with an ASCII letter, so `<1>` is paragraph
+    content (`a_digit_led_angle_bracket_is_not_an_html_block`).
+  - A line beginning with `!` no longer counts as a block start, so an
+    exclamation continuation keeps its list item
+    (`a_bang_line_does_not_start_a_block`).
+  - The fence-only HTML regression now asserts that the diagnostic names the
+    opening fence's line, so it cannot pass by rejecting a later delimiter.
+  - Every gate block in the verification recipe uses `set -euo pipefail`, the
+    focused test loop included, so a later success cannot mask an earlier
+    failure; and an empty mutant listing is rejected before counting.
+  - Scope: 46 non-ExecPlan paths and 6,824 net added lines (36 paths and 5,933
+    counting only code and tests); no requirement, signature, or milestone
+    changed.
+
 - [x] (2026-11-28) Revision 40: the second formal review round raised fourteen
   findings, all in files this change owns and all valid; each is fixed and the
   scanner ones carry regressions.
@@ -2892,6 +2916,7 @@ Focused loop during a milestone (append a Nextest filter such as `lifecycle`,
 `context`, or `headless_scenario` to narrow it):
 
 ```bash
+set -euo pipefail
 cargo --config tools/dev-fast/config.toml nextest run -p rstest-bdd-harness-bevy 2>&1 \
   | tee /tmp/test-focused-skyjoust-0-1-2-bevy-harness-public-api.out
 ```
@@ -2913,7 +2938,7 @@ each block: without it the shell reports `tee`'s status, so a failing gate
 would be logged as a passing one:
 
 ```bash
-set -o pipefail
+set -euo pipefail
 make check-fmt 2>&1 | tee /tmp/check-fmt-skyjoust-0-1-2-bevy-harness-public-api.out
 make lint 2>&1 | tee /tmp/lint-skyjoust-0-1-2-bevy-harness-public-api.out
 make typecheck 2>&1 | tee /tmp/typecheck-skyjoust-0-1-2-bevy-harness-public-api.out
@@ -2923,7 +2948,7 @@ make test 2>&1 | tee /tmp/test-skyjoust-0-1-2-bevy-harness-public-api.out
 Documentation gates (EP-M0, EP-M5):
 
 ```bash
-set -o pipefail
+set -euo pipefail
 make fmt 2>&1 | tee /tmp/fmt-skyjoust-0-1-2-bevy-harness-public-api.out
 make markdownlint 2>&1 | tee /tmp/markdownlint-skyjoust-0-1-2-bevy-harness-public-api.out
 make nixie 2>&1 | tee /tmp/nixie-skyjoust-0-1-2-bevy-harness-public-api.out
@@ -2954,9 +2979,10 @@ cp crates/rstest-bdd-harness-bevy/src/panic.rs /tmp/audit-panic.rs
 mutants=$(cargo mutants --list -p rstest-bdd-harness-bevy \
   -f crates/rstest-bdd-harness-bevy/src/harness.rs \
   -f crates/rstest-bdd-harness-bevy/src/panic.rs) || { echo "listing failed"; exit 1; }
+[ -n "$mutants" ] || { echo "listing empty"; exit 1; }
 count=$(printf '%s\n' "$mutants" | wc -l)
 printf 'mutants: %s\n' "$count"
-[ "$count" -gt 0 ] && [ "$count" -le 60 ] || { echo "mutant count out of tolerance"; exit 1; }
+[ "$count" -le 60 ] || { echo "mutant count out of tolerance"; exit 1; }
 cargo mutants --in-place -p rstest-bdd-harness-bevy \
   -f crates/rstest-bdd-harness-bevy/src/harness.rs \
   -f crates/rstest-bdd-harness-bevy/src/panic.rs \
@@ -3505,6 +3531,18 @@ Downstream consumers need direct development dependencies on `rstest`,
   under rustdoc, which strips `#[test]` items, and `Decision log` records it as
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
+  only code and tests). No requirement, signature, or milestone changed.
+- Revision 41, 2026-11-28: the Revision 40 assessment returned six findings,
+  all valid. Four were scanner defects: an HTML block ended only at a blank
+  line, so a fence inside `<script>` counted as an example; a container prefix
+  inside raw HTML ended the block by changing the container identity; an HTML
+  tag name could start with a digit, so `<1>` opened a block; and a line
+  beginning with `!` counted as a block start, dropping a list item across an
+  exclamation continuation. Each is repaired with a regression that failed
+  before its fix. The fence-only HTML regression now asserts the diagnostic
+  names the opening fence's line. The plan's recipe uses `set -euo pipefail`
+  throughout and rejects an empty mutant listing. The tree measures 46
+  non-ExecPlan paths and 6,824 net added lines (36 paths and 5,933 counting
   only code and tests). No requirement, signature, or milestone changed.
 - Revision 40, 2026-11-28: the second formal review round reported fourteen
   findings, all valid and all in files this change owns. Ten were further
