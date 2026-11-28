@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 44 tree at 47 paths and
-  7,131 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 45 tree at 47 paths and
+  7,200 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,24 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 45: the Revision 44 assessment found one further
+  scanner defect, and it is repaired with regressions proven red against
+  `560e7f9` and green afterwards.
+  - `<!` only begins an HTML declaration when an ASCII letter follows, so
+    `<!1>` is paragraph text. Declaration recognition now requires that letter
+    in both the block opener and the paragraph-interrupt rule; the earlier code
+    accepted any `<!` prefix, ended the list item at `<!1>`, and read the
+    item's own fence as indented code. The regression reproduces the
+    assessment's example with its control fence, and valid declarations and
+    comments have parameterized controls proving they still end the item.
+  - `html.rs` now takes the shared `Line` fragment type at its three entry
+    points instead of raw `&str`, and the comment/declaration/instruction
+    classifier returns a `MarkerForm` enum rather than a nested `Option`, as
+    CodeScene's argument-shape and Clippy's `option_option` findings required.
+  - Scope: 47 non-ExecPlan paths and 7,200 net added lines (37 paths and 6,348
+    counting only code and tests). `cs delta refs/tmp/main` reports no issue and
+    `html.rs` is back to 10.00.
+
 - [x] (2026-11-28) Revision 44: the Revision 43 assessment found one further
   scanner defect, and it is repaired with a regression proven red against
   `32ac155` and green afterwards.
@@ -3589,6 +3607,18 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 45, 2026-11-28: the Revision 44 assessment returned one finding,
+  upheld. `html.rs` treated every `<!` prefix as an interrupting declaration,
+  but `CommonMark` form 4 requires an ASCII letter after `<!`, so `<!1>` is
+  paragraph text and the list item above the later fence stays open. The
+  declaration branch of `block_end` and the marker-form branch of
+  `interrupts_paragraph` now share one `marker_form` classifier that enforces
+  the letter, and the regression pairs the assessment's example with controls
+  for `<!DOCTYPE html>` and `<!-- note -->`. The module's entry points now take
+  the shared `Line` fragment type, which also cleared CodeScene's string-heavy
+  argument finding, and the classifier returns a `MarkerForm` enum instead of a
+  nested `Option`. The tree measures 47 non-ExecPlan paths and 7,200 net added
+  lines (37 paths and 6,348 counting only code and tests).
 - Revision 44, 2026-11-28: the Revision 43 assessment returned one finding,
   upheld. `blocks.rs` decided whether a fence interrupts a paragraph by
   counting delimiter characters alone, so `` ```rust``` `` — an inline code

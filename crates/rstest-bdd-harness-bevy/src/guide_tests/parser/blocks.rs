@@ -68,7 +68,7 @@ fn opens_text_block(trimmed: &str) -> bool {
     let Some(first) = trimmed.chars().next() else {
         return false;
     };
-    (first == '<' && super::html::interrupts_paragraph(trimmed))
+    (first == '<' && super::html::interrupts_paragraph(Line::new(trimmed)))
         || is_thematic_break(trimmed)
         || fence_delimiter(trimmed).is_some()
         || (first == '#' && is_atx_heading(trimmed))

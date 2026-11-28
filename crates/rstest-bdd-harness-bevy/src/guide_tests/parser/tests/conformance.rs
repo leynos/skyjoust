@@ -125,28 +125,62 @@ fn quote_shaped_lines_inside_a_fence_are_content() {
     );
 }
 
-#[test]
-fn an_invalid_backtick_opener_does_not_interrupt_a_list_item() {
-    // A backtick fence's info string cannot contain a backtick, so
-    // ` ```rust``` ` is an inline code span and the list item continues across
-    // it. The separately marked control fence must not hide the item's own
-    // unmarked fence behind this span.
-    let text = concat!(
-        "<!-- tested-example: control -->\n",
-        "```rust\n",
-        "let control = 1;\n",
-        "```\n",
-        "\n",
-        "- Item\n",
-        "```rust```\n",
-        "\n",
-        "    ```rust\n",
-        "    let value = 1;\n",
-        "    ```\n",
+#[rstest::rstest]
+#[case("```rust```")]
+#[case("<!1>")]
+fn an_invalid_block_start_does_not_interrupt_a_list_item(#[case] line: &str) {
+    // Neither an inline code span nor an invalid declaration prefix interrupts
+    // a paragraph, so the item continues and its own unmarked fence must not be
+    // read as indented code behind the separately marked control.
+    let text = format!(
+        concat!(
+            "<!-- tested-example: control -->\n",
+            "```rust\n",
+            "let control = 1;\n",
+            "```\n",
+            "\n",
+            "- Item\n",
+            "{line}\n",
+            "\n",
+            "    ```rust\n",
+            "    let value = 1;\n",
+            "    ```\n",
+        ),
+        line = line,
     );
-    let error = parse_fences(text).expect_err("the lazy continuation is rejected");
+    let error = parse_fences(&text).expect_err("the lazy continuation is rejected");
     assert!(
-        error.contains("```rust```") && error.contains("continues a list item"),
-        "the inline code span must be reported as a lazy list continuation, got {error:?}"
+        error.contains(line) && error.contains("continues a list item"),
+        "the line {line:?} must be reported as a lazy list continuation, got {error:?}"
+    );
+}
+
+#[rstest::rstest]
+#[case("<!DOCTYPE html>")]
+#[case("<!-- note -->")]
+fn valid_html_marker_forms_still_end_a_list_item(#[case] marker: &str) {
+    // Both forms interrupt the paragraph, so the list item legitimately ends
+    // and the indented fence below belongs to no example.
+    let text = format!(
+        concat!(
+            "<!-- tested-example: control -->\n",
+            "```rust\n",
+            "let control = 1;\n",
+            "```\n",
+            "\n",
+            "- Item\n",
+            "{marker}\n",
+            "\n",
+            "    ```rust\n",
+            "    let value = 1;\n",
+            "    ```\n",
+        ),
+        marker = marker,
+    );
+    let fences = parse_fences(&text).expect("valid forms end the item");
+    assert_eq!(
+        fences.len(),
+        1,
+        "only the control fence is recorded for {marker:?}, got {fences:?}"
     );
 }

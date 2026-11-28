@@ -11,7 +11,7 @@
 //! A comment or declaration that closes on its own line—including the guide's
 //! `tested-example` markers—does not open a block, and neither does an autolink.
 
-use super::{ContainerScan, blocks::is_ascii_blank};
+use super::{ContainerScan, blocks::is_ascii_blank, containers::Line};
 
 /// The scanner's action for one line while HTML blocks are tracked.
 enum Verdict {
@@ -91,7 +91,10 @@ impl HtmlBlocks {
             };
         }
         self.open = Some(block);
-        if scan.content.is_some_and(is_fence_or_marker) {
+        if scan
+            .content
+            .is_some_and(|content| is_fence_or_marker(Line::new(content)))
+        {
             Verdict::Fence
         } else {
             Verdict::Content
@@ -106,7 +109,7 @@ impl HtmlBlocks {
         let Some(content) = scan.content else {
             return Verdict::Markdown;
         };
-        let Some(end) = block_end(content) else {
+        let Some(end) = block_end(Line::new(content)) else {
             return Verdict::Markdown;
         };
         self.open = Some(OpenBlock {
@@ -150,11 +153,11 @@ fn contains_ignore_ascii_case(text: &str, needle: &str) -> bool {
 /// `CommonMark` lets the block-level forms interrupt a paragraph, but a
 /// complete tag alone on its line does not: `<em>` there is paragraph text, so
 /// a list item continues across it rather than ending.
-pub(super) fn interrupts_paragraph(content: &str) -> bool {
-    let Some(rest) = content.trim_start_matches(' ').strip_prefix('<') else {
+pub(super) fn interrupts_paragraph(line: Line<'_>) -> bool {
+    let Some(rest) = line.as_str().trim_start_matches(' ').strip_prefix('<') else {
         return false;
     };
-    if rest.starts_with(['!', '?']) {
+    if marker_form(rest).is_some() {
         return true;
     }
     let Some(tag) = tag_name(rest.strip_prefix('/').unwrap_or(rest)) else {
@@ -238,22 +241,54 @@ const INTERRUPTING_TAGS: &[&str] = &[
     "ul",
 ];
 
+/// What a comment, declaration, or instruction opener does to a block.
+enum MarkerForm {
+    /// The form opens a block that ends at the given condition.
+    Opens(End),
+    /// The form is complete on its own line and opens nothing.
+    ClosesOnLine,
+}
+
+/// Classifies the text after `<` as a comment, declaration, or instruction.
+///
+/// `CommonMark` form 2 is `<!--`, form 3 is `<?`, and form 4 is `<!` followed
+/// by an ASCII letter. Anything else beginning with `<!`—such as `<!1>`—is
+/// paragraph text, so it neither opens a block nor interrupts a list item.
+fn marker_form(rest: &str) -> Option<MarkerForm> {
+    if let Some(inner) = rest.strip_prefix('?') {
+        return Some(opening(inner, "?>", End::Marker("?>")));
+    }
+    let inner = rest.strip_prefix('!')?;
+    if let Some(after_dashes) = inner.strip_prefix("--") {
+        return Some(opening(after_dashes, "-->", End::Marker("-->")));
+    }
+    if !inner.starts_with(|character: char| character.is_ascii_alphabetic()) {
+        return None;
+    }
+    Some(opening(inner, ">", End::Marker(">")))
+}
+
+/// The form for `inner`, which opens a block unless its terminator is present.
+fn opening(inner: &str, terminator: &str, end: End) -> MarkerForm {
+    if inner.contains(terminator) {
+        MarkerForm::ClosesOnLine
+    } else {
+        MarkerForm::Opens(end)
+    }
+}
+
 /// How `content` opens an HTML block, when it opens one that outlives its line.
 ///
 /// A form that closes on its own line—a comment with `-->`, a processing
 /// instruction with `?>`, a declaration with `>`—does not open a block, so
 /// Markdown after it is unaffected.
-fn block_end(content: &str) -> Option<End> {
-    let trimmed = content.trim_start_matches(' ');
+fn block_end(line: Line<'_>) -> Option<End> {
+    let trimmed = line.as_str().trim_start_matches(' ');
     let rest = trimmed.strip_prefix('<')?;
-    if let Some(inner) = trimmed.strip_prefix("<!--") {
-        return (!inner.contains("-->")).then_some(End::Marker("-->"));
-    }
-    if let Some(inner) = trimmed.strip_prefix("<?") {
-        return (!inner.contains("?>")).then_some(End::Marker("?>"));
-    }
-    if trimmed.starts_with("<!") {
-        return (!trimmed.contains('>')).then_some(End::Marker(">"));
+    match marker_form(rest) {
+        Some(MarkerForm::Opens(end)) => return Some(end),
+        Some(MarkerForm::ClosesOnLine) => return None,
+        None => {}
     }
     if let Some(closing) = rest.strip_prefix('/') {
         // A closing tag alone on its line is a block-level HTML form that a
@@ -303,8 +338,8 @@ fn tag_name(text: &str) -> Option<&str> {
 /// Inside an HTML block either one would be recorded as Markdown by a scanner
 /// that ignored the block, so both are rejected together. A delimiter's run
 /// must repeat one character, so mixed punctuation in literal HTML is content.
-fn is_fence_or_marker(content: &str) -> bool {
-    let trimmed = content.trim_start_matches(' ');
+fn is_fence_or_marker(line: Line<'_>) -> bool {
+    let trimmed = line.as_str().trim_start_matches(' ');
     if trimmed.starts_with("<!-- tested-example:") {
         return true;
     }
