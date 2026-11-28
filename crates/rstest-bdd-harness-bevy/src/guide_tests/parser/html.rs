@@ -145,8 +145,98 @@ fn contains_ignore_ascii_case(text: &str, needle: &str) -> bool {
         .contains(&needle.to_ascii_lowercase())
 }
 
-/// Whether `content` opens an HTML block, for callers outside this module.
-pub(super) fn opens_block(content: &str) -> bool { block_end(content).is_some() }
+/// Whether `content` opens an HTML block that may interrupt a paragraph.
+///
+/// `CommonMark` lets the block-level forms interrupt a paragraph, but a
+/// complete tag alone on its line does not: `<em>` there is paragraph text, so
+/// a list item continues across it rather than ending.
+pub(super) fn interrupts_paragraph(content: &str) -> bool {
+    let Some(rest) = content.trim_start_matches(' ').strip_prefix('<') else {
+        return false;
+    };
+    if rest.starts_with(['!', '?']) {
+        return true;
+    }
+    let Some(tag) = tag_name(rest.strip_prefix('/').unwrap_or(rest)) else {
+        return false;
+    };
+    INTERRUPTING_TAGS
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(tag))
+}
+
+/// The tag names whose HTML blocks may interrupt a paragraph.
+///
+/// The list combines `CommonMark`'s block tag names with its raw-text elements;
+/// any other tag is inline and may not interrupt a paragraph.
+const INTERRUPTING_TAGS: &[&str] = &[
+    "address",
+    "article",
+    "aside",
+    "base",
+    "basefont",
+    "blockquote",
+    "body",
+    "caption",
+    "center",
+    "col",
+    "colgroup",
+    "dd",
+    "details",
+    "dialog",
+    "dir",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "frame",
+    "frameset",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "head",
+    "header",
+    "hr",
+    "html",
+    "iframe",
+    "legend",
+    "li",
+    "link",
+    "main",
+    "menu",
+    "menuitem",
+    "nav",
+    "noframes",
+    "ol",
+    "optgroup",
+    "option",
+    "p",
+    "param",
+    "pre",
+    "script",
+    "search",
+    "section",
+    "style",
+    "summary",
+    "table",
+    "tbody",
+    "td",
+    "textarea",
+    "tfoot",
+    "th",
+    "thead",
+    "title",
+    "tr",
+    "track",
+    "ul",
+];
 
 /// How `content` opens an HTML block, when it opens one that outlives its line.
 ///
@@ -165,8 +255,12 @@ fn block_end(content: &str) -> Option<End> {
     if trimmed.starts_with("<!") {
         return (!trimmed.contains('>')).then_some(End::Marker(">"));
     }
-    let name = rest.strip_prefix('/').unwrap_or(rest);
-    let tag = tag_name(name)?;
+    if let Some(closing) = rest.strip_prefix('/') {
+        // A closing tag alone on its line is a block-level HTML form that a
+        // blank line ends; it opens nothing that a later closing tag closes.
+        return tag_name(closing).map(|_| End::Blank);
+    }
+    let tag = tag_name(rest)?;
     match raw_text_terminator(tag) {
         Some(End::Marker(terminator)) if contains_ignore_ascii_case(trimmed, terminator) => None,
         raw => Some(raw.unwrap_or(End::Blank)),

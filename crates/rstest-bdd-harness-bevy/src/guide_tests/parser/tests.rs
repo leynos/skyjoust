@@ -15,6 +15,8 @@ use super::{Fence, parse_fences};
 
 #[path = "tests/conformance.rs"]
 mod conformance;
+#[path = "tests/html_blocks.rs"]
+mod html_blocks;
 
 /// Parses `text` and returns the single fence it must contain.
 fn single_fence<'a>(text: &'a str, description: &str) -> Fence<'a> {

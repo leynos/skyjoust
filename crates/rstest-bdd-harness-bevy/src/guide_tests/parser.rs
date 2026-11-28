@@ -270,7 +270,11 @@ impl<'a> FenceParser<'a> {
         if self.html.is_open() {
             return Ok(Prefix::Content(stripped));
         }
-        if let Some(after) = stripped.strip_prefix('>') {
+        // A quoted line inside an open fence is literal content: opening a
+        // quote there would end the fence's container and reject its content.
+        if self.open.is_none()
+            && let Some(after) = stripped.strip_prefix('>')
+        {
             self.containers.open_quote();
             let quoted = Line::new(after).strip_quote_padding().as_str();
             return Ok(Prefix::Container(quoted));

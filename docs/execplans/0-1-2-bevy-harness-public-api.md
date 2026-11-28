@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 42 tree at 46 paths and
-  6,939 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 43 tree at 47 paths and
+  7,110 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,25 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 43: the Revision 42 assessment found three further
+  scanner defects, and each is repaired with a regression proven red against
+  `43100c6` and green afterwards.
+  - An inline tag no longer counts as an interrupting HTML block. A complete
+    tag alone on a line such as `<em>` is paragraph text under `CommonMark`, so
+    a list item continues across it; the scanner now recognises that lazy
+    continuation and rejects it with the item and line named, rather than
+    silently dropping the item and any fence it contains.
+  - A standalone closing tag such as `</script>` opens a blank-terminated HTML
+    block instead of being read as a raw-text block closed on its own line.
+    A marker or fence after it is therefore inside HTML, as rustdoc parses it.
+  - A quote-shaped line inside an open fence is literal content. Opening a
+    quote there used to move the fence's container and reject the following
+    ordinary line as a lazy quote continuation.
+  - Scope: 47 non-ExecPlan paths and 7,110 net added lines (37 paths and 6,258
+    counting only code and tests). `cs check` reports html.rs at 10.00 and
+    `cs delta refs/tmp/main` reports no issue. Whitaker's module limit moved the
+    HTML-block regressions into `parser/tests/html_blocks.rs`, leaving
+    `parser/tests/conformance.rs` at 126 lines and the new module at 325.
 - [x] (2026-11-28) Revision 42: the Revision 41 assessment found four further
   defects, all valid.
   - A line that ends an HTML block now stays content. The line carrying a
@@ -3555,6 +3574,22 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 43, 2026-11-28: the Revision 42 assessment returned three findings,
+  all in the guide scanner and all upheld. `blocks.rs` treated any complete tag
+  alone on a line as an interrupting HTML block, but `CommonMark` reserves that
+  role for its block-level and raw-text names, so an inline `<em>` was read as
+  ending a list item; the tag set is now explicit and includes the raw-text
+  elements. `html.rs` read `</script>` as a raw-text block already closed on
+  its opening line, so a later marker and fence were recorded as Markdown even
+  though `CommonMark` makes the run HTML; a closing tag now opens a
+  blank-terminated block. `parser.rs` opened a block quote inside an open
+  fence, which moved the fence's container and made the next plain content line
+  a rejected lazy continuation; container opening is now skipped while a fence
+  is open. Each repair has a regression proven red against `43100c6`. The tree
+  measures 47 non-ExecPlan paths and 7,110 net added lines (37 paths and 6,258
+  counting only code and tests); the HTML-block regressions live in
+  `parser/tests/html_blocks.rs` to keep every module inside Whitaker's 400-line
+  limit.
 - Revision 42, 2026-11-28: the Revision 41 assessment returned four findings,
   all valid. Three were scanner defects: a terminator line returned to Markdown
   processing, so a marker shaped like a comment's closing line labelled the

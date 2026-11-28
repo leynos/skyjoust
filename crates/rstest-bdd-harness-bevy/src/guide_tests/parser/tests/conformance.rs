@@ -1,50 +1,10 @@
-//! Regression tests for the second review round's `CommonMark` findings.
+//! Regression tests for the container, blank-line, and marker findings.
 //!
-//! Each test pins one layout the scanner previously mis-read: HTML blocks that
-//! separate or contain fences, container boundaries, thematic breaks, Unicode
-//! blank lines, tab-separated headings and list markers, unquoted continuations,
-//! autolinks, and mixed-punctuation delimiter runs.
+//! Each test pins one layout the scanner previously mis-read: thematic breaks
+//! that look like list markers, Unicode blank lines, tab-separated headings and
+//! list markers, unquoted lazy continuations, and quote-shaped fence content.
 
 use super::{parse_fences, single_fence};
-
-#[test]
-fn an_html_block_separating_a_marker_from_its_fence_is_rejected() {
-    // The HTML line is content, so it may not stand between a marker and the
-    // fence the marker claims; only blank lines may.
-    let error = parse_fences(concat!(
-        "<!-- tested-example: detached -->\n",
-        "<div>text</div>\n",
-        "\n",
-        "```rust\n",
-        "let value = 1;\n",
-        "```\n",
-    ))
-    .expect_err("HTML between a marker and its fence must be rejected");
-
-    assert!(
-        error.contains("not followed by a fence"),
-        "the error must report the separated marker, got {error:?}"
-    );
-}
-
-#[test]
-fn a_fence_inside_an_html_block_is_rejected_without_a_marker() {
-    // Without a marker the fence alone must still be refused, so this fails
-    // even if only marker detection inside HTML were implemented.
-    let error = parse_fences(concat!(
-        "<details>\n",
-        "```rust\n",
-        "let value = 1;\n",
-        "```\n",
-        "</details>\n",
-    ))
-    .expect_err("a bare fence inside an HTML block must be rejected");
-
-    assert!(
-        error.contains("HTML block") && error.contains("line 2"),
-        "the error must name the HTML block and the opening fence on line 2, got {error:?}"
-    );
-}
 
 #[test]
 fn a_thematic_break_is_not_a_list_marker() {
@@ -141,240 +101,26 @@ fn a_tab_padded_list_marker_is_rejected() {
 }
 
 #[test]
-fn an_html_block_ends_with_its_container() {
-    // The block quote ends before the marker, so the HTML it opened ends too
-    // and the marker must be accepted at the top level.
-    let fence = single_fence(
-        concat!(
-            "> <details>\n",
-            ">\n",
-            "<!-- tested-example: after-quote -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "a top-level fence after a quoted HTML block",
-    );
-
-    assert_eq!(
-        fence.marker,
-        Some("after-quote"),
-        "the container boundary must end the HTML block"
-    );
-}
-
-#[test]
-fn an_autolink_is_not_an_html_block() {
-    let fence = single_fence(
-        concat!(
-            "<https://example.org>\n",
-            "<!-- tested-example: after-autolink -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "a fence after an autolink",
-    );
-
-    assert_eq!(
-        fence.marker,
-        Some("after-autolink"),
-        "an autolink is paragraph content, not an HTML block"
-    );
-}
-
-#[test]
-fn mixed_punctuation_inside_html_is_content() {
-    // No run of three matching characters, so this is literal HTML text.
-    let fence = single_fence(
-        concat!(
-            "<details>\n",
-            "`~`\n",
-            "</details>\n",
-            "\n",
-            "<!-- tested-example: after-html -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "mixed punctuation inside an HTML block",
-    );
-
-    assert_eq!(
-        fence.marker,
-        Some("after-html"),
-        "mixed punctuation must not be read as a fence delimiter"
-    );
-}
-
-#[test]
-fn a_raw_text_html_block_ends_only_at_its_closing_tag() {
-    // `<script>` ignores blank lines, so a marked fence inside it is literal
-    // text and must be rejected rather than counted as an example.
-    let error = parse_fences(concat!(
-        "<script>\n",
-        "\n",
-        "<!-- tested-example: in-script -->\n",
-        "```rust\n",
-        "let value = 1;\n",
-        "```\n",
-        "\n",
-        "</script>\n",
-    ))
-    .expect_err("a fence inside a script element must be rejected");
-
-    assert!(
-        error.contains("HTML block"),
-        "the error must name the HTML block, got {error:?}"
-    );
-}
-
-#[test]
-fn a_container_prefix_inside_html_is_content() {
-    // A `>` inside `<details>` is literal HTML text. Opening a quote there
-    // would change the container identity and end the block, exposing the
-    // marker and fence that follow.
-    let error = parse_fences(concat!(
-        "<details>\n",
+fn quote_shaped_lines_inside_a_fence_are_content() {
+    // A `>` line inside a fence is literal text: opening a quote there would
+    // end the fence's container and reject the following plain content.
+    let text = concat!(
+        "<!-- tested-example: quoted -->\n",
+        "```text\n",
         "> quoted\n",
-        "<!-- tested-example: hidden-in-html -->\n",
-        "```rust\n",
-        "let value = 1;\n",
+        "plain continuation\n",
         "```\n",
-        "</details>\n",
-    ))
-    .expect_err("HTML content must not end the block by opening a container");
-
-    assert!(
-        error.contains("HTML block"),
-        "the error must still report the HTML block, got {error:?}"
     );
-}
-
-#[test]
-fn a_bang_line_does_not_start_a_block() {
-    // `!continuation` is paragraph text, so CommonMark keeps the list item
-    // open and the fence below belongs to it; dropping the item would hide
-    // the fence.
-    let error = parse_fences(concat!(
-        "- Item\n",
-        "!continuation\n",
-        "\n",
-        "    ```rust\n",
-        "    let value = 1;\n",
-        "    ```\n",
-    ))
-    .expect_err("an exclamation continuation must not drop the item");
-
-    assert!(
-        error.contains("without its indentation"),
-        "the error must explain the unsupported continuation, got {error:?}"
-    );
-}
-
-#[test]
-fn a_digit_led_angle_bracket_is_not_an_html_block() {
-    // `<1>` has no tag name, so it is paragraph content and the marker after
-    // it must be accepted.
-    let fence = single_fence(
-        concat!(
-            "<1>\n",
-            "<!-- tested-example: numeric-text -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "a fence after digit-led angle brackets",
-    );
-
+    let fences = parse_fences(text).expect("quote-shaped fence content is literal");
     assert_eq!(
-        fence.marker,
-        Some("numeric-text"),
-        "a digit-led angle bracket is not an HTML opener"
+        fences.len(),
+        1,
+        "the fence must be recorded once, got {fences:?}"
     );
-}
-
-#[test]
-fn a_marker_on_an_html_terminator_line_stays_content() {
-    // The second line both carries the comment's `-->` and looks like a
-    // marker, but it is still inside the comment, so the fence below is
-    // unmarked and must be reported as such.
-    let fence = single_fence(
-        concat!(
-            "<!--\n",
-            "<!-- tested-example: hidden -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "a fence whose marker line lies inside an HTML comment",
-    );
-
-    assert!(
-        fence.marker.is_none(),
-        "the marker stays inside the comment, so the fence is unmarked"
-    );
-}
-
-#[test]
-fn a_digit_led_angle_bracket_does_not_start_a_block() {
-    // `<1>` is paragraph text, so the list item survives the continuation and
-    // its fence stays visible to the checker.
-    let error = parse_fences(concat!(
-        "- Item\n",
-        "<1>\n",
-        "\n",
-        "    ```rust\n",
-        "    let value = 1;\n",
-        "    ```\n",
-    ))
-    .expect_err("a digit-led angle bracket must not drop the list item");
-
-    assert!(
-        error.contains("without its indentation"),
-        "the error must explain the unsupported continuation, got {error:?}"
-    );
-}
-
-#[test]
-fn a_raw_text_block_closed_on_its_opening_line_is_not_a_block() {
-    let fence = single_fence(
-        concat!(
-            "<script>hello</script>\n",
-            "<!-- tested-example: after-inline-script -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "a fence after a script closed on its opening line",
-    );
-
+    let marker = fences.first().and_then(|fence| fence.marker);
     assert_eq!(
-        fence.marker,
-        Some("after-inline-script"),
-        "a script closed on its own line opens no block"
-    );
-}
-
-#[test]
-fn a_raw_text_block_closes_case_insensitively() {
-    let fence = single_fence(
-        concat!(
-            "<script>\n",
-            "\n",
-            "</SCRIPT>\n",
-            "\n",
-            "<!-- tested-example: after-upper-script -->\n",
-            "```rust\n",
-            "let value = 1;\n",
-            "```\n",
-        ),
-        "a fence after an upper-case closing tag",
-    );
-
-    assert_eq!(
-        fence.marker,
-        Some("after-upper-script"),
-        "an upper-case closing tag must end the block"
+        marker,
+        Some("quoted"),
+        "the marker must label the fence, got {fences:?}"
     );
 }
