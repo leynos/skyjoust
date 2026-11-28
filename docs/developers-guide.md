@@ -63,6 +63,13 @@ trips on a directly declared game crate, and
 `cargo tree -p rstest-bdd-harness-bevy -e normal,dev` remains the authority for
 the transitive half.
 
+Its modules separate the harness contract from the guide checks: `context.rs`
+owns `BevyScenario`, `harness.rs` with `harness/failure.rs` owns `BevyHarness`
+and the phase-tagged failure contract, `panic.rs` owns the panic payload
+handling, `policy.rs` owns `BevyAttributePolicy`, and `profile.rs` owns the
+profile trait and the minimal and bare profiles. `guide_tests/` holds the
+checkers described in §6.3.
+
 Writing behavioural scenarios taught this task two estate-specific traps and
 one Bevy trap.
 
@@ -170,6 +177,46 @@ messages. Inspect that generated file's `outputs` for an entry with
 the failed metadata for diagnosis, remove only that generated file, and retry
 the gate through the normal compiler wrapper. Keep the shared Cargo cache and
 admission settings.
+
+The harness keeps its lifecycle tests free of globals and thread-locals.
+Profile hooks are associated functions, so "cleanup ran exactly once" is
+otherwise unobservable: `src/harness_tests/` uses tripwire profiles and runners
+whose forbidden methods panic with a sentinel, and a stashed scenario clone to
+read state after `run` returns. Error records are observed with the handwritten
+`tracing::Subscriber` in `src/harness_tests/recorder.rs`, installed with
+`tracing::subscriber::with_default`. The recorder returns
+`Interest::sometimes()` and rebuilds the callsite interest cache after
+installation, because `tracing` otherwise remembers that a callsite was
+disabled under the no-op subscriber.
+
+The harness re-raises a caught panic with `std::panic::panic_any(message)`.
+`resume_unwind` is silent in libtest, and a `panic!` in a `Result`-returning
+function hides the scenario payload behind an ordinary formatting panic.
+`panic_any` runs the panic hook, so `cargo test` and `cargo nextest` show the
+augmented message and `#[should_panic(expected = ...)]` matches it. Do not
+write to standard error directly; the workspace denies `print_stderr`.
+
+Two context panics are contractual diagnostics rather than incidental failures.
+A step that holds one `BevyScenario` borrow across another `with_app`,
+`with_world`, or `update` call panics with the fixed nested-borrow advice, so
+step functions should borrow briefly and never retain a `RefMut`. A Bevy system
+panic removes the `Main` schedule; `update` and `update_times(0)` still check
+for that schedule and panic with a message naming the earlier system panic.
+
+The advisory mutation audit is scoped so it reuses the warm `target/` and skips
+the slow UI and manifest binaries:
+
+```sh
+cargo mutants --in-place -p rstest-bdd-harness-bevy \
+  -f crates/rstest-bdd-harness-bevy/src/harness.rs \
+  -f crates/rstest-bdd-harness-bevy/src/panic.rs \
+  --test-tool nextest --cargo-arg=--config=tools/dev-fast/config.toml \
+  -- -E 'not binary(macro_ui) & not binary(extraction_boundary)'
+```
+
+Run `cargo mutants --list` with the same file filters first, and treat the
+audit as advisory: a survivor is either killed by a new test or recorded with a
+reason in the ExecPlan's decision log.
 
 ## 3. Validator module structure
 
@@ -342,6 +389,42 @@ Set `SKYJOUST_VALIDATOR_DEBUG=1` during debug builds to emit a
 `validate_trace` and the Explorer example both install a stderr-writing
 `tracing_subscriber`, so the events are visible when running either; a caller
 embedding the library elsewhere must install its own subscriber to observe them.
+
+### 6.3. Users' guide example checks
+
+`docs/users-guide.md` is both published documentation and a checked contract.
+Three mechanisms enforce it, all run by `make test`:
+
+- **Markers.** Every fence in the guide needs a preceding
+  `<!-- tested-example: <id> -->` marker with a non-empty identifier, and
+  identifiers must be unique. A marker may sit in the fence's own container or
+  an enclosing one; only blank lines may separate it from the fence, so prose
+  detaches it. `crates/rstest-bdd-harness-bevy/src/guide_tests/parser.rs` is the
+  `CommonMark` scanner that decides this, including block-quote and list-item
+  containment.
+- **Compilation.** `crates/rstest-bdd-harness-bevy/src/lib.rs` includes the
+  guide under `cfg(doctest)`, so rustdoc compiles the Rust fences from the
+  published text. The scenario fence also carries a hidden `fn main` that runs
+  the published step functions with the scenario index read from the fence and
+  the expected counts read from
+  `crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`, so a
+  published step that stops producing the outcome the feature states fails the
+  doctest. The driver calls the step functions directly, so it cannot detect a
+  step pattern that no longer binds the scenario; the binding check below owns
+  that half.
+- **Binding.** `crates/rstest-bdd-harness-bevy/src/guide_tests/binding.rs` reads
+  the same guide text and requires every step of the fence's selected scenario
+  to match a published `#[given]`/`#[when]`/`#[then]` pattern of the same
+  keyword, which catches pattern drift that the doctest cannot see.
+
+Rustdoc removes `#[test]` items, so the `#[scenario]`-generated test itself
+cannot run in a doctest; that limitation is tracked as
+[`rstest-bdd` issue 978](https://github.com/leynos/rstest-bdd/issues/978). The
+non-Rust fences are marker-checked but not executed, which is the accepted
+deviation tracked in issue #206.
+
+After changing the guide, run `make fmt` (it rewraps and renumbers) and then
+`make test`; the doctests and the binding check both run there.
 
 ## 7. Lint baseline
 

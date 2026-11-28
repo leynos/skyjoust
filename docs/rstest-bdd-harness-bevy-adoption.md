@@ -10,9 +10,10 @@ framework dependencies in `[dev-dependencies]`:
 
 ```toml
 [dev-dependencies]
-rstest = "0.27"
+rstest = "0.28"
 rstest-bdd = "0.6.0"
 rstest-bdd-macros = "0.6.0"
+rstest-bdd-harness = "0.6.0"
 rstest-bdd-harness-bevy = { path = "crates/rstest-bdd-harness-bevy" }
 ```
 
@@ -23,7 +24,7 @@ extraction and release.
 
 ## Import the headless helpers
 
-The crate supports Bevy `0.19.1`. Bevy appears in its public API, so keep
+The crate supports Bevy `0.20.1`. Bevy appears in its public API, so keep
 consumers on that workspace-compatible line. The crate disables Bevy's default
 features and enables `std`; its minimal profile avoids window, renderer, asset,
 and audio plugins.
@@ -52,5 +53,65 @@ Import Bevy types through the crate's `bevy` re-export when that helps keep
 tests on the harness's compatibility line. Use scenario and step attributes from
 `rstest-bdd-macros` and `StepResult` from `rstest-bdd`; the imported
 [v0.6.0 user's guide](rstest-bdd-v0.6.0-users-guide.md) covers their usage.
-This milestone supplies headless profile helpers, not the later `BevyScenario`
-or profile-adapter API assigned to roadmap task `0.1.2`.
+
+## Drive a scenario through the harness
+
+Roadmap task `0.1.2` adds the `rstest-bdd` harness. Select the default minimal
+profile with `harness = BevyHarness`, or a downstream profile through a type
+alias, and request the shared application with the reserved
+`rstest_bdd_harness_context` fixture.
+
+The recipe below is written for a downstream package and needs three things of
+its own: the feature file at the path the `#[scenario]` attribute names, a step
+definition for every step of the selected scenario, and a `tests/` directory
+the harness context can reach. The repository's copy of that feature lives at
+`crates/rstest-bdd-harness-bevy/tests/features/bevy_scenario.feature`, and its
+step definitions at
+`crates/rstest-bdd-harness-bevy/tests/headless_scenario/steps.rs`; copy both
+and adjust the path if you are wiring a scenario into the root `skyjoust`
+package, which has no `tests/features/bevy_scenario.feature` of its own. The
+worked example that runs in this repository, with every step its scenario
+binds, is the `bevy-harness-scenario` fence in the
+[user's guide](users-guide.md#4-use-the-headless-bevy-test-helpers).
+
+```rust
+use rstest_bdd_harness::{HarnessResult, ScenarioMetadata};
+use rstest_bdd_harness_bevy::{
+    BevyHarness, BevyProfile, BevyScenario,
+    bevy::{app::App, prelude::MinimalPlugins},
+};
+use rstest_bdd_macros::{scenario, when};
+
+pub enum SkyjoustProfile {}
+
+impl BevyProfile for SkyjoustProfile {
+    fn configure(app: &mut App, _metadata: &ScenarioMetadata) -> HarnessResult<()> {
+        app.add_plugins(MinimalPlugins);
+        Ok(())
+    }
+}
+
+pub type SkyjoustHarness = BevyHarness<SkyjoustProfile>;
+
+#[scenario(
+    path = "tests/features/bevy_scenario.feature",
+    index = 1,
+    harness = SkyjoustHarness,
+    attributes = rstest_bdd_harness_bevy::BevyAttributePolicy
+)]
+fn steps_share_one_application_across_ticks() {}
+
+#[when("the schedule advances once")]
+fn when_schedule_advances(
+    #[from(rstest_bdd_harness_context)] scenario: &BevyScenario,
+) {
+    scenario.update();
+}
+```
+
+The harness never advances the app on its own. Steps call `scenario.update()` or
+`scenario.update_times(count)` explicitly. Game-specific plugins belong in the
+downstream profile's `configure` hook, and its `cleanup` hook must release
+scenario resources without advancing the application. See the
+[user's guide](users-guide.md#4-use-the-headless-bevy-test-helpers) for the
+full rules.

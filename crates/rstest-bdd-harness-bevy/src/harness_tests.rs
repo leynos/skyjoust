@@ -1,0 +1,300 @@
+//! Lifecycle tests for the Bevy harness adapter.
+//!
+//! The normal-path rows of ADR 010's lifecycle table run here: a configure
+//! error, a returning runner with cleanup success, and a returning runner with
+//! cleanup failure. The panic rows live in `panics` and share the profiles and
+//! the error recorder declared alongside this module.
+
+use std::{cell::RefCell, rc::Rc};
+
+use bevy::diagnostic::FrameCount;
+use googletest::prelude::*;
+use rstest_bdd_harness::{HarnessAdapter, ScenarioMetadata, ScenarioRunRequest, ScenarioRunner};
+
+use super::{BevyHarness, failure::ProfileHookError};
+use crate::{BareBevyProfile, BevyScenario, panic::Phase};
+
+#[path = "harness_tests/panics.rs"]
+mod panics;
+
+#[path = "harness_tests/profiles.rs"]
+mod profiles;
+
+#[path = "harness_tests/recorder.rs"]
+mod recorder;
+
+use profiles::{
+    CleanupCalls,
+    CleanupFails,
+    ConfigureFails,
+    FinalizeProbe,
+    FixedTicks,
+    FixedTimestep,
+    NotSendProfile,
+    Recording,
+    RunnerCalls,
+};
+use recorder::{capture_errors, capture_start};
+
+fn metadata() -> ScenarioMetadata {
+    ScenarioMetadata::new(
+        "tests/features/demo.feature",
+        "Demo scenario",
+        12,
+        Vec::new(),
+    )
+}
+
+#[gtest]
+fn a_configure_error_is_wrapped_and_skips_the_runner() {
+    let harness = BevyHarness::<ConfigureFails>::new();
+    let runner_called = Rc::new(RefCell::new(false));
+    let flag = Rc::clone(&runner_called);
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(move |_scenario: BevyScenario| {
+            *flag.borrow_mut() = true;
+            0_u32
+        }),
+    );
+
+    let (result, events) = capture_errors(|| harness.run(request));
+    let error = result.expect_err("configure must fail");
+
+    expect_that!(events.len(), eq(0));
+    expect_that!(*runner_called.borrow(), eq(false));
+    expect_that!(
+        error.to_string(),
+        eq(concat!(
+            "failed to build runtime: Bevy profile configure hook failed: ",
+            "failed to build runtime: configure sentinel"
+        ))
+    );
+}
+
+#[gtest]
+fn a_returning_runner_result_is_propagated_and_cleanup_runs_once() {
+    let harness = BevyHarness::<Recording>::new();
+    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
+    let sink = Rc::clone(&stashed);
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(move |scenario: BevyScenario| {
+            scenario.with_world(|world| {
+                world.resource_mut::<RunnerCalls>().0 += 1;
+            });
+            scenario.update();
+            *sink.borrow_mut() = Some(scenario);
+            7_u32
+        }),
+    );
+
+    let (result, events) = capture_errors(|| harness.run(request));
+    let value = result.expect("the recording profile must succeed");
+
+    expect_that!(events.len(), eq(0));
+    expect_that!(value, eq(7));
+    let scenario = stashed
+        .borrow()
+        .clone()
+        .expect("the runner stashed its scenario");
+    expect_that!(
+        scenario.with_world(|world| world.resource::<RunnerCalls>().0),
+        eq(1)
+    );
+    expect_that!(
+        scenario.with_world(|world| world.resource::<CleanupCalls>().0),
+        eq(1)
+    );
+    expect_that!(
+        scenario.with_world(|world| world.resource::<FrameCount>().0),
+        eq(1)
+    );
+}
+
+#[gtest]
+fn a_cleanup_error_is_wrapped_after_the_runner_ran() {
+    let harness = BevyHarness::<CleanupFails>::new();
+    let stashed: Rc<RefCell<Option<BevyScenario>>> = Rc::new(RefCell::new(None));
+    let sink = Rc::clone(&stashed);
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(move |scenario: BevyScenario| {
+            scenario.update();
+            *sink.borrow_mut() = Some(scenario);
+            11_u32
+        }),
+    );
+
+    let (result, events) = capture_errors(|| harness.run(request));
+    let error = result.expect_err("cleanup must fail");
+
+    expect_that!(events.len(), eq(0));
+    expect_that!(
+        error.to_string(),
+        eq(concat!(
+            "failed to build runtime: Bevy profile cleanup hook failed: ",
+            "failed to build runtime: cleanup sentinel"
+        ))
+    );
+    let scenario = stashed
+        .borrow()
+        .clone()
+        .expect("the runner stashed its scenario");
+    expect_that!(
+        scenario.with_world(|world| world.resource::<CleanupCalls>().0),
+        eq(1)
+    );
+    expect_that!(
+        scenario.with_world(|world| world.resource::<FrameCount>().0),
+        eq(1)
+    );
+}
+
+#[gtest]
+fn the_harness_never_finalizes_plugins() {
+    let harness = BevyHarness::<FinalizeProbe>::new();
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(|scenario: BevyScenario| {
+            scenario.update();
+            scenario.update();
+            scenario.update();
+            scenario.with_world(|world| world.resource::<FrameCount>().0)
+        }),
+    );
+
+    let frames = harness
+        .run(request)
+        .expect("the probe plugin must not be finalized");
+
+    expect_that!(frames, eq(3));
+}
+
+#[gtest]
+fn fixed_timesteps_run_one_fixed_update_per_update() {
+    let harness = BevyHarness::<FixedTimestep>::new();
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(|scenario: BevyScenario| {
+            // Bevy's first update records the clock's first instant and
+            // contributes a zero delta, so fixed ticks start on the second
+            // update. Measure the steady state, which is the contract a
+            // deterministic profile depends on.
+            scenario.update();
+            let before = scenario.with_world(|world| world.resource::<FixedTicks>().0);
+            scenario.update();
+            scenario.update();
+            let after = scenario.with_world(|world| world.resource::<FixedTicks>().0);
+            (before, after)
+        }),
+    );
+
+    let (before, after) = harness
+        .run(request)
+        .expect("the fixed profile must succeed");
+
+    expect_that!(after - before, eq(2));
+}
+
+#[gtest]
+fn the_harness_is_send_and_sync_for_a_non_send_profile() {
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    assert_send_sync::<BevyHarness<NotSendProfile>>();
+}
+
+#[gtest]
+fn new_and_default_harnesses_are_equivalent() {
+    let from_new = BevyHarness::<Recording>::new();
+    let from_default = BevyHarness::<Recording>::default();
+
+    let new_debug = format!("{from_new:?}");
+    let default_debug = format!("{from_default:?}");
+
+    expect_that!(new_debug.as_str(), eq(default_debug.as_str()));
+    expect_that!(new_debug.as_str(), contains_substring("BevyHarness"));
+    expect_that!(new_debug.as_str(), contains_substring("Recording"));
+
+    let new_result = from_new
+        .run(ScenarioRunRequest::new(
+            metadata(),
+            ScenarioRunner::new(|scenario: BevyScenario| {
+                scenario.update();
+                5_u32
+            }),
+        ))
+        .expect("the new harness must run");
+    let default_result = from_default
+        .run(ScenarioRunRequest::new(
+            metadata(),
+            ScenarioRunner::new(|scenario: BevyScenario| {
+                scenario.update();
+                5_u32
+            }),
+        ))
+        .expect("the default harness must run");
+
+    expect_that!(new_result, eq(default_result));
+}
+
+#[gtest]
+fn the_start_event_carries_the_scenario_identity() {
+    let harness = BevyHarness::<Recording>::new();
+    let request = ScenarioRunRequest::new(
+        metadata(),
+        ScenarioRunner::new(|_scenario: BevyScenario| 0_u32),
+    );
+
+    let (result, records) = capture_start(|| harness.run(request));
+    result.expect("the recording profile must succeed");
+
+    expect_that!(records.len(), eq(1));
+    let record = records
+        .first()
+        .expect("the run must emit exactly one start event");
+    expect_that!(record.message.as_str(), eq("starting Bevy scenario"));
+    expect_that!(
+        record.feature_path.as_str(),
+        eq("tests/features/demo.feature")
+    );
+    expect_that!(record.scenario_name.as_str(), eq("Demo scenario"));
+    expect_that!(record.scenario_line.as_str(), eq("12"));
+    expect_that!(
+        record.harness_type.as_str(),
+        contains_substring("BevyHarness")
+    );
+}
+
+#[gtest]
+fn a_profile_hook_error_exposes_its_source() {
+    let source = rstest_bdd_harness::HarnessError::RuntimeBuildFailed(std::io::Error::other(
+        "configure sentinel",
+    ));
+    let hook_error = ProfileHookError {
+        phase: Phase::Configure,
+        source,
+    };
+
+    let exposed = std::error::Error::source(&hook_error)
+        .expect("the hook error must expose the failure it wraps");
+
+    expect_that!(
+        exposed.to_string(),
+        contains_substring("configure sentinel")
+    );
+}
+
+#[gtest]
+fn request_metadata_reaches_the_scenario() {
+    let expected = metadata();
+    let harness = BevyHarness::<BareBevyProfile>::new();
+    let request = ScenarioRunRequest::new(
+        expected.clone(),
+        ScenarioRunner::new(|scenario: BevyScenario| scenario.metadata().clone()),
+    );
+
+    let observed = harness.run(request).expect("the bare profile must succeed");
+
+    expect_that!(observed, eq(&expected));
+}
