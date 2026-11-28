@@ -65,7 +65,7 @@ fn opens_text_block(trimmed: &str) -> bool {
     let Some(first) = trimmed.chars().next() else {
         return false;
     };
-    first == '<'
+    (first == '<' && super::html::opens_block(trimmed))
         || is_thematic_break(trimmed)
         || (matches!(first, '`' | '~') && starts_fence(trimmed))
         || (first == '#' && is_atx_heading(trimmed))

@@ -293,3 +293,88 @@ fn a_digit_led_angle_bracket_is_not_an_html_block() {
         "a digit-led angle bracket is not an HTML opener"
     );
 }
+
+#[test]
+fn a_marker_on_an_html_terminator_line_stays_content() {
+    // The second line both carries the comment's `-->` and looks like a
+    // marker, but it is still inside the comment, so the fence below is
+    // unmarked and must be reported as such.
+    let fence = single_fence(
+        concat!(
+            "<!--\n",
+            "<!-- tested-example: hidden -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "a fence whose marker line lies inside an HTML comment",
+    );
+
+    assert!(
+        fence.marker.is_none(),
+        "the marker stays inside the comment, so the fence is unmarked"
+    );
+}
+
+#[test]
+fn a_digit_led_angle_bracket_does_not_start_a_block() {
+    // `<1>` is paragraph text, so the list item survives the continuation and
+    // its fence stays visible to the checker.
+    let error = parse_fences(concat!(
+        "- Item\n",
+        "<1>\n",
+        "\n",
+        "    ```rust\n",
+        "    let value = 1;\n",
+        "    ```\n",
+    ))
+    .expect_err("a digit-led angle bracket must not drop the list item");
+
+    assert!(
+        error.contains("without its indentation"),
+        "the error must explain the unsupported continuation, got {error:?}"
+    );
+}
+
+#[test]
+fn a_raw_text_block_closed_on_its_opening_line_is_not_a_block() {
+    let fence = single_fence(
+        concat!(
+            "<script>hello</script>\n",
+            "<!-- tested-example: after-inline-script -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "a fence after a script closed on its opening line",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("after-inline-script"),
+        "a script closed on its own line opens no block"
+    );
+}
+
+#[test]
+fn a_raw_text_block_closes_case_insensitively() {
+    let fence = single_fence(
+        concat!(
+            "<script>\n",
+            "\n",
+            "</SCRIPT>\n",
+            "\n",
+            "<!-- tested-example: after-upper-script -->\n",
+            "```rust\n",
+            "let value = 1;\n",
+            "```\n",
+        ),
+        "a fence after an upper-case closing tag",
+    );
+
+    assert_eq!(
+        fence.marker,
+        Some("after-upper-script"),
+        "an upper-case closing tag must end the block"
+    );
+}

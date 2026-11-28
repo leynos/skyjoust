@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 41 tree at 46 paths and
-  6,824 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 42 tree at 46 paths and
+  6,939 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,26 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 42: the Revision 41 assessment found four further
+  defects, all valid.
+  - A line that ends an HTML block now stays content. The line carrying a
+    comment's `-->` or a raw-text closing tag is still HTML, so a marker-shaped
+    line there no longer labels the fence below
+    (`a_marker_on_an_html_terminator_line_stays_content`).
+  - A `<`-led line only interrupts a paragraph when it opens a real HTML block,
+    so `<1>` is paragraph text and a list item survives that continuation
+    (`a_digit_led_angle_bracket_does_not_start_a_block`).
+  - A raw-text block whose closing tag appears on its opening line opens no
+    block (`a_raw_text_block_closed_on_its_opening_line_is_not_a_block`), and
+    closing tags compare case-insensitively so `</SCRIPT>` ends a `<script>`
+    block (`a_raw_text_block_closes_case_insensitively`).
+  - The mutation-audit block now sets `set -euo pipefail` and captures the
+    audit's status, so a failed run is reported instead of masked by the
+    recovery checks that follow.
+  - Scope: 46 non-ExecPlan paths and 6,939 net added lines (36 paths and 6,048
+    counting only code and tests); no requirement, signature, or milestone
+    changed.
+
 - [x] (2026-11-28) Revision 41: the Revision 40 assessment found six further
   defects, all valid, in the scanner and this plan's recipe.
   - An HTML block now carries its own end condition: a blank line, or the
@@ -2973,6 +2993,7 @@ interrupted in-place run can only be recovered file by file, so a clean
 worktree is what keeps unrelated work safe:
 
 ```bash
+set -euo pipefail
 test -z "$(git status --porcelain)" || { echo "commit or park edits first"; exit 1; }
 cp crates/rstest-bdd-harness-bevy/src/harness.rs /tmp/audit-harness.rs
 cp crates/rstest-bdd-harness-bevy/src/panic.rs /tmp/audit-panic.rs
@@ -2983,13 +3004,15 @@ mutants=$(cargo mutants --list -p rstest-bdd-harness-bevy \
 count=$(printf '%s\n' "$mutants" | wc -l)
 printf 'mutants: %s\n' "$count"
 [ "$count" -le 60 ] || { echo "mutant count out of tolerance"; exit 1; }
+audit=0
 cargo mutants --in-place -p rstest-bdd-harness-bevy \
   -f crates/rstest-bdd-harness-bevy/src/harness.rs \
   -f crates/rstest-bdd-harness-bevy/src/panic.rs \
   --test-tool nextest --cargo-arg=--config=tools/dev-fast/config.toml \
   -- -E 'not binary(macro_ui) & not binary(extraction_boundary)' 2>&1 \
-  | tee /tmp/mutants-skyjoust-0-1-2-bevy-harness-public-api.out
+  | tee /tmp/mutants-skyjoust-0-1-2-bevy-harness-public-api.out || audit=$?
 git status --short   # must be empty: --in-place restores each mutated file
+[ "$audit" -eq 0 ] || { echo "mutation audit failed: $audit"; exit "$audit"; }
 ```
 
 Confirm the exact flag spelling with `cargo mutants --help` (version 27.1.0 was
@@ -3532,6 +3555,18 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 42, 2026-11-28: the Revision 41 assessment returned four findings,
+  all valid. Three were scanner defects: a terminator line returned to Markdown
+  processing, so a marker shaped like a comment's closing line labelled the
+  fence below it; a `<`-led line counted as a block start even when it opened
+  no HTML block, so `<1>` dropped a list item across its continuation; and a
+  raw-text block opened even when its closing tag was on the opening line, with
+  closing tags compared case-sensitively. Each is repaired with a regression
+  that failed before its fix. The fourth added `set -euo pipefail` and an
+  explicit status capture to the mutation-audit block, so a failed audit cannot
+  be masked by the recovery checks. The tree measures 46 non-ExecPlan paths and
+  6,939 net added lines (36 paths and 6,048 counting only code and tests). No
+  requirement, signature, or milestone changed.
 - Revision 41, 2026-11-28: the Revision 40 assessment returned six findings,
   all valid. Four were scanner defects: an HTML block ended only at a blank
   line, so a fence inside `<script>` counted as an example; a container prefix

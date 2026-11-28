@@ -73,22 +73,35 @@ impl HtmlBlocks {
     /// marker inside raw HTML is content rather than a new container.
     pub(super) fn is_open(&self) -> bool { self.open.is_some() }
 
+    /// Classifies a line while a block is open, ending the block if it does.
+    fn visit_open(&mut self, scan: &ContainerScan<'_>) -> Verdict {
+        let Some(block) = self.open.take() else {
+            return Verdict::Markdown;
+        };
+        if scan.container != block.container {
+            return Verdict::Markdown;
+        }
+        if ends_here(&block, scan.content) {
+            // A terminating line is still part of the HTML: the `-->` or
+            // closing tag that ends the block occurs on it, so anything else
+            // there is literal text rather than a marker or fence.
+            return match block.end {
+                End::Blank => Verdict::Markdown,
+                End::Marker(_) => Verdict::Content,
+            };
+        }
+        self.open = Some(block);
+        if scan.content.is_some_and(is_fence_or_marker) {
+            Verdict::Fence
+        } else {
+            Verdict::Content
+        }
+    }
+
     /// Classifies the line by its stripped content and the state carried over.
     fn visit(&mut self, scan: &ContainerScan<'_>) -> Verdict {
-        if let Some(block) = &self.open {
-            if scan.container != block.container {
-                self.open = None;
-                return Verdict::Markdown;
-            }
-            if ends_here(block, scan.content) {
-                self.open = None;
-                return Verdict::Markdown;
-            }
-            return if scan.content.is_some_and(is_fence_or_marker) {
-                Verdict::Fence
-            } else {
-                Verdict::Content
-            };
+        if self.open.is_some() {
+            return self.visit_open(scan);
         }
         let Some(content) = scan.content else {
             return Verdict::Markdown;
@@ -117,9 +130,23 @@ fn is_blank_content(content: Option<&str>) -> bool { content.is_some_and(is_asci
 fn ends_here(block: &OpenBlock, content: Option<&str>) -> bool {
     match block.end {
         End::Blank => is_blank_content(content),
-        End::Marker(terminator) => content.is_some_and(|text| text.contains(terminator)),
+        End::Marker(terminator) => {
+            content.is_some_and(|text| contains_ignore_ascii_case(text, terminator))
+        }
     }
 }
+
+/// Whether `text` contains `needle`, ignoring ASCII case.
+///
+/// HTML tag names are case-insensitive, so `</SCRIPT>` closes a `<script>`
+/// block opened in any case.
+fn contains_ignore_ascii_case(text: &str, needle: &str) -> bool {
+    text.to_ascii_lowercase()
+        .contains(&needle.to_ascii_lowercase())
+}
+
+/// Whether `content` opens an HTML block, for callers outside this module.
+pub(super) fn opens_block(content: &str) -> bool { block_end(content).is_some() }
 
 /// How `content` opens an HTML block, when it opens one that outlives its line.
 ///
@@ -140,7 +167,10 @@ fn block_end(content: &str) -> Option<End> {
     }
     let name = rest.strip_prefix('/').unwrap_or(rest);
     let tag = tag_name(name)?;
-    raw_text_terminator(tag).or(Some(End::Blank))
+    match raw_text_terminator(tag) {
+        Some(End::Marker(terminator)) if contains_ignore_ascii_case(trimmed, terminator) => None,
+        raw => Some(raw.unwrap_or(End::Blank)),
+    }
 }
 
 /// The closing tag of a raw-text element, whose block ignores blank lines.
