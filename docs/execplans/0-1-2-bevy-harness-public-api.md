@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 48 tree at 47 paths and
-  7,334 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 49 tree at 47 paths and
+  7,358 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,28 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 49: the Revision 48 assessment found one scanner
+  defect, and it is repaired with a regression proven red against `125ad3c` and
+  green afterwards.
+  - A line that abandons an HTML block is now classified again from the start.
+    `visit_open` returned Markdown outright when the block's container ended,
+    so a line that both left the old container and opened a new block — an
+    unquoted `<script>` after a quoted `<details>` — was missed and the marker
+    and fence below it were counted. It now delegates back to `visit`, which
+    can open a fresh block for that same line.
+  - Whitaker's 400-line module limit moved the container-interaction tests into
+    `parser/tests/html_containers.rs` (104 lines), leaving `html_blocks.rs` at
+    320 and `conformance.rs` at 200.
+  - A differential audit against `markdown-it-py` (`CommonMark` 0.31.2) covered
+    73 layouts spanning container nesting, all five HTML forms and their
+    terminators, list-interrupter rules, fence-run length, marker attribution,
+    and tab and space indentation. Every layout the scanner accepted agreed
+    with the reference on fence count and marker, and every disagreement was a
+    fail-closed rejection. The audit harness was removed before commit.
+  - Scope: 47 non-ExecPlan paths and 7,358 net added lines (37 paths and 6,506
+    counting only code and tests). `cs delta refs/tmp/main` reports no issue and
+    `html.rs` scores 10.00.
+
 - [x] (2026-11-28) Revision 48: the Revision 47 assessment found one scanner
   defect, and it is repaired with a regression proven red against `3ad99d6` and
   green afterwards.
@@ -3661,6 +3683,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 49, 2026-11-28: the Revision 48 assessment returned one finding,
+  upheld. When a line ended the container holding the open HTML block,
+  `visit_open` discarded the block and returned Markdown without asking whether
+  the same line opened another block, so an unquoted `<script>` after a quoted
+  `<details>` was missed. The line is now classified again through `visit`. A
+  differential audit against `markdown-it-py` then compared fence counts and
+  markers over 73 generated layouts; the scanner never accepted a layout the
+  reference rejected, and its only disagreements were deliberate fail-closed
+  rejections of lazy continuations, unterminated fences, and tab indentation.
+  The tree measures 47 non-ExecPlan paths and 7,358 net added lines (37 paths
+  and 6,506 counting only code and tests).
 - Revision 48, 2026-11-28: the Revision 47 assessment returned one finding,
   upheld. `open_prefix` treated any line as HTML whenever a block was open,
   without checking that the line still belonged to the block's container, so a

@@ -86,7 +86,10 @@ impl HtmlBlocks {
             return Verdict::Markdown;
         };
         if scan.container != block.container {
-            return Verdict::Markdown;
+            // The abandoned block's container ended here, but this line may
+            // open a fresh block of its own, so it is classified again from
+            // the start rather than assumed to be Markdown.
+            return self.visit(scan);
         }
         if ends_here(&block, scan.content) {
             // A terminating line is still part of the HTML: the `-->` or
