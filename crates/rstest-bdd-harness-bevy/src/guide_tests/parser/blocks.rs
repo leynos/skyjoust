@@ -45,7 +45,7 @@ pub(super) fn starts_block(line: Line<'_>) -> bool {
     let Some(trimmed) = content_after_indent(line) else {
         return false;
     };
-    opens_container(line) || opens_text_block(trimmed)
+    opens_container(trimmed) || opens_text_block(trimmed)
 }
 
 /// The line's text after up to three spaces, or `None` when indented deeper.
@@ -58,9 +58,14 @@ fn content_after_indent(line: Line<'_>) -> Option<&str> {
     (text.len() - trimmed.len() <= 3).then_some(trimmed)
 }
 
-/// Whether `line` opens a container rather than paragraph text.
-fn opens_container(line: Line<'_>) -> bool {
-    line.strip_quote_marker().is_some() || opens_item(line)
+/// Whether `trimmed` opens a container rather than paragraph text.
+///
+/// The permitted leading spaces are already removed: `CommonMark` lets a list
+/// marker be indented up to three spaces, and an indented marker still
+/// interrupts a paragraph.
+fn opens_container(trimmed: &str) -> bool {
+    let fragment = Line::new(trimmed);
+    fragment.strip_quote_marker().is_some() || opens_item(fragment)
 }
 
 /// Whether `line` starts a list item that may interrupt a paragraph.

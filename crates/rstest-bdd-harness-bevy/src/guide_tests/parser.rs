@@ -258,17 +258,20 @@ impl<'a> FenceParser<'a> {
     fn open_prefix(&mut self, rest: &'a str) -> Result<Prefix<'a>, String> {
         let trimmed = rest.trim_start_matches(' ');
         let leading = rest.len() - trimmed.len();
-        if leading > 3 {
-            return Ok(Prefix::IndentedCode);
-        }
         // A tab exposed by the prefix just stripped would hide the fence from
         // the container measurement, so it is rejected rather than treated as
         // ordinary content.
         let stripped = Line::new(trimmed).reject_tab_indent()?.as_str();
         // Inside raw HTML a `>` or list marker is content, not a new container:
         // opening one would change the container identity and end the block.
+        // Indentation is content too, because a terminator such as `]]>` may
+        // carry up to any number of spaces and must stay visible to the
+        // tracker; `CommonMark` starts no code block inside an HTML block.
         if self.html.is_open() {
             return Ok(Prefix::Content(stripped));
+        }
+        if leading > 3 {
+            return Ok(Prefix::IndentedCode);
         }
         // A quoted line inside an open fence is literal content: opening a
         // quote there would end the fence's container and reject its content.

@@ -342,3 +342,24 @@ fn a_cdata_block_hides_the_fence_inside_it() {
         "the marker on line 2 must be rejected as HTML content, got {error:?}"
     );
 }
+
+#[test]
+fn an_indented_html_terminator_still_ends_the_block() {
+    // `CommonMark` starts no indented code block inside an HTML block, so the
+    // four-space terminator still closes CDATA and the marker below is an
+    // ordinary Markdown marker again.
+    let text = concat!(
+        "<![CDATA[\n",
+        "    ]]>\n",
+        "<!-- tested-example: after-cdata -->\n",
+        "```rust\n",
+        "let value = 1;\n",
+        "```\n",
+    );
+    let fences = parse_fences(text).expect("the terminator ends the CDATA block");
+    assert_eq!(
+        fences.len(),
+        1,
+        "the marked fence after the terminator must be recorded, got {fences:?}"
+    );
+}

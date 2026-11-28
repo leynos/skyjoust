@@ -159,9 +159,17 @@ fn a_block_start_that_cannot_interrupt_stays_a_continuation(#[case] line: &str) 
 }
 
 #[rstest::rstest]
-#[case("1. one")]
-#[case("-    item")]
-fn a_valid_list_start_still_interrupts_a_list_item(#[case] line: &str) {
+#[case("1. one", 2)]
+#[case(" 1. one", 2)]
+#[case("-    item", 1)]
+#[case("- Item 2", 2)]
+#[case("<!DOCTYPE html>", 1)]
+#[case("<!-- note -->", 1)]
+fn a_valid_block_start_still_interrupts_a_list_item(#[case] line: &str, #[case] count: usize) {
+    // Each of these opens a real block, including one indented by a single
+    // space, so the item ends. Whether the indented fence below then lands
+    // inside the new item or in indented code decides how many fences are
+    // recorded, and the control's own fence must always be one of them.
     let text = format!(
         concat!(
             "<!-- tested-example: control -->\n",
@@ -178,6 +186,15 @@ fn a_valid_list_start_still_interrupts_a_list_item(#[case] line: &str) {
         ),
         line = line,
     );
-    parse_fences(&text)
+    let fences = parse_fences(&text)
         .unwrap_or_else(|error| panic!("{line:?} must interrupt the paragraph, got {error:?}"));
+    assert_eq!(
+        fences.len(),
+        count,
+        "unexpected fence count for {line:?}, got {fences:?}"
+    );
+    assert!(
+        fences.iter().any(|fence| fence.marker == Some("control")),
+        "the control fence must be recorded for {line:?}, got {fences:?}"
+    );
 }

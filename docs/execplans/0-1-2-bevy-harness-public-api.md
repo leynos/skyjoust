@@ -191,8 +191,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   size constraint or tolerance in this plan: only non-ExecPlan files count
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
-  and 2,000 net added lines on 2026-11-22; the Revision 46 tree at 47 paths and
-  7,251 net added lines is within them, so the scope tolerance is not exceeded
+  and 2,000 net added lines on 2026-11-22; the Revision 47 tree at 47 paths and
+  7,297 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -1140,6 +1140,26 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - Scope: 42 non-ExecPlan paths and 5,981 net added lines (32 paths and 5,097
     counting only code and tests), unchanged under the new base; no
     requirement, signature, or milestone changed.
+- [x] (2026-11-28) Revision 47: the Revision 46 assessment found two scanner
+  defects and a regression-coverage gap, and all three are repaired.
+  - An indented HTML terminator is now visible to the tracker. A line indented
+    by four spaces used to short-circuit to indented code before the open HTML
+    block was consulted, so an indented `]]>` never ended CDATA and the valid
+    marker below it was rejected. While a block is open, the stripped content
+    is passed through whatever its indentation, because `CommonMark` starts no
+    code block inside an HTML block.
+  - An indented list interrupter is now recognised. `starts_block` passed the
+    untrimmed line to the list check, and `list_marker` requires the marker at
+    the start of its input, so `1. one` was rejected as a lazy continuation.
+    The permitted leading spaces are removed before the container check.
+  - The `<!DOCTYPE html>` and `<!-- note -->` interrupter controls are restored
+    after the previous consolidation removed them, and the list-interrupter
+    control now asserts its recorded fences per case rather than only that
+    parsing succeeds.
+  - Scope: 47 non-ExecPlan paths and 7,297 net added lines (37 paths and 6,445
+    counting only code and tests). `cs delta refs/tmp/main` reports no issue and
+    every touched parser module scores 10.00.
+
 - [x] (2026-11-28) Revision 46: the Revision 45 assessment found one further
   scanner defect, and the same audit closed the remaining paragraph-interrupt
   gaps in one pass.
@@ -3626,6 +3646,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   the maintainer decision the reviewer offers. The tree measures 42
   non-ExecPlan paths and 5,861 net added lines (32 paths and 5,038 counting
   only code and tests). No requirement, signature, or milestone changed.
+- Revision 47, 2026-11-28: the Revision 46 assessment returned two defects and
+  a coverage gap, all upheld. An indented HTML terminator was invisible because
+  the four-space indentation short-circuited to indented code before the open
+  block was consulted; an open block now receives the stripped content at any
+  indentation. An indented list interrupter was rejected because the list check
+  ran on the untrimmed line, although `CommonMark` permits up to three leading
+  spaces; the check now runs on the trimmed fragment. The consolidation in
+  Revision 46 had also dropped the declaration and comment controls, which are
+  restored, and the list control now asserts the fences it records. The tree
+  measures 47 non-ExecPlan paths and 7,297 net added lines (37 paths and 6,445
+  counting only code and tests).
 - Revision 46, 2026-11-28: the Revision 45 assessment returned one finding,
   upheld: `CommonMark` HTML form 5, `<![CDATA[` … `]]>`, was not recognised, so
   a marker and fence inside it were counted. The one `marker_form` classifier
