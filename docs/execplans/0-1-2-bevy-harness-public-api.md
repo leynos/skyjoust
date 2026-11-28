@@ -192,7 +192,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   towards the path and net-line limits, including when an ExecPlan is added or
   updated in the same change. The maintainer raised the limits from 32 paths
   and 2,000 net added lines on 2026-11-22; the Revision 40 tree at 44 paths and
-  6,632 net added lines is within them, so the scope tolerance is not exceeded
+  6,684 net added lines is within them, so the scope tolerance is not exceeded
   (see the next bullet for the earlier measurements and the escalation it
   closes).
 - Scope evidence (2026-11-20, Revision 12; limits raised 2026-11-22): the
@@ -271,8 +271,8 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   counting only code and tests), the two extra paths being
   `src/guide_tests/parser/html.rs` and `src/guide_tests/parser/blocks.rs`. The
   Revision 40 tree, which fixes the second review round's fourteen findings,
-  measures the same 44 non-ExecPlan paths and 6,632 net added lines (34 paths
-  and 5,741 counting only code and tests). `Decision log` records the
+  measures the same 46 non-ExecPlan paths and 6,684 net added lines (36 paths
+  and 5,793 counting only code and tests). `Decision log` records the
   escalation and its disposition; Revision 23 records the maintainer's raised
   limits, so this historical measurement no longer describes a breach.
 - Interface: if any design §5 signature must change (for example `configure`
@@ -1174,7 +1174,7 @@ mutation testing), `execplans` (keep this document current), `commit-message`,
   - The Markdown fixtures now use `concat!()`, and the plan's acceptance
     sequence gained `make spelling` with the mutant-count guard checking the
     listing status and the tolerance before starting the audit.
-  - Scope: 44 non-ExecPlan paths and 6,632 net added lines (34 paths and 5,741
+  - Scope: 46 non-ExecPlan paths and 6,684 net added lines (36 paths and 5,793
     counting only code and tests); no requirement, signature, or milestone
     changed.
 
@@ -3519,12 +3519,17 @@ Downstream consumers need direct development dependencies on `rstest`,
   as a delimiter. Each is repaired in `src/guide_tests/parser.rs`,
   `parser/containers.rs`, `parser/blocks.rs`, or `parser/html.rs`, with a
   regression that failed before its fix; a fence-only HTML fixture proves fence
-  rejection independently of marker rejection. The remaining four corrected
-  this plan: two Revision 39 path counts disagreed (44 is the measured figure),
-  the gate sequence omitted `make spelling`, the mutation audit could start
-  after a failed listing, and the Markdown fixtures now use `concat!()`. The
-  tree measures 44 non-ExecPlan paths and 6,632 net added lines (34 paths and
-  5,741 counting only code and tests). No requirement, signature, or milestone
+  rejection independently of marker rejection. Fence and marker lexing moved
+  into `parser/lexicon.rs` and these regressions into
+  `parser/tests/conformance.rs`, because the additions pushed `parser.rs` and
+  `parser/tests.rs` past Whitaker's 400-line limit, and `FenceParser::scan`
+  split into `open_prefix` and `open_item` to clear CodeScene's complexity
+  findings (9.38 to 10.00). The remaining four corrected this plan: two
+  Revision 39 path counts disagreed (44 is the measured figure), the gate
+  sequence omitted `make spelling`, the mutation audit could start after a
+  failed listing, and the Markdown fixtures now use `concat!()`. The tree
+  measures 46 non-ExecPlan paths and 6,684 net added lines (36 paths and 5,793
+  counting only code and tests). No requirement, signature, or milestone
   changed.
 - Revision 39, 2026-11-26: the first formal review after the replay reported
   six findings, all in files this change owns and all valid. Three were defects

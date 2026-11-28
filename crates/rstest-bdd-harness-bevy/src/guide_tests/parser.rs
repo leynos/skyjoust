@@ -18,38 +18,19 @@ mod blocks;
 mod containers;
 #[path = "parser/html.rs"]
 mod html;
+#[path = "parser/lexicon.rs"]
+mod lexicon;
 
 use blocks::{is_ascii_blank, is_thematic_break};
 use containers::{Containers, Line, list_marker, opens_tab_padded_item};
 use html::HtmlBlocks;
+use lexicon::{Delimiter, fence_delimiter, marker_identifier};
 
 /// One fenced block and the marker immediately above it, if any.
 #[derive(Debug)]
 pub(super) struct Fence<'a> {
     pub(super) language: &'a str,
     pub(super) marker: Option<&'a str>,
-}
-
-/// A fence delimiter: the repeated character and the length of its run.
-#[derive(Clone, Copy, Debug)]
-struct Delimiter {
-    character: char,
-    length: usize,
-}
-
-impl Delimiter {
-    /// Whether `self`, found on a candidate closing line, closes `opener`.
-    ///
-    /// `CommonMark` requires the same character and at least the opener's run
-    /// length. A closing fence may carry only trailing spaces and tabs; any
-    /// other text makes the line content rather than a boundary. The suffix is
-    /// checked byte by byte because `str::trim` also strips Unicode spaces such
-    /// as the non-breaking space, which `CommonMark` treats as content.
-    fn closes(self, opener: Self, trailing: &str) -> bool {
-        self.character == opener.character
-            && self.length >= opener.length
-            && trailing.bytes().all(|byte| matches!(byte, b' ' | b'\t'))
-    }
 }
 
 /// An open fence awaiting its closing delimiter.
@@ -258,46 +239,61 @@ impl<'a> FenceParser<'a> {
     fn scan(&mut self, line: &'a str) -> Result<ContainerScan<'a>, String> {
         let mut rest = self.containers.match_line(Line::new(line))?.as_str();
         loop {
-            let trimmed = rest.trim_start_matches(' ');
-            let leading = rest.len() - trimmed.len();
-            // Four spaces relative to the current container begin an indented
-            // code block, whose fence-like lines are literal text. A line with
-            // nothing but whitespace left is not code—`CommonMark` does not
-            // start an indented code block on a blank line—so it keeps its
-            // content for `is_blank_line` to recognize as blank.
-            if leading > 3 {
-                let content = is_ascii_blank(rest).then_some(rest);
-                return Ok(self.container_scan(content));
+            match self.open_prefix(rest)? {
+                Prefix::Container(after) => rest = after,
+                Prefix::IndentedCode => {
+                    return Ok(self.container_scan(indented_content(rest)));
+                }
+                Prefix::Content(content) => return Ok(self.container_scan(Some(content))),
             }
-            // A tab exposed by the prefix just stripped would hide the fence
-            // from the container measurement below, so it is rejected here
-            // rather than treated as ordinary content.
-            let stripped = Line::new(trimmed).reject_tab_indent()?.as_str();
-            // A tab after a list marker pads content to a column this scanner
-            // cannot compute from the stripped fragment, so it fails closed.
-            if self.open.is_none() && opens_tab_padded_item(Line::new(stripped)) {
-                return Err("a tab after a list marker is not supported; use spaces".to_owned());
-            }
-            if let Some(after_quote) = stripped.strip_prefix('>') {
-                self.containers.open_quote();
-                rest = Line::new(after_quote).strip_quote_padding().as_str();
-                continue;
-            }
-            // A marker inside an open fence is literal content, not a new
-            // list item. Matching existing item indentation above still
-            // detects the dedent that ends the fence's container. A thematic
-            // break wins over a list marker, because `- - -` is a break rather
-            // than three nested items.
-            if self.open.is_none()
-                && !is_thematic_break(stripped)
-                && let Some((indent, content)) = list_marker(Line::new(stripped))
-            {
-                self.containers.open_item(leading + indent);
-                rest = content.as_str();
-                continue;
-            }
-            return Ok(self.container_scan(Some(stripped)));
         }
+    }
+
+    /// Opens at most one container or quote from the front of `rest`.
+    ///
+    /// Four spaces relative to the current container begin an indented code
+    /// block, whose fence-like lines are literal text. A line with nothing but
+    /// whitespace left is not code—`CommonMark` does not start an indented code
+    /// block on a blank line—so it keeps its content for `is_blank_line`.
+    fn open_prefix(&mut self, rest: &'a str) -> Result<Prefix<'a>, String> {
+        let trimmed = rest.trim_start_matches(' ');
+        let leading = rest.len() - trimmed.len();
+        if leading > 3 {
+            return Ok(Prefix::IndentedCode);
+        }
+        // A tab exposed by the prefix just stripped would hide the fence from
+        // the container measurement, so it is rejected rather than treated as
+        // ordinary content.
+        let stripped = Line::new(trimmed).reject_tab_indent()?.as_str();
+        if let Some(after) = stripped.strip_prefix('>') {
+            self.containers.open_quote();
+            let quoted = Line::new(after).strip_quote_padding().as_str();
+            return Ok(Prefix::Container(quoted));
+        }
+        Ok(self
+            .open_item(stripped, leading)?
+            .map_or(Prefix::Content(stripped), Prefix::Container))
+    }
+
+    /// Opens a list item at the front of `stripped`, returning its content.
+    ///
+    /// A marker inside an open fence is literal content, not a new item, and a
+    /// thematic break wins over a list marker because `- - -` is a break rather
+    /// than three nested items. A tab after a marker pads content to a column
+    /// this scanner cannot compute from the stripped fragment, so it fails
+    /// closed instead of measuring the wrong content column.
+    fn open_item(&mut self, stripped: &'a str, leading: usize) -> Result<Option<&'a str>, String> {
+        if self.open.is_some() || is_thematic_break(stripped) {
+            return Ok(None);
+        }
+        if opens_tab_padded_item(Line::new(stripped)) {
+            return Err("a tab after a list marker is not supported; use spaces".to_owned());
+        }
+        let Some((indent, content)) = list_marker(Line::new(stripped)) else {
+            return Ok(None);
+        };
+        self.containers.open_item(leading + indent);
+        Ok(Some(content.as_str()))
     }
 
     /// Describes the container state and content of the current line.
@@ -359,6 +355,22 @@ fn is_blank_line(line: &str, scan: &ContainerScan<'_>) -> bool {
     is_ascii_blank(line) || scan.content.is_some_and(is_ascii_blank)
 }
 
+/// Where one step of container stripping ended.
+enum Prefix<'a> {
+    /// A container opened; the line continues from its content.
+    Container(&'a str),
+    /// Four spaces began an indented code block.
+    IndentedCode,
+    /// No further container opened; this is the line's content.
+    Content(&'a str),
+}
+
+/// The content an indented code line keeps when it is blank.
+///
+/// A whitespace-only line is not code—`CommonMark` starts no indented code
+/// block on a blank line—so it keeps its text for `is_blank_line`.
+fn indented_content(rest: &str) -> Option<&str> { is_ascii_blank(rest).then_some(rest) }
+
 /// One line after its containers were stripped.
 struct ContainerScan<'a> {
     /// Identity of the innermost containing block, zero at the top level.
@@ -369,36 +381,6 @@ struct ContainerScan<'a> {
     list_depth: usize,
     /// The line's content, or `None` when it is indented code.
     content: Option<&'a str>,
-}
-
-/// Recognizes a fence opener or closer in already-stripped content.
-///
-/// Returns the delimiter and the text after it. `CommonMark` permits up to three
-/// leading spaces before the delimiter itself; [`FenceParser::scan`] removes
-/// those and any list or block-quote containers first. A backtick fence's info
-/// string may not contain a backtick, so `` ```rust``` `` is an inline code span
-/// rather than an opener; treating it as one would let the following marker
-/// attach to a fence the document never opened.
-fn fence_delimiter(content: &str) -> Option<(Delimiter, &str)> {
-    let character = content.chars().next().filter(|c| *c == '`' || *c == '~')?;
-    let length = content.chars().take_while(|c| *c == character).count();
-    if length < 3 {
-        return None;
-    }
-    // Delimiters are ASCII, so the run's character count is also its byte
-    // length; the checked split keeps the helper free of panicking indexing.
-    let (_, trailing) = content.split_at_checked(length)?;
-    if character == '`' && trailing.contains('`') {
-        return None;
-    }
-    Some((Delimiter { character, length }, trailing))
-}
-
-/// Returns the identifier when `line` is a `tested-example` marker.
-fn marker_identifier(line: &str) -> Option<&str> {
-    line.strip_prefix("<!-- tested-example:")?
-        .strip_suffix("-->")
-        .map(str::trim)
 }
 
 #[cfg(test)]
